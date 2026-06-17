@@ -1,0 +1,16 @@
+{
+  "name": "Thoughtful's Academy",
+  "short_name": "Thoughtful's",
+  "description": "Online coaching — live classes, recorded lectures, study material, attendance, fees & messages.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111755",
+  "theme_color": "#111755",
+  "orientation": "portrait",
+  "lang": "en",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

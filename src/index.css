@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Global base styles
+   ============================================================ */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  /* Focus visible for keyboard accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-400;
+  }
+}
+
+/* ============================================================
+   Reusable component classes
+   ============================================================ */
+@layer components {
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-brand-400 hover:bg-brand-600 text-white
+           font-semibold px-5 py-2.5 rounded-lg
+           transition-all duration-200 ease-in-out
+           disabled:opacity-50 disabled:cursor-not-allowed
+           focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2;
+  }
+
+  /* Secondary / outline button */
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2
+           border-2 border-navy-800 text-navy-800
+           hover:bg-navy-800 hover:text-white
+           font-semibold px-5 py-2.5 rounded-lg
+           transition-all duration-200 ease-in-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           text-gray-600 hover:bg-gray-100
+           font-medium px-4 py-2 rounded-lg
+           transition-all duration-150 ease-in-out;
+  }
+
+  /* Card base */
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+  }
+
+  /* Input base */
+  .input-base {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-gray-300
+           bg-white text-gray-900 placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-transparent
+           transition duration-150 ease-in-out
+           disabled:bg-gray-100 disabled:cursor-not-allowed;
+  }
+
+  /* Label base */
+  .label-base {
+    @apply block text-sm font-medium text-gray-700 mb-1.5;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success { @apply badge bg-green-100 text-green-800; }
+  .badge-warning { @apply badge bg-amber-100 text-amber-800; }
+  .badge-danger  { @apply badge bg-red-100 text-red-800; }
+  .badge-info    { @apply badge bg-blue-100 text-blue-800; }
+  .badge-neutral { @apply badge bg-gray-100 text-gray-700; }
+
+  /* Sidebar nav link */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-gray-600 hover:bg-navy-50 hover:text-navy-900
+           transition-all duration-150 ease-in-out;
+  }
+
+  .nav-link.active {
+    @apply bg-navy-900 text-white border-l-4 border-brand-400 pl-2;
+  }
+
+  /* Page heading */
+  .page-title {
+    @apply text-2xl font-display font-bold text-navy-900;
+  }
+
+  /* Section heading */
+  .section-title {
+    @apply text-lg font-display font-semibold text-navy-800;
+  }
+}
+
+/* ============================================================
+   React calendar heatmap overrides
+   ============================================================ */
+.react-calendar-heatmap .color-empty       { fill: #e5e7eb; }
+.react-calendar-heatmap .color-scale-1     { fill: #fde68a; } /* late */
+.react-calendar-heatmap .color-scale-2     { fill: #86efac; } /* present - light */
+.react-calendar-heatmap .color-scale-3     { fill: #16a34a; } /* present - medium */
+.react-calendar-heatmap .color-scale-4     { fill: #14532d; } /* present - dark */
+.react-calendar-heatmap .color-absent      { fill: #fca5a5; } /* absent */
+.react-calendar-heatmap text               { font-size: 8px; fill: #6b7280; }
+
+/* ============================================================
+   Scrollbar styling (webkit)
+   ============================================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ============================================================
+   Custom utility classes
+   ============================================================ */
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  /* Gradient text */
+  .text-gradient-amber {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glass card */
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Subtle inset */
+  .inset-shadow {
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  /* Hide scrollbar while keeping scroll functionality */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* ============================================================
+   Additional animations
+   ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Smooth page transitions */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.25s ease-out;
+}
+
+/* Override default focus ring to match brand */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+}
+
+/* Better select appearance */
+select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 2.5rem !important;
+}

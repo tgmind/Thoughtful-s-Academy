@@ -1,0 +1,15 @@
+# Public marketing/landing page is indexable.
+# Private, login-gated portal sections are not useful in search results.
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /register
+Disallow: /student
+Disallow: /teacher
+Disallow: /admin
+Disallow: /reset-password
+Disallow: /unauthorized
+Disallow: /account-suspended
+
+# Replace the domain below with your real production domain.
+Sitemap: https://REPLACE-WITH-YOUR-DOMAIN.com/sitemap.xml

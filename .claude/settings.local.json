@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(grep -viE 'mailto|tel:|normalizeUrl|getYTWatchUrl|qr_image_url|`')"
+    ]
+  }
+}
