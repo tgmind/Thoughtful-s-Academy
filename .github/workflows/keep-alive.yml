@@ -1,0 +1,25 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # This tells GitHub to run the script every 5 days at midnight
+    - cron: '0 0 */5 * *'
+  workflow_dispatch: 
+    # This allows you to click a button to test it manually
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Ping Supabase Database
+        env:
+          # This pulls your hidden secret from Step 2
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # This connects to the database, runs a tiny query ("SELECT 1;"), and disconnects
+          psql "$DB_URL" -c "SELECT 1;"
