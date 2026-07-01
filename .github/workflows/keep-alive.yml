@@ -2,8 +2,8 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    # This tells GitHub to run the script every 5 days at midnight
-    - cron: '0 0 */5 * *'
+    # This tells GitHub to run the script every 3 days at midnight
+    - cron: '0 0 */3 * *'
   workflow_dispatch: 
     # This allows you to click a button to test it manually
 
