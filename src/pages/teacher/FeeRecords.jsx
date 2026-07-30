@@ -77,7 +77,7 @@ export default function FeeRecords() {
           <Lock className="h-7 w-7 text-gray-400" />
         </div>
         <h2 className="font-bold text-gray-700 text-lg mb-1">Access Restricted</h2>
-        <p className="text-sm text-gray-400 max-w-xs">You don't have permission to view fee records. Contact your admin to enable this.</p>
+        <p className="text-sm text-gray-400 max-w-xs">You don&apos;t have permission to view fee records. Contact your admin to enable this.</p>
       </div>
     )
   }

@@ -1,7 +1,7 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import path from 'path'
 
 export default defineConfig({
   plugins: [
@@ -47,6 +47,6 @@ export default defineConfig({
     host: true,   // expose on all network interfaces (LAN access from tablet/phone)
   },
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
 })

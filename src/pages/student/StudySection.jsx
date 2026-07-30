@@ -1,23 +1,93 @@
-import { useState, useEffect } from 'react'
-import { BookOpen, PlayCircle, ExternalLink, Heart, Youtube, Link as LinkIcon, ChevronLeft, FlaskConical, Atom, Calculator, Globe, Microscope, BookMarked } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
+import {
+  BookOpen, PlayCircle, ExternalLink, Heart, Youtube,
+  Link as LinkIcon, ChevronLeft, BookMarked, GraduationCap,
+  Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
+  Dna, Calculator, ArrowRight, Play, School, FileText
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import LiveClassBanner from '../../components/shared/LiveClassBanner'
 import { normalizeUrl } from '../../utils/formatters'
 
-// Colour palette for subject tiles (cycles if more than 6 subjects)
-const SUBJECT_COLORS = [
-  { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-800',   icon: 'text-blue-400'   },
-  { bg: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-800',  icon: 'text-green-400'  },
-  { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', icon: 'text-purple-400' },
-  { bg: 'bg-amber-50',  border: 'border-amber-200',  text: 'text-amber-800',  icon: 'text-amber-400'  },
-  { bg: 'bg-rose-50',   border: 'border-rose-200',   text: 'text-rose-800',   icon: 'text-rose-400'   },
-  { bg: 'bg-teal-50',   border: 'border-teal-200',   text: 'text-teal-800',   icon: 'text-teal-400'   },
-]
+// Subject Theme Resolver for Physics Wallah / Premium EdTech Style
+function getSubjectTheme(subjectName = '') {
+  const s = subjectName.toLowerCase()
+  if (s.includes('physic')) {
+    return {
+      icon: Atom,
+      gradient: 'from-indigo-600 via-blue-700 to-slate-900',
+      badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      accentBg: 'bg-indigo-600',
+      textColor: 'text-indigo-600',
+      lightBg: 'bg-indigo-50/60',
+    }
+  }
+  if (s.includes('chem')) {
+    return {
+      icon: FlaskConical,
+      gradient: 'from-emerald-600 via-teal-700 to-slate-900',
+      badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      accentBg: 'bg-emerald-600',
+      textColor: 'text-emerald-600',
+      lightBg: 'bg-emerald-50/60',
+    }
+  }
+  if (s.includes('bio')) {
+    return {
+      icon: Dna,
+      gradient: 'from-rose-600 via-pink-700 to-slate-900',
+      badge: 'bg-rose-50 text-rose-700 border-rose-200',
+      accentBg: 'bg-rose-600',
+      textColor: 'text-rose-600',
+      lightBg: 'bg-rose-50/60',
+    }
+  }
+  if (s.includes('math') || s.includes('calc') || s.includes('alg') || s.includes('geom')) {
+    return {
+      icon: Calculator,
+      gradient: 'from-amber-500 via-orange-600 to-slate-900',
+      badge: 'bg-amber-50 text-amber-800 border-amber-200',
+      accentBg: 'bg-amber-600',
+      textColor: 'text-amber-600',
+      lightBg: 'bg-amber-50/60',
+    }
+  }
+  if (s.includes('eng') || s.includes('lit')) {
+    return {
+      icon: BookOpen,
+      gradient: 'from-purple-600 via-violet-700 to-slate-900',
+      badge: 'bg-purple-50 text-purple-700 border-purple-200',
+      accentBg: 'bg-purple-600',
+      textColor: 'text-purple-600',
+      lightBg: 'bg-purple-50/60',
+    }
+  }
+  if (s.includes('sst') || s.includes('soc') || s.includes('geo') || s.includes('hist')) {
+    return {
+      icon: Globe,
+      gradient: 'from-cyan-600 via-sky-700 to-slate-900',
+      badge: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+      accentBg: 'bg-cyan-600',
+      textColor: 'text-cyan-600',
+      lightBg: 'bg-cyan-50/60',
+    }
+  }
+  return {
+    icon: BookMarked,
+    gradient: 'from-blue-950 via-indigo-900 to-slate-900',
+    badge: 'bg-blue-50 text-blue-700 border-blue-200',
+    accentBg: 'bg-blue-950',
+    textColor: 'text-blue-950',
+    lightBg: 'bg-blue-50/60',
+  }
+}
 
 function getYTVideoId(url) {
-  const match = url?.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
+  if (!url) return null
+  const match = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
   return match?.[1] ?? null
 }
 
@@ -32,78 +102,204 @@ function getYTWatchUrl(url) {
 }
 
 const TYPE_BADGES = {
-  youtube_video:    { label: 'YouTube', color: 'bg-red-100 text-red-700',    icon: <Youtube className="h-3 w-3" /> },
-  youtube_playlist: { label: 'Playlist', color: 'bg-red-100 text-red-700',   icon: <Youtube className="h-3 w-3" /> },
-  google_drive:     { label: 'Drive',    color: 'bg-blue-100 text-blue-700', icon: <ExternalLink className="h-3 w-3" /> },
-  external_link:    { label: 'Link',     color: 'bg-gray-100 text-gray-700', icon: <LinkIcon className="h-3 w-3" /> },
+  youtube_video:    { label: 'Video Lecture', color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },
+  youtube_playlist: { label: 'Playlist',      color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },
+  google_drive:     { label: 'Notes / Drive', color: 'bg-amber-50 text-amber-800 border-amber-300',  icon: <FileText className="h-3 w-3 text-amber-600" /> },
+  external_link:    { label: 'Link',          color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <LinkIcon className="h-3 w-3" /> },
 }
 
-function StudyCard({ card, bookmarked, onBookmark }) {
+function StudyCard({ card, bookmarked, onBookmark, isHighlighted }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const badge = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
-      <div className="relative">
-        {thumb
-          ? <img src={thumb} alt={card.title} loading="lazy" className="w-full h-40 object-cover" />
-          : <div className="w-full h-40 bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-              <BookOpen className="h-8 w-8 text-blue-300" />
-            </div>
-        }
-        {(card.type === 'youtube_video' || card.type === 'youtube_playlist') && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center">
-              <PlayCircle className="h-6 w-6 text-white" />
+    <div
+      id={`card-${card.id}`}
+      className={`group bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col ${
+        isHighlighted
+          ? 'border-amber-400 ring-4 ring-amber-400/50 shadow-2xl scale-[1.02] bg-amber-50/20'
+          : 'border-gray-100'
+      }`}
+    >
+      <div className="relative overflow-hidden aspect-video bg-slate-900">
+        {thumb ? (
+          <img
+            src={thumb}
+            alt={card.title}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : card.type === 'google_drive' ? (
+          /* Soothing EdTech Study Notebook Cover Design */
+          <div className="w-full h-full bg-gradient-to-br from-amber-200 via-amber-100 to-yellow-200 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden select-none">
+            {/* Subtle background ambient glow */}
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/40 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/30 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Clean Floating Study Notebook Sheet (Sized cleanly to avoid overlapping bookmark or subject tag) */}
+            <div className="relative z-0 bg-white rounded-xl shadow-md p-2.5 sm:p-3 border border-amber-200/80 w-[70%] h-[66%] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+              {/* Paper header */}
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
+                  <FileText className="h-2.5 w-2.5" />
+                  <span>CHAPTER NOTES</span>
+                </span>
+              </div>
+
+              {/* Document Title */}
+              <h4 className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight leading-snug line-clamp-2 my-0.5">
+                {card.title}
+              </h4>
+
+              {/* Notebook Ruled Lines */}
+              <div className="space-y-1">
+                <div className="h-0.5 bg-amber-100/80 rounded-full w-full" />
+                <div className="h-0.5 bg-amber-100/80 rounded-full w-2/3" />
+              </div>
             </div>
           </div>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 flex items-center justify-center p-4">
+            <BookOpen className="h-10 w-10 text-white/30" />
+          </div>
+        )}
+
+        {/* Dark overlay for videos only */}
+        {(card.type === 'youtube_video' || card.type === 'youtube_playlist') && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-red-600 transition-all duration-200 shadow-xl border border-white/30">
+                <Play className="h-5 w-5 text-white fill-current ml-0.5" />
+              </div>
+            </div>
+          </>
+        )}
+
+        <button
+          onClick={() => onBookmark(card.id, bookmarked)}
+          title={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
+          className={`absolute top-2.5 right-2.5 p-2 rounded-full backdrop-blur-md transition-all z-20 ${
+            bookmarked
+              ? 'bg-red-500 text-white shadow-lg scale-105'
+              : 'bg-black/40 text-white/90 hover:bg-black/70 hover:text-white'
+          }`}
+        >
+          <Heart className={`h-4 w-4 ${bookmarked ? 'fill-current' : ''}`} />
+        </button>
+
+        {card.subject && (
+          <span className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-white/10 z-20">
+            {card.subject}
+          </span>
         )}
       </div>
-      <div className="p-3 flex flex-col flex-1">
-        <div className="flex items-start justify-between gap-1 mb-1">
-          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${badge.color}`}>
-            {badge.icon} {badge.label}
-          </span>
-          <button onClick={() => onBookmark(card.id, bookmarked)}
-            className={`p-1 rounded-full transition-colors ${bookmarked ? 'text-red-500 hover:text-red-700' : 'text-gray-300 hover:text-red-400'}`}>
-            <Heart className={`h-4 w-4 ${bookmarked ? 'fill-current' : ''}`} />
-          </button>
+
+      <div className="p-4 flex flex-col flex-1 justify-between space-y-3">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${badge.color}`}>
+              {badge.icon} {badge.label}
+            </span>
+            {card.is_featured && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                <Sparkles className="h-3 w-3 text-amber-500" /> Featured
+              </span>
+            )}
+          </div>
+          <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-blue-950 transition-colors">
+            {card.title}
+          </h3>
+          {card.description && (
+            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{card.description}</p>
+          )}
         </div>
-        <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 flex-1">{card.title}</h3>
-        {card.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{card.description}</p>}
-        <a href={card.type === 'youtube_video' ? getYTWatchUrl(card.url) : normalizeUrl(card.url)} target="_blank" rel="noopener noreferrer"
-          className="mt-3 block text-center py-1.5 bg-blue-950 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg transition-colors">
-          {card.type?.startsWith('youtube') ? '▶ Watch' : '→ Open'}
+
+        <a
+          href={card.type === 'youtube_video' ? getYTWatchUrl(card.url) : normalizeUrl(card.url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md"
+        >
+          {card.type?.startsWith('youtube') ? (
+            <><PlayCircle className="h-4 w-4 text-amber-400" /> Watch Lecture</>
+          ) : (
+            <><ExternalLink className="h-4 w-4 text-amber-400" /> Open Material</>
+          )}
         </a>
       </div>
     </div>
   )
 }
 
-const TABS = ['All', 'My Batch', 'Featured', 'Bookmarked']
+const TABS = [
+  { id: 'My Batch',   label: 'My Batch',     icon: GraduationCap },
+  { id: 'All',        label: 'Free Library', icon: Globe },
+  { id: 'Featured',   label: 'Featured',     icon: Sparkles },
+  { id: 'Bookmarked', label: 'Bookmarked',   icon: Heart },
+]
 
 export default function StudySection() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const location = useLocation()
   const [cards,            setCards]            = useState([])
   const [bookmarks,        setBookmarks]        = useState(new Set())
-  const [tab,              setTab]              = useState('All')
+  const [tab,              setTab]              = useState('My Batch') // Default landing tab
   const [loading,          setLoading]          = useState(true)
   const [liveClass,        setLiveClass]        = useState(null)
   const [liveDismissed,    setLiveDismissed]    = useState(false)
   const [batchId,          setBatchId]          = useState(null)
+  const [batchName,        setBatchName]        = useState('')
   const [studentSubjects,  setStudentSubjects]  = useState([])
-  const [selectedSubject,  setSelectedSubject]  = useState(null) // null = show subject grid
+  const [selectedSubject,  setSelectedSubject]  = useState(null) // null = Subject Hub view
+  const [selectedCategory, setSelectedCategory] = useState(null) // null = Category Selection View ('video', 'drive', 'link', 'bookmarked')
+  const [searchQuery,      setSearchQuery]      = useState('')
+  const [highlightedCardId, setHighlightedCardId] = useState(null)
+  const [showSubjectSwitcher, setShowSubjectSwitcher] = useState(false)
 
-  // Get student batch + subjects
+  // Parse URL search parameters for direct navigation from Dashboard
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const subjParam = params.get('subject')
+    const cardIdParam = params.get('cardId')
+
+    if (subjParam) {
+      setSelectedSubject(subjParam)
+      setTab('My Batch')
+    }
+    if (cardIdParam) {
+      setHighlightedCardId(cardIdParam)
+    }
+  }, [location.search])
+
+  // Scroll to targeted card after loading
+  useEffect(() => {
+    if (!loading && highlightedCardId) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`card-${highlightedCardId}`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 350)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, highlightedCardId])
+
+  // Get student batch + subjects + batch name
   useEffect(() => {
     if (!user) return
-    supabase.from('student_profiles').select('batch_id, subjects').eq('id', user.id).maybeSingle()
+    supabase.from('student_profiles')
+      .select('batch_id, subjects, batches(name)')
+      .eq('id', user.id)
+      .maybeSingle()
       .then(({ data }) => {
         setBatchId(data?.batch_id ?? null)
+        setBatchName(data?.batches?.name ?? '')
         setStudentSubjects(data?.subjects ?? [])
       })
   }, [user])
 
-  // Fetch live class (realtime) — filtered to student's batch
+  // Fetch live class (realtime)
   useEffect(() => {
     if (!user) return
     let unmounted = false
@@ -111,7 +307,6 @@ export default function StudySection() {
     const fetchLive = () => {
       let q = supabase.from('live_classes').select('*, profiles!teacher_id(full_name)')
         .eq('is_active', true).order('created_at', { ascending: false }).limit(1)
-      // All-batch classes + the student's own batch only.
       if (batchId) q = q.or(`batch_id.is.null,batch_id.eq.${batchId}`)
       else         q = q.is('batch_id', null)
       q.then(({ data }) => { if (!unmounted) setLiveClass(data?.[0] ?? null) })
@@ -124,7 +319,6 @@ export default function StudySection() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' },
         (payload) => {
           if (unmounted) return
-          // Class ended or deleted: clear immediately without a DB round-trip
           if (
             payload.eventType === 'DELETE' ||
             (payload.eventType === 'UPDATE' && !payload.new?.is_active)
@@ -143,27 +337,56 @@ export default function StudySection() {
     }
   }, [user, batchId])
 
-  // Fetch cards — for My Batch we only fetch when a subject is selected
+  // Auto-resolve target card subject & category if navigating directly from Dashboard
+  useEffect(() => {
+    if (highlightedCardId && cards.length > 0) {
+      const targetCard = cards.find(c => c.id === highlightedCardId)
+      if (targetCard) {
+        if (targetCard.subject) {
+          setSelectedSubject(targetCard.subject)
+        }
+        setTab('My Batch')
+
+        // Automatically set category based on target card type
+        if (targetCard.type === 'youtube_video' || targetCard.type === 'youtube_playlist') {
+          setSelectedCategory('video')
+        } else if (targetCard.type === 'google_drive') {
+          setSelectedCategory('drive')
+        } else if (targetCard.type === 'external_link') {
+          setSelectedCategory('link')
+        } else {
+          setSelectedCategory('video')
+        }
+      }
+    }
+  }, [highlightedCardId, cards])
+
+  // Fetch study cards based on tab + batchId
   useEffect(() => {
     if (!user) return
-    // When on My Batch tab with no subject selected, we show the subject grid — no card fetch needed
-    if (tab === 'My Batch' && selectedSubject === null) { setCards([]); setLoading(false); return }
 
     setLoading(true)
     let query = supabase.from('study_cards').select('*').eq('is_active', true).order('display_order')
-    if (tab === 'Featured') {
+
+    if (searchQuery.trim()) {
+      // Searching -> fetch all accessible cards (public OR for student's batch)
+      if (batchId) query = query.or(`is_public.eq.true,batch_ids.cs.{${batchId}}`)
+      else         query = query.eq('is_public', true)
+    } else if (tab === 'Featured') {
       query = query.eq('is_featured', true)
     } else if (tab === 'My Batch') {
-      // selectedSubject is set — cards that include this batch AND match the subject
-      if (batchId) query = query.contains('batch_ids', [batchId]).eq('subject', selectedSubject)
-      else         query = query.eq('is_public', false).eq('id', '00000000-0000-0000-0000-000000000000') // empty
+      if (batchId) {
+        query = query.contains('batch_ids', [batchId])
+      } else {
+        query = query.or('is_public.eq.true,is_public.eq.false')
+      }
     } else if (tab === 'All' || tab === 'Bookmarked') {
-      // public cards OR cards for this batch
       if (batchId) query = query.or(`is_public.eq.true,batch_ids.cs.{${batchId}}`)
       else         query = query.eq('is_public', true)
     }
+
     query.then(({ data }) => { setCards(data ?? []); setLoading(false) })
-  }, [tab, batchId, selectedSubject, user])
+  }, [tab, batchId, searchQuery, user])
 
   // Fetch bookmarks
   useEffect(() => {
@@ -179,7 +402,6 @@ export default function StudySection() {
       setBookmarks(s => { const n = new Set(s); n.delete(cardId); return n })
       toast.success('Removed from bookmarks')
     } else {
-      // ignoreDuplicates: a fast double-tap or a stale UI must not error out.
       const { error } = await supabase.from('student_bookmarks')
         .upsert({ student_id: user.id, study_card_id: cardId }, { onConflict: 'student_id,study_card_id', ignoreDuplicates: true })
       if (error) { toast.error(error.message); return }
@@ -188,7 +410,79 @@ export default function StudySection() {
     }
   }
 
-  const displayCards = tab === 'Bookmarked' ? cards.filter(c => bookmarks.has(c.id)) : cards
+  // Helper for case-insensitive count of cards in a subject
+  const getSubjectCardCount = (subjName) => {
+    if (!subjName) return 0
+    const s = subjName.toLowerCase()
+    return cards.filter(c => c.subject?.toLowerCase() === s).length
+  }
+
+  // Filtered cards list belonging to the currently active subject
+  const subjectCards = useMemo(() => {
+    if (!selectedSubject) return []
+    const s = selectedSubject.toLowerCase()
+    return cards.filter(c => c.subject?.toLowerCase() === s)
+  }, [cards, selectedSubject])
+
+  // Category counts inside the selected subject workspace
+  const subjectCategoryCounts = useMemo(() => {
+    const counts = { video: 0, drive: 0, link: 0, bookmarked: 0 }
+    subjectCards.forEach(c => {
+      if (c.type === 'youtube_video' || c.type === 'youtube_playlist') counts.video++
+      else if (c.type === 'google_drive') counts.drive++
+      else if (c.type === 'external_link') counts.link++
+      if (bookmarks.has(c.id)) counts.bookmarked++
+    })
+    return counts
+  }, [subjectCards, bookmarks])
+
+  // Active cards to render inside the selected category
+  const categoryCardsToDisplay = useMemo(() => {
+    if (!selectedCategory) return []
+    if (selectedCategory === 'video') return subjectCards.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
+    if (selectedCategory === 'drive') return subjectCards.filter(c => c.type === 'google_drive')
+    if (selectedCategory === 'link') return subjectCards.filter(c => c.type === 'external_link')
+    if (selectedCategory === 'bookmarked') return subjectCards.filter(c => bookmarks.has(c.id))
+    return subjectCards
+  }, [subjectCards, selectedCategory, bookmarks])
+
+  // Reset subject and category selection when switching away from My Batch tab
+  useEffect(() => {
+    if (tab !== 'My Batch') {
+      setSelectedSubject(null)
+      setSelectedCategory(null)
+    }
+  }, [tab])
+
+  // Filtered cards list with case-insensitive subject & category matching
+  const filteredCards = useMemo(() => {
+    let list = tab === 'Bookmarked' ? cards.filter(c => bookmarks.has(c.id)) : cards
+
+    // Only scope by selectedSubject when inside My Batch tab
+    if (tab === 'My Batch' && selectedSubject) {
+      const s = selectedSubject.toLowerCase()
+      list = list.filter(c => c.subject?.toLowerCase() === s)
+    }
+
+    if (selectedCategory) {
+      if (selectedCategory === 'video') list = list.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
+      else if (selectedCategory === 'drive') list = list.filter(c => c.type === 'google_drive')
+      else if (selectedCategory === 'link') list = list.filter(c => c.type === 'external_link')
+      else if (selectedCategory === 'bookmarked') list = list.filter(c => bookmarks.has(c.id))
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      list = list.filter(c =>
+        c.title?.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q) ||
+        c.subject?.toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [cards, tab, bookmarks, selectedCategory, selectedSubject, searchQuery])
+
+  const studentName = profile?.full_name?.split(' ')?.[0] || 'Student'
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
@@ -198,93 +492,683 @@ export default function StudySection() {
         <LiveClassBanner liveClass={liveClass} onDismiss={() => setLiveDismissed(true)} />
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 flex-wrap items-center">
-        {TABS.map(t => (
-          <button key={t} onClick={() => { setTab(t); setSelectedSubject(null) }}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors
-              ${tab === t ? 'bg-blue-950 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            {t}
-          </button>
-        ))}
-        {tab === 'My Batch' && selectedSubject && (
-          <button onClick={() => setSelectedSubject(null)}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 ml-1">
-            <ChevronLeft className="h-4 w-4" /> All Subjects
-          </button>
-        )}
-      </div>
+      {/* ── TOPMOST ACTIVE BATCH INDICATOR CARD (Shown ONLY on Main Study Landing Page, hidden when exploring subject workspace) ── */}
+      {batchName && !selectedSubject && (
+        <div className="bg-slate-100/90 border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-row items-center justify-between gap-3 sm:gap-6 shadow-xs select-none">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-200/90 text-slate-700 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+              <School className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+              <span>Active Batch</span>
+            </div>
+            <h2 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+              {batchName}
+            </h2>
+          </div>
 
-      {/* My Batch — subject breadcrumb */}
-      {tab === 'My Batch' && selectedSubject && (
-        <div className="flex items-center gap-1.5 text-sm text-gray-500">
-          <span>My Batch</span>
-          <span>›</span>
-          <span className="font-semibold text-gray-900">{selectedSubject}</span>
+          <div className="flex items-center gap-2 sm:gap-3 bg-white px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200/90 shrink-0 shadow-2xs">
+            <div className="text-center px-1.5 sm:px-2.5 border-r border-slate-200">
+              <p className="text-xs sm:text-lg font-black text-slate-900">{studentSubjects.length}</p>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Subjects</p>
+            </div>
+            <div className="text-center px-1.5 sm:px-2.5">
+              <p className="text-xs sm:text-lg font-black text-slate-900">{cards.length}</p>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Lectures</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* My Batch — subject tile grid (shown when no subject is selected) */}
-      {tab === 'My Batch' && selectedSubject === null ? (
-        !batchId ? (
-          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-            <BookOpen className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">You are not enrolled in a batch yet. Contact admin.</p>
+      {/* ── TOP EDTECH NAVIGATION HEADER (Shown on Study Landing View only) ── */}
+      {!selectedSubject && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-2 bg-blue-950 text-amber-400 rounded-xl shadow-sm">
+                  <GraduationCap className="h-5 w-5" />
+                </span>
+                <div>
+                  <h1 className="text-xl font-black text-gray-900 tracking-tight">
+                    Welcome back, {studentName}! 👋
+                  </h1>
+                  <p className="text-xs text-gray-500 font-medium">
+                    {batchName ? `Enrolled in ${batchName}` : 'Explore lectures & study material'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Search bar */}
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search lectures, topics, or notes…"
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-950 focus:bg-white transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-        ) : studentSubjects.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-            <BookOpen className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No subjects chosen yet. Contact admin to update your enrollment.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {studentSubjects.map((sub, i) => {
-              const col = SUBJECT_COLORS[i % SUBJECT_COLORS.length]
+
+          {/* Primary Navigation Segment Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-t border-gray-100 pt-3">
+            {TABS.map(t => {
+              const Icon = t.icon
+              const isActive = tab === t.id && !searchQuery.trim()
               return (
-                <button key={sub} onClick={() => setSelectedSubject(sub)}
-                  className={`${col.bg} ${col.border} border-2 rounded-2xl p-5 text-left hover:shadow-md hover:-translate-y-0.5 transition-all`}>
-                  <BookMarked className={`h-7 w-7 ${col.icon} mb-3`} />
-                  <p className={`font-bold text-base ${col.text}`}>{sub}</p>
-                  <p className="text-xs text-gray-400 mt-1">Tap to view lectures</p>
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setTab(t.id)
+                    setSelectedSubject(null)
+                    setSelectedCategory(null)
+                    setSearchQuery('')
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-blue-950 text-white shadow-md shadow-blue-950/20 scale-[1.02]'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-200/60'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-amber-400' : 'text-gray-400'}`} />
+                  <span>{t.label}</span>
+                  {t.id === 'My Batch' && batchName && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-900'
+                    }`}>
+                      {batchName}
+                    </span>
+                  )}
+                  {t.id === 'Bookmarked' && bookmarks.size > 0 && (
+                    <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {bookmarks.size}
+                    </span>
+                  )}
                 </button>
               )
             })}
           </div>
-        )
+        </div>
+      )}
+
+      {/* ── SEARCH RESULTS OVERRIDE ── */}
+      {searchQuery.trim() !== '' ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+            <div>
+              <h2 className="text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                <Search className="h-5 w-5 text-blue-950" /> Search Results for &ldquo;{searchQuery}&rdquo;
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Found {filteredCards.length} {filteredCards.length === 1 ? 'matching item' : 'matching items'}
+              </p>
+            </div>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors"
+            >
+              Clear Search
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                  <div className="h-44 bg-gray-200" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-8 bg-gray-200 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredCards.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+              <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="font-bold text-gray-800 text-base">No Matching Lectures Found</h3>
+              <p className="text-sm text-gray-400 mt-1 max-w-xs mx-auto">
+                No study cards match &ldquo;{searchQuery}&rdquo;. Try checking for typos or searching a different term.
+              </p>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors"
+              >
+                Clear Search
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredCards.map(c => (
+                <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
-        /* Cards grid — used for All, Featured, Bookmarked, and My Batch after subject is selected */
-        loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse">
-                <div className="h-40 bg-gray-200" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-3/4" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+        /* ── MY BATCH VIEW — SUBJECT HUB vs SUBJECT WORKSPACE ── */
+        tab === 'My Batch' ? (
+          selectedSubject === null ? (
+            /* 🎓 SUBJECT HUB (PW-Style Cards Dashboard) */
+            <div className="space-y-6">
+
+              {/* Subject Grid Section */}
+              {!batchId ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                  <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <h3 className="font-bold text-gray-800 text-lg">No Batch Assigned</h3>
+                  <p className="text-sm text-gray-400 max-w-sm mx-auto mt-1">
+                    You aren&apos;t enrolled in a batch currently. Please contact your administrator.
+                  </p>
+                </div>
+              ) : studentSubjects.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                  <FolderOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <h3 className="font-bold text-gray-800 text-lg">No Enrolled Subjects</h3>
+                  <p className="text-sm text-gray-400 max-w-sm mx-auto mt-1">
+                    Ask your institute admin to add your subjects to your profile.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                      <Layers className="h-5 w-5 text-blue-950" /> Select Subject Workspace
+                    </h3>
+                    <span className="text-xs text-gray-400 font-medium">Tap subject to open</span>
+                  </div>
+
+                  {/* Compact, Flex-Responsive Subject Cards Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {studentSubjects.map(sub => {
+                      const theme = getSubjectTheme(sub)
+                      const Icon = theme.icon
+                      const count = getSubjectCardCount(sub)
+
+                      return (
+                        <button
+                          key={sub}
+                          onClick={() => {
+                            setSelectedSubject(sub)
+                            setSelectedCategory(null)
+                          }}
+                          className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-28 sm:h-32 relative overflow-hidden cursor-pointer border border-white/10`}
+                        >
+                          <div className="flex items-center justify-between relative z-10">
+                            <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20 group-hover:scale-110 transition-transform">
+                              <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                            </div>
+                            <span className="text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded-full border border-white/20">
+                              {count} {count === 1 ? 'Item' : 'Items'}
+                            </span>
+                          </div>
+
+                          <div className="relative z-10 flex items-center justify-between gap-2 mt-2">
+                            <div className="min-w-0">
+                              <h4 className="text-xs sm:text-base font-black text-white tracking-tight truncate group-hover:text-amber-300 transition-colors">
+                                {sub}
+                              </h4>
+                              <p className="text-[10px] text-white/75 font-medium truncate">
+                                Subject Workspace
+                              </p>
+                            </div>
+                            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/20 text-white flex items-center justify-center group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors shrink-0">
+                              <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Distinct Feed Container for Recent Uploads */}
+              {cards.length > 0 && (
+                <div className="bg-slate-900 rounded-3xl p-5 sm:p-7 text-white space-y-5 shadow-xl border border-slate-800 relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-black uppercase tracking-wider mb-1">
+                        <Sparkles className="h-3.5 w-3.5 fill-current text-amber-400" />
+                        <span>Latest Material Feed</span>
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                        Recent Batch Uploads
+                      </h3>
+                      <p className="text-xs text-slate-400 font-medium">
+                        Fresh video lectures, chapter notes, and assignments uploaded for your batch
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {cards.slice(0, 6).map(c => (
+                      <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          ) : (
+            /* 📚 SUBJECT WORKSPACE (Opened Subject View) */
+            <div className="space-y-6">
+
+              {/* Subject Header & Navigation Bar */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedSubject(null)
+                        setSelectedCategory(null)
+                      }}
+                      className="p-2 sm:p-2.5 rounded-xl bg-gray-100 hover:bg-blue-950 hover:text-white text-gray-700 transition-colors shrink-0 flex items-center gap-1"
+                      title="Back to All Subjects"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-900 px-2 py-0.5 rounded-md">
+                          {batchName}
+                        </span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight mt-0.5">
+                        {selectedSubject}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider block">Subject Hub</span>
+                    <span className="text-xs sm:text-sm font-black text-blue-950 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 inline-block mt-0.5">
+                      {subjectCards.length} {subjectCards.length === 1 ? 'Item' : 'Items'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : displayCards.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-            <BookOpen className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">
-              {tab === 'Bookmarked'
-                ? 'No bookmarks yet. Heart a lecture to save it here.'
-                : tab === 'My Batch'
-                  ? `No study cards for ${selectedSubject} yet.`
-                  : 'No lectures here yet.'}
-            </p>
-          </div>
+
+              {/* ── MODE A: NO CATEGORY SELECTED -> SHOW THE 4 CATEGORY CARDS ── */}
+              {!selectedCategory ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+                        Select Content Category
+                      </h3>
+                      <p className="text-xs text-gray-500 font-medium">
+                        Choose a category below to explore lectures, notes, and resources for {selectedSubject}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+                    {/* 1. Video Lectures Category Card */}
+                    <button
+                      onClick={() => setSelectedCategory('video')}
+                      className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-red-50/80 hover:bg-red-100/90 border border-red-200/80 hover:border-red-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="p-2.5 sm:p-3 rounded-xl bg-red-100 text-red-700 shadow-2xs border border-red-200/60">
+                          <Youtube className="h-5 w-5 sm:h-6 sm:w-6" />
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-bold bg-white text-red-700 px-2.5 py-1 rounded-full border border-red-200/60 shadow-2xs">
+                          {subjectCategoryCounts.video} {subjectCategoryCounts.video === 1 ? 'Video' : 'Videos'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-base sm:text-lg font-black tracking-tight text-slate-900 group-hover:text-red-950 transition-colors flex items-center justify-between">
+                          <span>Video Lectures</span>
+                          <ArrowRight className="h-4 w-4 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-0.5" />
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-red-900/60 font-medium mt-0.5 line-clamp-1">
+                          Recorded sessions & playlists
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* 2. Notes & Drive Category Card */}
+                    <button
+                      onClick={() => setSelectedCategory('drive')}
+                      className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-amber-50/80 hover:bg-amber-100/90 border border-amber-200/80 hover:border-amber-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="p-2.5 sm:p-3 rounded-xl bg-amber-100 text-amber-800 shadow-2xs border border-amber-200/60">
+                          <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-bold bg-white text-amber-800 px-2.5 py-1 rounded-full border border-amber-200/60 shadow-2xs">
+                          {subjectCategoryCounts.drive} {subjectCategoryCounts.drive === 1 ? 'File' : 'Files'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-base sm:text-lg font-black tracking-tight text-slate-900 group-hover:text-amber-950 transition-colors flex items-center justify-between">
+                          <span>Notes & Drive</span>
+                          <ArrowRight className="h-4 w-4 text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-0.5" />
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-amber-900/60 font-medium mt-0.5 line-clamp-1">
+                          Chapter PDFs & study material
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* 3. External Links Category Card */}
+                    <button
+                      onClick={() => setSelectedCategory('link')}
+                      className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-blue-50/80 hover:bg-blue-100/90 border border-blue-200/80 hover:border-blue-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="p-2.5 sm:p-3 rounded-xl bg-blue-100 text-blue-700 shadow-2xs border border-blue-200/60">
+                          <LinkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-bold bg-white text-blue-700 px-2.5 py-1 rounded-full border border-blue-200/60 shadow-2xs">
+                          {subjectCategoryCounts.link} {subjectCategoryCounts.link === 1 ? 'Link' : 'Links'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-base sm:text-lg font-black tracking-tight text-slate-900 group-hover:text-blue-950 transition-colors flex items-center justify-between">
+                          <span>Links & Web</span>
+                          <ArrowRight className="h-4 w-4 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-0.5" />
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-blue-900/60 font-medium mt-0.5 line-clamp-1">
+                          Reference tools & web links
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* 4. Bookmarked Material Category Card */}
+                    <button
+                      onClick={() => setSelectedCategory('bookmarked')}
+                      className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-purple-50/80 hover:bg-purple-100/90 border border-purple-200/80 hover:border-purple-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="p-2.5 sm:p-3 rounded-xl bg-purple-100 text-purple-700 shadow-2xs border border-purple-200/60">
+                          <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-current" />
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-bold bg-white text-purple-700 px-2.5 py-1 rounded-full border border-purple-200/60 shadow-2xs">
+                          {subjectCategoryCounts.bookmarked} Saved
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-base sm:text-lg font-black tracking-tight text-slate-900 group-hover:text-purple-950 transition-colors flex items-center justify-between">
+                          <span>Bookmarked</span>
+                          <ArrowRight className="h-4 w-4 text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-0.5" />
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-purple-900/60 font-medium mt-0.5 line-clamp-1">
+                          Your saved items for {selectedSubject}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── MODE B: CATEGORY IS SELECTED -> SHOW CATEGORY HEADER & MATERIALS GRID ── */
+                <div className="space-y-5">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <button
+                        onClick={() => setSelectedCategory(null)}
+                        className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0"
+                        title="Back to Categories"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        <span>Categories</span>
+                      </button>
+
+                      <div className="h-5 w-px bg-gray-200" />
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-gray-900">
+                          {selectedCategory === 'video' && '🎥 Video Lectures'}
+                          {selectedCategory === 'drive' && '📁 Notes & Drive'}
+                          {selectedCategory === 'link' && '🔗 Links & Web'}
+                          {selectedCategory === 'bookmarked' && '🔖 Bookmarked Material'}
+                        </span>
+                        <span className="text-xs font-bold text-gray-400">
+                          ({categoryCardsToDisplay.length})
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick Category Switcher Tabs */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      {[
+                        { id: 'video', label: 'Videos' },
+                        { id: 'drive', label: 'Notes' },
+                        { id: 'link', label: 'Links' },
+                        { id: 'bookmarked', label: 'Bookmarked' },
+                      ].map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setSelectedCategory(cat.id)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                            selectedCategory === cat.id
+                              ? 'bg-blue-950 text-white shadow-2xs'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Study Cards Grid */}
+                  {loading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {[...Array(6)].map((_, i) => (
+                        <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                          <div className="h-44 bg-gray-200" />
+                          <div className="p-4 space-y-3">
+                            <div className="h-4 bg-gray-200 rounded w-3/4" />
+                            <div className="h-3 bg-gray-100 rounded w-1/2" />
+                            <div className="h-8 bg-gray-200 rounded-xl" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : categoryCardsToDisplay.length === 0 ? (
+                    <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                      <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <h3 className="font-bold text-gray-800 text-base">No Items Found</h3>
+                      <p className="text-sm text-gray-400 mt-1 max-w-xs mx-auto">
+                        No content uploaded under this category for {selectedSubject} yet.
+                      </p>
+                      <button
+                        onClick={() => setSelectedCategory(null)}
+                        className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors"
+                      >
+                        Back to Categories
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {categoryCardsToDisplay.map(c => (
+                        <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          )
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayCards.map(c => (
-              <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} />
-            ))}
+          /* ── NON-BATCH TABS (Free Library, Featured, Bookmarked) ── */
+          <div className="space-y-6">
+            <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">
+                  {tab === 'All' ? 'Free Library & Public Content' : tab === 'Featured' ? 'Featured Lectures' : 'Bookmarked Material'}
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {filteredCards.length} {filteredCards.length === 1 ? 'item' : 'items'} available
+                </p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                    <div className="h-44 bg-gray-200" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                      <div className="h-8 bg-gray-200 rounded-xl" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredCards.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <h3 className="font-bold text-gray-800 text-base">No Items Found</h3>
+                <p className="text-sm text-gray-400 mt-1">
+                  {tab === 'Bookmarked'
+                    ? 'No bookmarked items yet. Tap the heart icon on any card to save it here.'
+                    : 'No materials available in this section yet.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredCards.map(c => (
+                  <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                ))}
+              </div>
+            )}
           </div>
         )
+      )}
+
+      {/* ── Android Recents Style Floating All Subjects Dot (Bottom Right) ── */}
+      {selectedSubject && (
+        <button
+          onClick={() => setShowSubjectSwitcher(true)}
+          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 p-3.5 sm:px-4 sm:py-3 bg-blue-950 hover:bg-indigo-900 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all border border-blue-800/60 flex items-center gap-2 group cursor-pointer"
+          title="Switch Subject / View All Subjects"
+        >
+          <div className="relative flex items-center justify-center">
+            <Layers className="h-5 w-5 text-amber-400 group-hover:rotate-12 transition-transform" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping" />
+          </div>
+          <span className="text-xs font-black tracking-wide hidden sm:inline">All Subjects</span>
+        </button>
+      )}
+
+      {/* ── Android Recents Style Quick Subject Switcher Overlay ── */}
+      {showSubjectSwitcher && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setShowSubjectSwitcher(false)}
+        >
+          <div
+            className="bg-slate-900 text-white rounded-t-3xl sm:rounded-3xl border border-slate-800 w-full max-w-lg p-5 sm:p-6 shadow-2xl space-y-5 animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-amber-400/20 text-amber-400 rounded-xl">
+                  <Layers className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-white tracking-tight">Recent Subjects</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Tap any subject to jump instantly</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSubjectSwitcher(false)}
+                className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Android Recents Cards Carousel / List */}
+            <div className="space-y-3">
+              {studentSubjects.map(sub => {
+                const theme = getSubjectTheme(sub)
+                const Icon = theme.icon
+                const isCurrent = selectedSubject === sub
+                const count = getSubjectCardCount(sub)
+
+                return (
+                  <button
+                    key={sub}
+                    onClick={() => {
+                      setSelectedSubject(sub)
+                      setSelectedCategory(null)
+                      setShowSubjectSwitcher(false)
+                      toast.success(`Switched to ${sub}`)
+                    }}
+                    className={`w-full p-4 rounded-2xl border transition-all text-left flex items-center justify-between gap-4 group cursor-pointer ${
+                      isCurrent
+                        ? 'bg-gradient-to-r from-blue-950 via-indigo-900 to-slate-900 border-amber-400/50 shadow-lg ring-2 ring-amber-400/30'
+                        : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className={`p-3 rounded-xl bg-white/10 text-white shrink-0 group-hover:scale-110 transition-transform`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-black text-white truncate">{sub}</h4>
+                          {isCurrent && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[9px] font-black uppercase tracking-wider">
+                              Active Now
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                          {count} {count === 1 ? 'Item' : 'Items'} available
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white/10 text-white shrink-0 group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Jump to Main Hub Button */}
+            <button
+              onClick={() => {
+                setSelectedSubject(null)
+                setSelectedCategory(null)
+                setShowSubjectSwitcher(false)
+              }}
+              className="w-full py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 border border-white/10 cursor-pointer"
+            >
+              <BookOpen className="h-4 w-4 text-amber-400" />
+              <span>View All Subjects (Main Hub)</span>
+            </button>
+          </div>
+        </div>
       )}
 
     </div>
   )
 }
+

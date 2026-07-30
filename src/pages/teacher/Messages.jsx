@@ -4,16 +4,8 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-const PALETTE = [
-  'bg-violet-500','bg-blue-500','bg-emerald-500','bg-rose-500',
-  'bg-amber-500','bg-indigo-500','bg-pink-500','bg-teal-500',
-]
 const ROLE_BG = { admin: 'bg-purple-600', student: 'bg-blue-500', teacher: 'bg-indigo-500' }
 
-function avatarBg(str = '') {
-  const n = [...str].reduce((a, c) => a + c.charCodeAt(0), 0)
-  return PALETTE[n % PALETTE.length]
-}
 function roleBg(role) { return ROLE_BG[role] || 'bg-gray-500' }
 function initials(name = '') {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?'

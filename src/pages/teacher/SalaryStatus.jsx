@@ -117,7 +117,7 @@ export default function SalaryStatus() {
           <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold text-amber-800 text-sm">Salary Pending</p>
-            <p className="text-amber-700 text-xs mt-0.5">Your salary for {getMonthLabel()} hasn't been paid yet. Contact admin if needed.</p>
+            <p className="text-amber-700 text-xs mt-0.5">Your salary for {getMonthLabel()} hasn&apos;t been paid yet. Contact admin if needed.</p>
           </div>
         </div>
       )}
@@ -143,7 +143,7 @@ export default function SalaryStatus() {
         {editingPayment ? (
           <div className="p-5 space-y-4">
             <p className="text-xs text-gray-500">
-              The admin will scan your QR code or use your UPI ID to pay your salary. Make sure it's correct.
+              The admin will scan your QR code or use your UPI ID to pay your salary. Make sure it&apos;s correct.
             </p>
 
             {/* QR upload */}

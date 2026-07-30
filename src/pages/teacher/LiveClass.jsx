@@ -14,7 +14,7 @@ const PLATFORMS = [
 const EMPTY = { title:'', platform:'zoom', join_url:'', password:'', batch_id:'' }
 
 export default function LiveClass({ isAdmin = false }) {
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const [allowed,     setAllowed]     = useState(isAdmin)
   const [active,      setActive]      = useState(null)
   const [past,        setPast]        = useState([])

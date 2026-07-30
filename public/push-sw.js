@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
   let data = {}
   try {
     data = event.data ? event.data.json() : {}
-  } catch (_) {
+  } catch {
     data = { title: "Thoughtful's Academy", body: event.data ? event.data.text() : '' }
   }
 
@@ -39,7 +39,7 @@ self.addEventListener('notificationclick', (event) => {
       if ('focus' in client) {
         await client.focus()
         if (url && url !== '/' && 'navigate' in client) {
-          try { await client.navigate(url) } catch (_) { /* ignore */ }
+          try { await client.navigate(url) } catch { /* ignore */ }
         }
         return
       }

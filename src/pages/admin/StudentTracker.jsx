@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Download, X, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
 
-function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 function monthLabel() { return new Date().toLocaleDateString('en-IN', { month:'long', year:'numeric' }) }
 
 function AttBar({ pct }) {
@@ -274,7 +272,7 @@ export default function StudentTracker() {
                 </div>
                 {/* Exposed Registration details that were previously hidden! */}
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-500">Parent's Phone</p>
+                  <p className="text-xs text-gray-500">Parent&apos;s Phone</p>
                   <p className="font-semibold text-gray-900 mt-0.5">{selected.parent_phone}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3">

@@ -193,7 +193,7 @@ function ManageTab({ user, batches }) {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">Notifications you've created for students</p>
+        <p className="text-sm text-gray-500">Notifications you&apos;ve created for students</p>
         <button onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white text-sm font-semibold rounded-xl hover:bg-blue-900 transition-colors">
           <Plus className="h-4 w-4" /> New Notification

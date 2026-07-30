@@ -310,7 +310,7 @@ export default function NotificationPopup() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [user?.id, profile?.role, enqueue])
+  }, [user, profile, enqueue])
 
   // ── Auto-dismiss timers ───────────────────────────────────────────────────
 

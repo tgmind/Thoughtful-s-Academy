@@ -385,7 +385,7 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm mb-1">Structured batches</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">Material organised by batch, so you always know what's next.</p>
+                <p className="text-gray-500 text-sm leading-relaxed">Material organised by batch, so you always know what&apos;s next.</p>
               </div>
             </div>
           </div>
@@ -398,7 +398,7 @@ export default function Home() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50/50">
               <Bell className="h-4 w-4 text-blue-950" />
-              <h2 className="font-bold text-gray-900 text-sm">What's on</h2>
+              <h2 className="font-bold text-gray-900 text-sm">What&apos;s on</h2>
               {hasNew && (
                 <span className="ml-auto flex items-center gap-1 text-xs text-red-500 font-medium">
                   <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> New
@@ -538,7 +538,7 @@ export default function Home() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm sticky top-6 overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
                 <Bell className="h-5 w-5 text-blue-950" />
-                <h2 className="font-bold text-gray-900">What's on</h2>
+                <h2 className="font-bold text-gray-900">What&apos;s on</h2>
                 {hasNew && (
                   <span className="ml-auto flex items-center gap-1.5 text-xs text-red-500 font-semibold">
                     <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> New
@@ -572,9 +572,9 @@ export default function Home() {
           <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-2">Our Philosophy</p>
           <h3 className="font-display font-bold text-2xl sm:text-3xl text-gray-900 mb-4">Honest Effort, Real Results</h3>
           <p className="text-gray-500 text-base leading-relaxed">
-            Thoughtful's Academy started from one idea — that students learn best when the teaching is
+            Thoughtful&apos;s Academy started from one idea — that students learn best when the teaching is
             unhurried and the door to asking questions is always open. No noise, no pressure tactics.
-            Just clear explanations, steady practice, and an educator who actually picks up when you're stuck.
+            Just clear explanations, steady practice, and an educator who actually picks up when you&apos;re stuck.
           </p>
           <div className="flex flex-wrap gap-2 mt-6 justify-center">
             {['Expert Faculty', 'Interactive Learning', 'Comprehensive Materials'].map(tag => (

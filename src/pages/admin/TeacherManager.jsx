@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Lock, CheckCircle } from 'lucide-react'
+import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 
@@ -11,10 +11,10 @@ const PERMS = [
   { key:'can_view_fee_records',   label:'View Fee Records' },
 ]
 
-function Toggle({ on, onChange }) {
+function Toggle({ on, onChange, disabled }) {
   return (
-    <button onClick={() => onChange(!on)}
-      className={`relative w-10 rounded-full transition-colors flex-shrink-0 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 ${on ? 'bg-blue-950' : 'bg-gray-300'}`}
+    <button onClick={() => !disabled && onChange(!on)} disabled={disabled}
+      className={`relative w-10 rounded-full transition-colors flex-shrink-0 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:opacity-50 ${on ? 'bg-blue-950' : 'bg-gray-300'}`}
       style={{ height: '22px' }}>
       <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0.5'}`} />
     </button>
@@ -131,7 +131,7 @@ export default function TeacherManager() {
                 {PERMS.map(p => (
                   <div key={p.key} className="flex items-center justify-between py-2 border-b border-gray-50">
                     <span className="text-sm font-medium text-gray-700">{p.label}</span>
-                    <Toggle on={!!selected[p.key]} onChange={val => updatePerm(selected.id, p.key, val)} />
+                    <Toggle on={!!selected[p.key]} onChange={val => updatePerm(selected.id, p.key, val)} disabled={saving} />
                   </div>
                 ))}
               </div>

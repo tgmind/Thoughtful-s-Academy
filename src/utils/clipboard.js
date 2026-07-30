@@ -17,7 +17,7 @@ export async function copyToClipboard(text, successMsg = 'Copied!') {
       toast.success(successMsg)
       return true
     }
-  } catch (_) {
+  } catch {
     // fall through to legacy path
   }
 
@@ -33,7 +33,7 @@ export async function copyToClipboard(text, successMsg = 'Copied!') {
     const ok = document.execCommand('copy')
     document.body.removeChild(ta)
     if (ok) { toast.success(successMsg); return true }
-  } catch (_) { /* ignore */ }
+  } catch { /* ignore */ }
 
   toast.error('Could not copy automatically — please copy manually.')
   return false

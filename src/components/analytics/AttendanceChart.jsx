@@ -96,8 +96,6 @@ export default function AttendanceChart() {
 
   if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading analytics…</div>
 
-  const barColor = (pct) => pct >= 75 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626'
-
   return (
     <div className="space-y-6">
       {/* Batch comparison */}

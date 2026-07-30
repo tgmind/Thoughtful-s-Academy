@@ -92,7 +92,7 @@ export default function ResetPassword() {
           ) : (
             <>
               <h2 className="font-display font-bold text-2xl text-navy-900">Set a new password</h2>
-              <p className="text-gray-500 text-sm mt-1 mb-6">Choose a strong password you haven't used before.</p>
+              <p className="text-gray-500 text-sm mt-1 mb-6">Choose a strong password you haven&apos;t used before.</p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="new-password" className="label-base">New Password</label>

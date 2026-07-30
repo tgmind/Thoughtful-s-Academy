@@ -159,8 +159,8 @@ export default function AdminSettings() {
     }
 
     // Messages need two passes (sender + receiver)
-    try { await supabase.from('messages').delete().in('sender_id',   ids) } catch {}
-    try { await supabase.from('messages').delete().in('receiver_id', ids) } catch {}
+    try { await supabase.from('messages').delete().in('sender_id',   ids) } catch { /* ignore */ }
+    try { await supabase.from('messages').delete().in('receiver_id', ids) } catch { /* ignore */ }
     setStudentProgress(p => [...p, 'Messages'])
 
     try {
@@ -214,14 +214,14 @@ export default function AdminSettings() {
     if (!ids.length) return
     setDeletingTeachers(true)
 
-    try { await supabase.from('notification_reads').delete().in('user_id',    ids) } catch {}
+    try { await supabase.from('notification_reads').delete().in('user_id',    ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Notification reads'])
 
-    try { await supabase.from('salary_records').delete().in('teacher_id', ids) } catch {}
+    try { await supabase.from('salary_records').delete().in('teacher_id', ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Salary records'])
 
-    try { await supabase.from('messages').delete().in('sender_id',   ids) } catch {}
-    try { await supabase.from('messages').delete().in('receiver_id', ids) } catch {}
+    try { await supabase.from('messages').delete().in('sender_id',   ids) } catch { /* ignore */ }
+    try { await supabase.from('messages').delete().in('receiver_id', ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Messages'])
 
     // Delete homework submissions for homework belonging to these teachers
@@ -231,27 +231,28 @@ export default function AdminSettings() {
       if (hwIds.length > 0) {
         await supabase.from('homework_submissions').delete().in('homework_id', hwIds)
       }
-    } catch {}
+    } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Homework submissions'])
 
-    try { await supabase.from('homework').delete().in('teacher_id',    ids) } catch {}
+    try { await supabase.from('homework').delete().in('teacher_id',    ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Homework assignments'])
 
-    try { await supabase.from('live_classes').delete().in('teacher_id', ids) } catch {}
+    try { await supabase.from('live_classes').delete().in('teacher_id', ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Live classes'])
 
     // Nullify FK columns that reference these profiles before deleting them.
     // Without this, Postgres rejects the DELETE due to FK constraints.
-    try { await supabase.from('batches').update({ teacher_id: null }).in('teacher_id', ids) } catch {}
-    try { await supabase.from('study_cards').update({ added_by: null }).in('added_by', ids) } catch {}
-    try { await supabase.from('attendance').update({ marked_by: null }).in('marked_by', ids) } catch {}
-    try { await supabase.from('notifications').update({ created_by: null }).in('created_by', ids) } catch {}
+    try { await supabase.from('batches').update({ teacher_id: null }).in('teacher_id', ids) } catch { /* ignore */ }
+    try { await supabase.from('study_cards').update({ added_by: null }).in('added_by', ids) } catch { /* ignore */ }
+    try { await supabase.from('attendance').update({ marked_by: null }).in('marked_by', ids) } catch { /* ignore */ }
+    try { await supabase.from('notifications').update({ created_by: null }).in('created_by', ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'References cleared'])
 
-    try { await supabase.from('teacher_profiles').delete().in('id', ids) } catch {}
+    try { await supabase.from('teacher_profiles').delete().in('id', ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Teacher profiles'])
 
-    try { await supabase.from('profiles').delete().in('id', ids) } catch {}
+    try { await supabase.from('profiles').delete().in('id', ids) } catch { /* ignore */ }
+    setTeacherProgress(p => [...p, 'User accounts'])
     setTeacherProgress(p => [...p, 'User accounts'])
 
     setDeletingTeachers(false)

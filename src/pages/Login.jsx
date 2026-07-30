@@ -156,7 +156,7 @@ export default function Login() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
               <h2 className="font-display font-bold text-2xl text-navy-900">Reset Password</h2>
               <p className="text-gray-500 text-sm mt-1 mb-6">
-                Enter your email and we'll send a reset link.
+                Enter your email and we&apos;ll send a reset link.
               </p>
               <form onSubmit={handleReset} className="space-y-4">
                 <div>
@@ -249,7 +249,7 @@ export default function Login() {
               </form>
 
               <p className="text-center text-sm text-gray-500 mt-6">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link to="/register" className="font-semibold text-navy-800 hover:underline">
                   Register now
                 </Link>

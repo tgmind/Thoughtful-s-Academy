@@ -84,7 +84,7 @@ export async function syncPush(userId) {
   try {
     const sub = await getOrCreateSubscription()
     await saveSubscription(userId, sub)
-  } catch (_) { /* ignore */ }
+  } catch { /* ignore */ }
 }
 
 export async function disablePush() {
@@ -96,5 +96,5 @@ export async function disablePush() {
       await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
       await sub.unsubscribe()
     }
-  } catch (_) { /* ignore */ }
+  } catch { /* ignore */ }
 }

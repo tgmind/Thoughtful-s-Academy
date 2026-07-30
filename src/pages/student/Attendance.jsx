@@ -311,7 +311,7 @@ export default function Attendance() {
         <div className="flex items-center gap-2 mb-4">
           <Calendar className="h-5 w-5 text-blue-950" />
           <div>
-            <h2 className="font-bold text-gray-900">Today's Attendance</h2>
+            <h2 className="font-bold text-gray-900">Today&apos;s Attendance</h2>
             <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</p>
           </div>
         </div>

@@ -143,7 +143,7 @@ export default function StudentHomework() {
           <ClipboardList className="h-7 w-7 text-gray-300" />
         </div>
         <h3 className="font-bold text-gray-600 text-lg mb-1">No Batch Assigned</h3>
-        <p className="text-sm text-gray-400 max-w-xs">You'll see homework here once an admin enrolls you in a batch.</p>
+        <p className="text-sm text-gray-400 max-w-xs">You&apos;ll see homework here once an admin enrolls you in a batch.</p>
       </div>
     </div>
   )
@@ -174,7 +174,7 @@ export default function StudentHomework() {
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
           <ClipboardList className="h-10 w-10 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">
-            {tab === 'To Do' ? 'Nothing due right now. You\'re all caught up! 🎉' : 'No submitted homework yet.'}
+            {tab === 'To Do' ? 'Nothing due right now. You&apos;re all caught up! 🎉' : 'No submitted homework yet.'}
           </p>
         </div>
       ) : (
@@ -199,7 +199,7 @@ export default function StudentHomework() {
                 {sub ? (
                   <div className="mt-3 bg-green-50 rounded-lg px-3 py-2 text-sm">
                     <div className="flex items-center gap-2 text-green-700 flex-wrap">
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
                       <span className="font-medium">Submitted</span>
                       <span className="text-xs text-green-600">
                         {new Date(sub.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -217,15 +217,15 @@ export default function StudentHomework() {
                     )}
                   </div>
                 ) : (
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
                     <input type="url" placeholder="Paste your Google Drive / work link…"
                       value={links[hw.id] || ''}
                       onChange={e => setLinks(l => ({ ...l, [hw.id]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') submit(hw.id) }}
-                      className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                      className="flex-1 min-w-0 w-full px-3.5 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-950 bg-gray-50/50 focus:bg-white transition-all" />
                     <button onClick={() => submit(hw.id)} disabled={submitting === hw.id}
-                      className="px-4 py-1.5 bg-blue-950 text-white text-sm font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50 transition-colors">
-                      {submitting === hw.id ? 'Submitting…' : 'Submit'}
+                      className="w-full sm:w-auto px-5 py-2 bg-blue-950 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-blue-900 disabled:opacity-50 transition-all shrink-0">
+                      {submitting === hw.id ? 'Submitting…' : 'Submit Work'}
                     </button>
                   </div>
                 )}
