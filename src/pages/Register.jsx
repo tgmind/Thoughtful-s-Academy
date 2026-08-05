@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GraduationCap, BookOpen, ShieldCheck, Eye, EyeOff, ChevronRight, ChevronLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -101,14 +101,24 @@ function RoleStep({ selected, onChange }) {
 }
 
 function DetailsForm({ role, batches, onSubmit, loading }) {
+  const [searchParams] = useSearchParams()
+  const initialBatchParam = searchParams.get('batch') || searchParams.get('id')
+
   const [form, setForm] = useState({
     full_name: '', email: '', password: '', confirm_password: '',
-    phone: '', batch_id: '', parent_phone: '',
+    phone: '', batch_id: initialBatchParam || '', parent_phone: '',
     date_of_birth: '', subjects: [], subject: '', qualification: '', admin_code: '',
   })
   const [showPw, setShowPw] = useState(false)
   const [errors, setErrors] = useState({})
   const [batchSubjects, setBatchSubjects] = useState([])
+
+  // On mount or when initialBatchParam changes, trigger subject fetch if batch selected
+  useEffect(() => {
+    if (initialBatchParam) {
+      onBatchChange(initialBatchParam)
+    }
+  }, [initialBatchParam])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -297,12 +307,17 @@ export default function Register() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    let cancelled = false
     supabase
       .from('batches')
       .select('id, name')
       .eq('is_active', true)
       .order('name')
-      .then(({ data }) => setBatches(data ?? []))
+      .then(({ data }) => {
+        if (cancelled) return
+        setBatches(data ?? [])
+      })
+    return () => { cancelled = true }
   }, [])
 
   const handleRegister = async (form) => {
@@ -338,13 +353,32 @@ export default function Register() {
         }, { onConflict: 'id', ignoreDuplicates: true })
 
         if (role === 'student') {
+          const trialEndsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
           await supabase.from('student_profiles').upsert({
             id:            uid,
             batch_id:      form.batch_id    || null,
             parent_phone:  form.parent_phone || null,
             date_of_birth: form.date_of_birth || null,
             subjects:      form.subjects.length > 0 ? form.subjects : [],
-          }, { onConflict: 'id', ignoreDuplicates: true })
+            trial_ends_at: trialEndsAt,
+          }, { onConflict: 'id' })   // no ignoreDuplicates — always write trial_ends_at
+
+
+          // Fetch batch name for the notification body
+          let batchLabel = ''
+          if (form.batch_id) {
+            const { data: bData } = await supabase.from('batches').select('name').eq('id', form.batch_id).maybeSingle()
+            batchLabel = bData?.name ? ` for ${bData.name}` : ''
+          }
+
+          // Notify admin + teachers via the existing notifications system
+          await supabase.from('notifications').insert({
+            title: `New student joined: ${form.full_name.trim()}`,
+            body:  `${form.full_name.trim()} has self-registered${batchLabel}. Free trial ends in 2 days. Please review and confirm enrollment.`,
+            type:  'announcement',
+            target_role: 'all',
+            is_active: true,
+          })
         } else if (role === 'teacher') {
           await supabase.from('teacher_profiles').upsert({
             id:            uid,

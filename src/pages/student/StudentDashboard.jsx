@@ -38,6 +38,8 @@ export default function StudentDashboard() {
   const [marking,   setMarking]     = useState(null)
   const [clearing,  setClearing]    = useState(false)
   const [liveDismissed, setLiveDismissed] = useState(false)
+  const [trialEndsAt, setTrialEndsAt] = useState(null)
+  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false)
   const batchIdRef = useRef(null)
 
   useEffect(() => {
@@ -48,10 +50,11 @@ export default function StudentDashboard() {
         supabase.from('fee_records').select('id, amount').eq('student_id', user.id).eq('status', 'pending'),
         supabase.from('messages').select('id').eq('receiver_id', user.id).eq('is_read', false),
         supabase.from('attendance').select('id').eq('student_id', user.id).eq('date', todayISO()).maybeSingle(),
-        supabase.from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle(),
+        supabase.from('student_profiles').select('batch_id, trial_ends_at').eq('id', user.id).maybeSingle(),
       ])
       const batchId = spRes.data?.batch_id ?? null
       batchIdRef.current = batchId
+      setTrialEndsAt(spRes.data?.trial_ends_at ?? null)
 
       let notifQ = supabase.from('notifications').select('id, title, body, type, created_at')
         .eq('is_active', true).or('target_role.eq.student,target_role.eq.all')
@@ -68,7 +71,7 @@ export default function StudentDashboard() {
         : Promise.resolve({ data: [] })
 
       let studyQ = batchId
-        ? supabase.from('study_cards').select('id, title, subject, type, created_at').contains('batch_ids', [batchId]).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
+        ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${batchId}},batch_id.eq.${batchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
         : Promise.resolve({ data: [] })
 
       const [notifRes, readRes, liveRes, hwRes, studyRes] = await Promise.all([
@@ -124,7 +127,7 @@ export default function StudentDashboard() {
         : Promise.resolve({ data: [] })
 
       let studyQ = bId
-        ? supabase.from('study_cards').select('id, title, subject, type, created_at').contains('batch_ids', [bId]).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
+        ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${bId}},batch_id.eq.${bId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
         : Promise.resolve({ data: [] })
 
       const [liveRes, hwRes, studyRes] = await Promise.all([liveQ, hwQ, studyQ])
@@ -208,8 +211,9 @@ export default function StudentDashboard() {
         late:    (s.late || 0) + (data.status === 'late' ? 1 : 0),
         absent:  s.absent + (data.status === 'absent' ? 1 : 0)
       }))
-      setShowPopup(false)
     }
+    // Always close the popup, even on duplicate error
+    setShowPopup(false)
     setConfirm(null)
     setMarking(null)
   }
@@ -248,6 +252,47 @@ export default function StudentDashboard() {
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
+
+      {/* ── Free Trial Banner ── */}
+      {(() => {
+        if (!trialEndsAt) return null
+        const msLeft = new Date(trialEndsAt) - Date.now()
+        const expired = msLeft <= 0
+
+        if (expired) {
+          return (
+            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-red-800 text-sm">Your free trial has ended</p>
+                <p className="text-xs text-red-700 mt-0.5">
+                  Your 2-day access has expired. Please contact your admin to continue accessing batch content.
+                </p>
+              </div>
+            </div>
+          )
+        }
+
+        if (trialBannerDismissed) return null
+
+        const hoursLeft = Math.floor(msLeft / 3600000)
+        const timeLabel = hoursLeft < 24 ? `${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}` : `${Math.floor(hoursLeft / 24)} day${Math.floor(hoursLeft / 24) !== 1 ? 's' : ''}`
+
+        return (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
+            <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-amber-900 text-sm">Free trial active — {timeLabel} remaining</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Enjoy full access to your batch for now. Contact your admin to continue after your trial ends.
+              </p>
+            </div>
+            <button onClick={() => setTrialBannerDismissed(true)} className="text-amber-500 hover:text-amber-700 flex-shrink-0">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )
+      })()}
 
       {/* ── Attendance popup ── */}
       {showPopup && !loading && (
@@ -587,9 +632,10 @@ export default function StudentDashboard() {
             {notifications.map(n => (
               <div key={n.id} className="px-4 py-3">
                 <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{n.body}</p>
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed whitespace-pre-line">{n.body}</p>
               </div>
             ))}
+
           </div>
         </div>
       )}

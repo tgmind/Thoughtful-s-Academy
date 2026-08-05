@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen, PlayCircle, ExternalLink, Heart, Youtube,
   Link as LinkIcon, ChevronLeft, BookMarked, GraduationCap,
@@ -108,7 +108,7 @@ const TYPE_BADGES = {
   external_link:    { label: 'Link',          color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <LinkIcon className="h-3 w-3" /> },
 }
 
-function StudyCard({ card, bookmarked, onBookmark, isHighlighted }) {
+function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const badge = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
 
@@ -215,18 +215,23 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted }) {
           )}
         </div>
 
-        <a
-          href={card.type === 'youtube_video' ? getYTWatchUrl(card.url) : normalizeUrl(card.url)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md"
-        >
-          {card.type?.startsWith('youtube') ? (
-            <><PlayCircle className="h-4 w-4 text-amber-400" /> Watch Lecture</>
-          ) : (
-            <><ExternalLink className="h-4 w-4 text-amber-400" /> Open Material</>
-          )}
-        </a>
+        {card.type?.startsWith('youtube') ? (
+          <button
+            onClick={() => onWatch?.(card)}
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md cursor-pointer"
+          >
+            <PlayCircle className="h-4 w-4 text-amber-400" /> Watch Lecture
+          </button>
+        ) : (
+          <a
+            href={normalizeUrl(card.url)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md"
+          >
+            <ExternalLink className="h-4 w-4 text-amber-400" /> Open Material
+          </a>
+        )}
       </div>
     </div>
   )
@@ -242,6 +247,8 @@ const TABS = [
 export default function StudySection() {
   const { user, profile } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+
   const [cards,            setCards]            = useState([])
   const [bookmarks,        setBookmarks]        = useState(new Set())
   const [tab,              setTab]              = useState('My Batch') // Default landing tab
@@ -257,19 +264,46 @@ export default function StudySection() {
   const [highlightedCardId, setHighlightedCardId] = useState(null)
   const [showSubjectSwitcher, setShowSubjectSwitcher] = useState(false)
 
-  // Parse URL search parameters for direct navigation from Dashboard
+  const handleWatchCard = (card) => {
+    const returnSub = selectedSubject || card.subject || ''
+    navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(returnSub)}`, {
+      state: { card, returnSubject: returnSub }
+    })
+  }
+
+  // Helper to select subject and category while syncing URL
+  const selectSubject = (subj, cat = null) => {
+    setSelectedSubject(subj)
+    setSelectedCategory(cat)
+    if (subj) {
+      const catQuery = cat ? `&category=${encodeURIComponent(cat)}` : ''
+      navigate(`/student/study?subject=${encodeURIComponent(subj)}${catQuery}`)
+    } else {
+      navigate('/student/study')
+    }
+  }
+
+  const selectCategory = (cat) => {
+    setSelectedCategory(cat)
+    if (selectedSubject) {
+      const catQuery = cat ? `&category=${encodeURIComponent(cat)}` : ''
+      navigate(`/student/study?subject=${encodeURIComponent(selectedSubject)}${catQuery}`)
+    }
+  }
+
+  // Parse URL search parameters for direct navigation / back navigation
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const subjParam = params.get('subject')
+    const catParam = params.get('category')
     const cardIdParam = params.get('cardId')
 
+    setSelectedSubject(subjParam || null)
     if (subjParam) {
-      setSelectedSubject(subjParam)
       setTab('My Batch')
     }
-    if (cardIdParam) {
-      setHighlightedCardId(cardIdParam)
-    }
+    setSelectedCategory(catParam || null)
+    setHighlightedCardId(cardIdParam || null)
   }, [location.search])
 
   // Scroll to targeted card after loading
@@ -652,7 +686,7 @@ export default function StudySection() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredCards.map(c => (
-                <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
               ))}
             </div>
           )}
@@ -701,8 +735,7 @@ export default function StudySection() {
                         <button
                           key={sub}
                           onClick={() => {
-                            setSelectedSubject(sub)
-                            setSelectedCategory(null)
+                            selectSubject(sub)
                           }}
                           className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-28 sm:h-32 relative overflow-hidden cursor-pointer border border-white/10`}
                         >
@@ -755,7 +788,7 @@ export default function StudySection() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {cards.slice(0, 6).map(c => (
-                      <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                      <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
                     ))}
                   </div>
                 </div>
@@ -772,8 +805,7 @@ export default function StudySection() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {
-                        setSelectedSubject(null)
-                        setSelectedCategory(null)
+                        selectSubject(null)
                       }}
                       className="p-2 sm:p-2.5 rounded-xl bg-gray-100 hover:bg-blue-950 hover:text-white text-gray-700 transition-colors shrink-0 flex items-center gap-1"
                       title="Back to All Subjects"
@@ -819,7 +851,7 @@ export default function StudySection() {
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
                     {/* 1. Video Lectures Category Card */}
                     <button
-                      onClick={() => setSelectedCategory('video')}
+                      onClick={() => selectCategory('video')}
                       className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-red-50/80 hover:bg-red-100/90 border border-red-200/80 hover:border-red-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
                     >
                       <div className="flex items-center justify-between w-full">
@@ -844,7 +876,7 @@ export default function StudySection() {
 
                     {/* 2. Notes & Drive Category Card */}
                     <button
-                      onClick={() => setSelectedCategory('drive')}
+                      onClick={() => selectCategory('drive')}
                       className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-amber-50/80 hover:bg-amber-100/90 border border-amber-200/80 hover:border-amber-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
                     >
                       <div className="flex items-center justify-between w-full">
@@ -869,7 +901,7 @@ export default function StudySection() {
 
                     {/* 3. External Links Category Card */}
                     <button
-                      onClick={() => setSelectedCategory('link')}
+                      onClick={() => selectCategory('link')}
                       className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-blue-50/80 hover:bg-blue-100/90 border border-blue-200/80 hover:border-blue-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
                     >
                       <div className="flex items-center justify-between w-full">
@@ -894,7 +926,7 @@ export default function StudySection() {
 
                     {/* 4. Bookmarked Material Category Card */}
                     <button
-                      onClick={() => setSelectedCategory('bookmarked')}
+                      onClick={() => selectCategory('bookmarked')}
                       className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 text-left transition-all duration-300 bg-purple-50/80 hover:bg-purple-100/90 border border-purple-200/80 hover:border-purple-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between h-36 sm:h-44"
                     >
                       <div className="flex items-center justify-between w-full">
@@ -924,7 +956,7 @@ export default function StudySection() {
                   <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <button
-                        onClick={() => setSelectedCategory(null)}
+                        onClick={() => selectCategory(null)}
                         className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0"
                         title="Back to Categories"
                       >
@@ -957,7 +989,7 @@ export default function StudySection() {
                       ].map(cat => (
                         <button
                           key={cat.id}
-                          onClick={() => setSelectedCategory(cat.id)}
+                          onClick={() => selectCategory(cat.id)}
                           className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                             selectedCategory === cat.id
                               ? 'bg-blue-950 text-white shadow-2xs'
@@ -992,7 +1024,7 @@ export default function StudySection() {
                         No content uploaded under this category for {selectedSubject} yet.
                       </p>
                       <button
-                        onClick={() => setSelectedCategory(null)}
+                        onClick={() => selectCategory(null)}
                         className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors"
                       >
                         Back to Categories
@@ -1001,7 +1033,7 @@ export default function StudySection() {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                       {categoryCardsToDisplay.map(c => (
-                        <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                        <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
                       ))}
                     </div>
                   )}
@@ -1050,7 +1082,7 @@ export default function StudySection() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredCards.map(c => (
-                  <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} />
+                  <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
                 ))}
               </div>
             )}
@@ -1114,8 +1146,7 @@ export default function StudySection() {
                   <button
                     key={sub}
                     onClick={() => {
-                      setSelectedSubject(sub)
-                      setSelectedCategory(null)
+                      selectSubject(sub)
                       setShowSubjectSwitcher(false)
                       toast.success(`Switched to ${sub}`)
                     }}
@@ -1155,8 +1186,7 @@ export default function StudySection() {
             {/* Jump to Main Hub Button */}
             <button
               onClick={() => {
-                setSelectedSubject(null)
-                setSelectedCategory(null)
+                selectSubject(null)
                 setShowSubjectSwitcher(false)
               }}
               className="w-full py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 border border-white/10 cursor-pointer"
@@ -1168,7 +1198,7 @@ export default function StudySection() {
         </div>
       )}
 
+      {/* ── End of Study Section ── */}
     </div>
   )
 }
-

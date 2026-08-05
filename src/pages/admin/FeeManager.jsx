@@ -21,44 +21,51 @@ export default function FeeManager() {
   const [reason,    setReason]    = useState('')
 
   useEffect(() => {
+    let cancelled = false
     Promise.all([
       supabase.from('fee_records').select('*, profiles!student_id(full_name, email)').eq('status','pending').order('paid_at'),
       supabase.from('fee_records').select('*, profiles!student_id(full_name, email)').order('paid_at', { ascending:false }).limit(100),
     ]).then(([p, a]) => {
+      if (cancelled) return
       setPending(p.data ?? [])
       setAll(a.data ?? [])
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [])
 
   const verify = async (id) => {
     setActing(id)
-    await supabase.from('fee_records').update({ status:'verified', verified_by:user.id, verified_at:new Date().toISOString() }).eq('id', id)
+    const { error } = await supabase.from('fee_records').update({ status:'verified', verified_by:user.id, verified_at:new Date().toISOString() }).eq('id', id)
+    setActing(null)
+    if (error) { toast.error(error.message); return }
     setPending(f => f.filter(x => x.id !== id))
     setAll(f => f.map(x => x.id === id ? { ...x, status:'verified' } : x))
     toast.success('Fee verified ✓')
-    setActing(null)
   }
 
   const reject = async () => {
     if (!rejectId) return
     setActing(rejectId)
-    await supabase.from('fee_records').update({ status:'rejected', notes:reason, verified_by:user.id, verified_at:new Date().toISOString() }).eq('id', rejectId)
+    const { error } = await supabase.from('fee_records').update({ status:'rejected', notes:reason, verified_by:user.id, verified_at:new Date().toISOString() }).eq('id', rejectId)
+    setActing(null)
+    if (error) { toast.error(error.message); return }
     setPending(f => f.filter(x => x.id !== rejectId))
     setAll(f => f.map(x => x.id === rejectId ? { ...x, status:'rejected' } : x))
     toast.success('Fee rejected')
-    setActing(null); setRejectId(null); setReason('')
+    setRejectId(null); setReason('')
   }
 
   const exportCSV = () => {
     const rows = [['Student','Email','Month','Amount','Reference','Status','Date']]
     filteredAll.forEach(r => rows.push([r.profiles?.full_name??'', r.profiles?.email??'', r.payment_month, r.amount, r.reference_id||'', r.status, r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN') : '']))
-    const csv = rows.map(r => r.map(v=>`"${v}"`).join(',')).join('\n')
+    const csv = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\n')
     const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='fees.csv'; a.click()
   }
 
   const filteredAll = all.filter(r => {
-    const matchS = r.profiles?.full_name?.toLowerCase().includes(search.toLowerCase()) || r.profiles?.email?.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase()
+    const matchS = !q || (r.profiles?.full_name?.toLowerCase() || '').includes(q) || (r.profiles?.email?.toLowerCase() || '').includes(q)
     const matchSt = !statusF || r.status === statusF
     return matchS && matchSt
   })

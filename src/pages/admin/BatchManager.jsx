@@ -3,7 +3,10 @@ import { Plus, Edit2, Trash2, X, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 
-const EMPTY = { name:'', description:'', subjects:[], teacher_id:'' }
+const EMPTY = { name:'', description:'', subjects:[], teacher_id:'', poster_url:'' }
+
+import { convertDriveUrl } from '../../utils/formatters'
+import DriveImage from '../../components/shared/DriveImage'
 
 // Tag input: lets admin type a subject name and press Enter or comma to add it
 function SubjectTagInput({ value, onChange }) {
@@ -62,27 +65,30 @@ export default function BatchManager() {
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     Promise.all([
       supabase.from('batches').select('*, profiles!teacher_id(full_name)').order('name'),
       supabase.from('profiles').select('id, full_name').eq('role','teacher').order('full_name'),
       supabase.from('student_profiles').select('batch_id'),
     ]).then(([b, t, sp]) => {
+      if (cancelled) return
       setBatches(b.data ?? [])
       setTeachers(t.data ?? [])
       const c = {}; (sp.data ?? []).forEach(s => { if (s.batch_id) c[s.batch_id] = (c[s.batch_id]||0)+1 })
       setCounts(c)
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const openAdd  = () => { setEditing(null); setForm(EMPTY); setShowForm(true) }
-  const openEdit = (b) => { setEditing(b.id); setForm({ name:b.name, description:b.description||'', subjects:b.subjects||[], teacher_id:b.teacher_id||'' }); setShowForm(true) }
+  const openEdit = (b) => { setEditing(b.id); setForm({ name:b.name, description:b.description||'', subjects:b.subjects||[], teacher_id:b.teacher_id||'', poster_url:b.poster_url||'' }); setShowForm(true) }
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Batch name is required'); return }
     setSaving(true)
-    const payload = { name: form.name, description: form.description, subjects: form.subjects, teacher_id: form.teacher_id || null }
+    const payload = { name: form.name, description: form.description, subjects: form.subjects, teacher_id: form.teacher_id || null, poster_url: form.poster_url.trim() || null }
     const { data, error } = editing
       ? await supabase.from('batches').update(payload).eq('id', editing).select('*, profiles!teacher_id(full_name)').single()
       : await supabase.from('batches').insert({ ...payload, is_active:true }).select('*, profiles!teacher_id(full_name)').single()
@@ -95,16 +101,18 @@ export default function BatchManager() {
   }
 
   const toggleActive = async (b) => {
-    const { data } = await supabase.from('batches').update({ is_active: !b.is_active }).eq('id', b.id).select('*, profiles!teacher_id(full_name)').single()
+    const { data, error } = await supabase.from('batches').update({ is_active: !b.is_active }).eq('id', b.id).select('*, profiles!teacher_id(full_name)').single()
+    if (error) { toast.error(error.message); return }
     if (data) setBatches(list => list.map(x => x.id === b.id ? data : x))
   }
 
   const deleteBatch = async (id) => {
     if ((counts[id]||0) > 0) { toast.error('Cannot delete — students are enrolled in this batch'); return }
     setDeleting(id)
-    await supabase.from('batches').delete().eq('id', id)
-    setBatches(b => b.filter(x => x.id !== id))
+    const { error } = await supabase.from('batches').delete().eq('id', id)
     setDeleting(null)
+    if (error) { toast.error(error.message); return }
+    setBatches(b => b.filter(x => x.id !== id))
     toast.success('Batch deleted')
   }
 
@@ -112,10 +120,10 @@ export default function BatchManager() {
 
   return (
     <div className="space-y-5 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold text-lg text-gray-900">Batches</h2>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white text-sm font-semibold rounded-xl hover:bg-blue-900 transition-colors">
-          <Plus className="h-4 w-4" /> Add Batch
+      <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+        <h2 className="font-bold text-lg sm:text-xl text-gray-900 truncate">Batches</h2>
+        <button onClick={openAdd} className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 bg-blue-950 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-blue-900 shadow-xs transition-all shrink-0 whitespace-nowrap active:scale-95">
+          <Plus className="h-4 w-4 shrink-0" /> Add Batch
         </button>
       </div>
 
@@ -163,12 +171,12 @@ export default function BatchManager() {
       {/* Add/Edit modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90dvh]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h3 className="font-bold text-gray-900">{editing ? 'Edit Batch' : 'Create Batch'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Batch Name <span className="text-red-500">*</span></label>
                 <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Class 10 Science"
@@ -191,6 +199,39 @@ export default function BatchManager() {
                   <option value="">No teacher assigned</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
                 </select>
+              </div>
+              {/* ── Batch Poster ── */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Batch Poster <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  value={form.poster_url}
+                  onChange={e => set('poster_url', e.target.value)}
+                  placeholder="Paste Google Drive shareable link…"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Share the file in Google Drive → Copy link → paste here. File must be set to <strong>"Anyone with the link can view"</strong>.
+                </p>
+                {/* Live preview */}
+                {form.poster_url.trim() && (
+                  <div className="mt-2.5 relative w-36 rounded-xl overflow-hidden border border-gray-200 bg-slate-900/90 aspect-[9/16] p-0.5 flex items-center justify-center">
+                    <DriveImage
+                      src={form.poster_url.trim()}
+                      alt="Poster preview"
+                      className="w-full h-full object-contain rounded-lg"
+                      fallback={
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 text-[11px] text-amber-600 bg-amber-50 rounded-lg">
+                          <p className="font-bold leading-tight mb-1">⚠️ Private Link</p>
+                          <p className="text-[10px] text-gray-500 leading-tight">In Google Drive, set access to <strong>"Anyone with link"</strong>.</p>
+                        </div>
+                      }
+                    />
+                  </div>
+                )}
+
+
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 border-2 border-gray-200 rounded-xl font-semibold text-sm">Cancel</button>

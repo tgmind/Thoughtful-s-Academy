@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Download, X, Edit2 } from 'lucide-react'
+import { Search, Download, X, Edit2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 
@@ -39,7 +39,7 @@ export default function StudentTracker() {
       supabase.from('profiles').select('id, full_name, email, phone, is_active, created_at')
         .eq('role','student').order('created_at', { ascending: false }),
       // Extracting the new extra data properly
-      supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, date_of_birth, batches(name)'),
+      supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, date_of_birth, trial_ends_at, batches(name)'),
       supabase.from('attendance').select('student_id, status'),
       supabase.from('fee_records').select('student_id, status, payment_month').eq('payment_month', monthLabel()),
       supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
@@ -60,6 +60,7 @@ export default function StudentTracker() {
         roll_number:   spMap[s.id]?.roll_number ?? '—',
         parent_phone:  spMap[s.id]?.parent_phone ?? '—',
         date_of_birth: spMap[s.id]?.date_of_birth ?? '—',
+        trial_ends_at: spMap[s.id]?.trial_ends_at ?? null,
         att_pct:       attMap[s.id]
           ? Math.round(((attMap[s.id].present + attMap[s.id].late * 0.5) / attMap[s.id].total) * 100) : 0,
         fee_status:    feeMap[s.id] ?? 'not_paid',
@@ -91,7 +92,12 @@ export default function StudentTracker() {
     setEnrollSubjects([])
     if (!batchId) { setBatchSubjects([]); return }
     const { data } = await supabase.from('batches').select('subjects').eq('id', batchId).maybeSingle()
-    setBatchSubjects(data?.subjects ?? [])
+    setEnrollBatch(currentBatchId => {
+      if (currentBatchId === batchId) {
+        setBatchSubjects(data?.subjects ?? [])
+      }
+      return currentBatchId
+    })
   }
 
   const toggleEnrollSubject = (sub) => {
@@ -114,35 +120,74 @@ export default function StudentTracker() {
 
   const toggleActive = async (s) => {
     setDeacting(s.id)
-    await supabase.from('profiles').update({ is_active: !s.is_active }).eq('id', s.id)
+    const { error } = await supabase.from('profiles').update({ is_active: !s.is_active }).eq('id', s.id)
+    setDeacting(null)
+    if (error) { toast.error(error.message); return }
     setStudents(list => list.map(x => x.id === s.id ? { ...x, is_active: !x.is_active } : x))
     toast.success(s.is_active ? 'Account deactivated' : 'Account reactivated')
-    setDeacting(null)
   }
 
   const exportCSV = () => {
     const rows = [['Name','Email','Phone','Parent Phone','Batch','Roll','Attendance%','Fee Status','Active']]
     filtered.forEach(s => rows.push([s.full_name, s.email, s.phone||'', s.parent_phone||'', s.batch_name, s.roll_number, s.att_pct+'%', s.fee_status, s.is_active?'Yes':'No']))
-    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')
+    const csv = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\n')
     const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
     a.download = 'students.csv'; a.click()
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  // Check if a student's free trial has expired
+  const isTrialExpired = (trialEndsAt) => {
+    if (!trialEndsAt) return false
+    return new Date(trialEndsAt) < new Date()
+  }
+
+  // Check if trial is still active (not expired, not null)
+  const isTrialActive = (trialEndsAt) => {
+    if (!trialEndsAt) return false
+    return new Date(trialEndsAt) > new Date()
+  }
+
+  // How much trial time is left as a readable string
+  const trialLabel = (trialEndsAt) => {
+    if (!trialEndsAt) return null
+    const diff = new Date(trialEndsAt) - Date.now()
+    if (diff <= 0) return null
+    const h = Math.floor(diff / 3600000)
+    if (h < 24) return `${h}h left`
+    return `${Math.floor(h / 24)}d left`
+  }
+
+  // Admin action: clear trial (grants full access)
+  const clearTrial = async (studentId) => {
+    const { error } = await supabase.from('student_profiles')
+      .update({ trial_ends_at: null }).eq('id', studentId)
+    if (error) { toast.error(error.message); return }
+    setStudents(list => list.map(x => x.id === studentId ? { ...x, trial_ends_at: null } : x))
+    setSelected(s => s ? { ...s, trial_ends_at: null } : s)
+    toast.success('Trial cleared — student now has full access')
+  }
+
+  // Identify new students that registered in last 3 days
+  const isNew = (dateString) => {
+    const diff = new Date() - new Date(dateString)
+    return diff < 3 * 24 * 60 * 60 * 1000
   }
 
   const filtered = students.filter(s => {
     const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase())
     const matchBatch  = !batchF || s.batch_id === batchF
-    const matchAtt    = attF === 'all' || (attF==='good'&&s.att_pct>=75) || (attF==='warning'&&s.att_pct>=50&&s.att_pct<75) || (attF==='poor'&&s.att_pct<50)
+    const matchAtt    = attF === 'all'
+      || (attF==='good'         && s.att_pct>=75)
+      || (attF==='warning'      && s.att_pct>=50 && s.att_pct<75)
+      || (attF==='poor'         && s.att_pct<50)
+      || (attF==='trial_expired' && isTrialExpired(s.trial_ends_at))
     return matchSearch && matchBatch && matchAtt
   })
 
   const FEE_COLORS = { verified:'bg-green-100 text-green-800', pending:'bg-amber-100 text-amber-800', rejected:'bg-red-100 text-red-800', not_paid:'bg-gray-100 text-gray-600' }
   const FEE_LABELS = { verified:'Verified', pending:'Pending', rejected:'Rejected', not_paid:'Not Paid' }
-  
-  // Identify new students that registered in last 3 days
-  const isNew = (dateString) => {
-    const diff = new Date() - new Date(dateString);
-    return diff < 3 * 24 * 60 * 60 * 1000;
-  }
 
   return (
     <div className="space-y-4 pb-20 lg:pb-0">
@@ -163,9 +208,10 @@ export default function StudentTracker() {
           <option value="good">Good (≥75%)</option>
           <option value="warning">Warning (50–75%)</option>
           <option value="poor">Poor (&lt;50%)</option>
+          <option value="trial_expired">🔴 Trial Expired</option>
         </select>
-        <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-          <Download className="h-4 w-4" /> Export CSV
+        <button onClick={exportCSV} className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium hover:bg-gray-50 transition-all shrink-0 whitespace-nowrap active:scale-95">
+          <Download className="h-4 w-4 shrink-0" /> Export CSV
         </button>
       </div>
 
@@ -201,6 +247,14 @@ export default function StudentTracker() {
                             <p className="font-semibold text-gray-900">{s.full_name}</p>
                             {isNew(s.created_at) && (
                               <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">New</span>
+                            )}
+                            {isTrialExpired(s.trial_ends_at) && (
+                              <span className="bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Trial Over</span>
+                            )}
+                            {isTrialActive(s.trial_ends_at) && (
+                              <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5">
+                                <Clock className="h-2.5 w-2.5" />{trialLabel(s.trial_ends_at)}
+                              </span>
                             )}
                           </div>
                           <p className="text-xs text-gray-400">{s.email}</p>
@@ -256,6 +310,9 @@ export default function StudentTracker() {
                      {isNew(selected.created_at) && (
                         <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">New</span>
                      )}
+                     {isTrialExpired(selected.trial_ends_at) && (
+                        <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">Trial Over</span>
+                     )}
                   </div>
                   <p className="text-sm text-gray-500">{selected.email}</p>
                   {selected.phone && <p className="text-sm text-gray-500">{selected.phone}</p>}
@@ -302,6 +359,37 @@ export default function StudentTracker() {
                   {new Date(selected.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })}
                 </p>
               </div>
+
+              {/* Free Trial Status */}
+              {selected.trial_ends_at && (
+                <div className={`rounded-xl p-4 border ${
+                  isTrialExpired(selected.trial_ends_at)
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-xs font-bold uppercase tracking-wide ${
+                      isTrialExpired(selected.trial_ends_at) ? 'text-red-700' : 'text-amber-700'
+                    }`}>
+                      {isTrialExpired(selected.trial_ends_at) ? '🔴 Free Trial Expired' : '⏳ Free Trial Active'}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    {isTrialExpired(selected.trial_ends_at)
+                      ? `Expired on ${new Date(selected.trial_ends_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}`
+                      : `Ends on ${new Date(selected.trial_ends_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })} · ${trialLabel(selected.trial_ends_at)}`
+                    }
+                  </p>
+                  {isTrialExpired(selected.trial_ends_at) && (
+                    <button
+                      onClick={() => clearTrial(selected.id)}
+                      className="mt-3 w-full py-2 text-sm font-semibold bg-white border border-red-300 text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      ✓ Approve & Grant Full Access
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">

@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = useCallback(async (authUser) => {
-    if (!authUser) { setProfile(null); return }
+    if (!authUser) { setProfile(null); return null }
     // maybeSingle() returns null (not an error) when the profile row
     // doesn't exist yet — e.g. right after sign-up before the row is created.
     const { data, error } = await supabase
@@ -17,28 +17,38 @@ export function AuthProvider({ children }) {
       .select('id, full_name, email, phone, role, avatar_url, is_active')
       .eq('id', authUser.id)
       .maybeSingle()
-    if (error) { console.warn('Profile fetch:', error.message); setProfile(null) }
-    else setProfile(data)
+    if (error) { console.warn('Profile fetch:', error.message); setProfile(null); return null }
+    setProfile(data)
+    return data
   }, [])
 
   useEffect(() => {
     let ignore = false
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (ignore) return
-      setUser(session?.user ?? null)
-      fetchProfile(session?.user ?? null).finally(() => setLoading(false))
+      const u = session?.user ?? null
+      setUser(u)
+      fetchProfile(u).finally(() => { if (!ignore) setLoading(false) })
     })
+
     // NOTE: the onAuthStateChange callback must NOT await other supabase
     // calls directly — doing so can deadlock the auth client's internal
     // lock (a documented supabase-js issue). Defer profile fetching so the
     // callback returns immediately.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (ignore) return
-      setUser(session?.user ?? null)
-      setTimeout(() => {
-        if (ignore) return
-        fetchProfile(session?.user ?? null).finally(() => { if (!ignore) setLoading(false) })
-      }, 0)
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) {
+        setLoading(true)
+        setTimeout(() => {
+          if (ignore) return
+          fetchProfile(u).finally(() => { if (!ignore) setLoading(false) })
+        }, 0)
+      } else {
+        setProfile(null)
+        setLoading(false)
+      }
     })
     return () => { ignore = true; subscription.unsubscribe() }
   }, [fetchProfile])

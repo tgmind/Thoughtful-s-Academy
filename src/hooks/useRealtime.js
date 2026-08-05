@@ -96,6 +96,7 @@ export function useUnreadMessages(userId) {
   }, [userId])
 
   useEffect(() => {
+    if (!userId) return          // guard: don't open a channel with undefined id
     fetch()
     const ch = supabase.channel(`unread_${userId}`)
       .on('postgres_changes', {

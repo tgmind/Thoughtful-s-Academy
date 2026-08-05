@@ -51,7 +51,8 @@ function MonthHeatmap({ records }) {
   // consecutive present/late streak up to today
   // Bug fix: use local date string inside loop, not toISOString() (UTC)
   let streak = 0
-  const check = new Date(today)
+  const [cy, cm, cd] = today.split('-').map(Number)
+  const check = new Date(cy, cm - 1, cd)
   while (true) {
     const ds = `${check.getFullYear()}-${String(check.getMonth() + 1).padStart(2, '0')}-${String(check.getDate()).padStart(2, '0')}`
     if (statusMap[ds] === 'present' || statusMap[ds] === 'late') {

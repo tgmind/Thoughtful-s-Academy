@@ -13,14 +13,14 @@ import LoadingSpinner from '../components/shared/LoadingSpinner'
 export function ProtectedRoute({ allowedRoles }) {
   const { user, profile, loading } = useAuth()
 
-  // Still bootstrapping — don't flash a redirect
-  if (loading) return <LoadingSpinner fullScreen />
+  // Still bootstrapping or fetching profile — don't flash a redirect
+  if (loading || (user && !profile)) return <LoadingSpinner fullScreen />
 
   // Not logged in
   if (!user) return <Navigate to="/login" replace />
 
-  // Logged in but profile hasn't loaded yet (edge case during registration)
-  if (!profile) return <LoadingSpinner fullScreen />
+  // Logged in but no profile row exists
+  if (!profile) return <Navigate to="/login" replace />
 
   // Logged in but wrong role
   if (allowedRoles && !allowedRoles.includes(profile.role)) {

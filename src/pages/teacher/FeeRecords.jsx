@@ -61,7 +61,7 @@ export default function FeeRecords() {
       r.status,
       r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN') : '',
     ]))
-    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')
+    const csv = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\n')
     const a = document.createElement('a')
     a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
     a.download = 'fee-records.csv'

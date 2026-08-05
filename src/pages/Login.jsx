@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, GraduationCap, Mail, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { INSTITUTE_NAME, INSTITUTE_TAGLINE } from '../lib/constants'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
 
 export default function Login() {
+  const { user, profile: authProfile, loading: authLoading, refreshProfile } = useAuth()
   const [email,         setEmail]         = useState('')
   const [password,      setPassword]      = useState('')
   const [showPw,        setShowPw]        = useState(false)
@@ -16,6 +18,12 @@ export default function Login() {
   const [resetLoading,  setResetLoading]  = useState(false)
   const [errors,        setErrors]        = useState({})
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!authLoading && user && authProfile?.role && authProfile?.is_active) {
+      navigate(`/${authProfile.role}/dashboard`, { replace: true })
+    }
+  }, [user, authProfile, authLoading, navigate])
 
   // ---- Login submit ----------------------------------------
   const handleLogin = async (e) => {
@@ -54,8 +62,9 @@ export default function Login() {
         return
       }
 
+      await refreshProfile()
       toast.success('Welcome back!')
-      navigate(`/${profile.role}/dashboard`)
+      navigate(`/${profile.role}/dashboard`, { replace: true })
     } catch (err) {
       const msg = err.message || ''
       if (msg.includes('Invalid login credentials')) {

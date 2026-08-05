@@ -88,18 +88,21 @@ export default function AdminSettings() {
   // ── Student section ──
   const loadStudents = async () => {
     setLoadingStudents(true)
-    const [{ data: profiles }, { data: sps }, { data: batchData }] = await Promise.all([
+    const [res1, res2, res3] = await Promise.all([
       supabase.from('profiles').select('id, full_name, email').eq('role', 'student').order('full_name'),
       supabase.from('student_profiles').select('id, batch_id, batches(id, name)'),
       supabase.from('batches').select('id, name').order('name'),
     ])
-    const spMap = {}; (sps ?? []).forEach(sp => { spMap[sp.id] = sp })
-    setStudentList((profiles ?? []).map(s => ({
+    const profiles = res1?.data ?? []
+    const sps = res2?.data ?? []
+    const batchData = res3?.data ?? []
+    const spMap = {}; sps.forEach(sp => { spMap[sp.id] = sp })
+    setStudentList(profiles.map(s => ({
       ...s,
       batch_id:   spMap[s.id]?.batch_id ?? null,
       batch_name: spMap[s.id]?.batches?.name ?? '—',
     })))
-    setBatches(batchData ?? [])
+    setBatches(batchData)
     setLoadingStudents(false)
   }
 
@@ -165,7 +168,12 @@ export default function AdminSettings() {
 
     try {
       const { error } = await supabase.from('profiles').delete().in('id', ids)
-      if (error) console.error('Delete error on profiles:', error.message)
+      if (error) {
+        console.error('Delete error on profiles:', error.message)
+        toast.error('Failed to delete user accounts: ' + error.message)
+        setDeletingStudents(false)
+        return
+      }
     } catch (e) { console.error(e) }
     setStudentProgress(p => [...p, 'User accounts'])
 
@@ -252,7 +260,6 @@ export default function AdminSettings() {
     setTeacherProgress(p => [...p, 'Teacher profiles'])
 
     try { await supabase.from('profiles').delete().in('id', ids) } catch { /* ignore */ }
-    setTeacherProgress(p => [...p, 'User accounts'])
     setTeacherProgress(p => [...p, 'User accounts'])
 
     setDeletingTeachers(false)

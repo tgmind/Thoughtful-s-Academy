@@ -48,12 +48,13 @@ function NotifCard({ n, onDismiss }) {
             {isMsg ? n.senderName : n.title}
           </p>
           {!isLive && (isMsg ? n.content : n.body) && (
-            <p className="text-sm text-gray-700 mt-1 line-clamp-2 leading-relaxed">
+            <p className="text-sm text-gray-700 mt-1 leading-relaxed whitespace-pre-line">
               {isMsg
                 ? (n.count > 1 ? `${n.count} unread messages — "${n.content}"` : n.content)
                 : n.body}
             </p>
           )}
+
           {isLive && (
             <a
               href={normalizeUrl(n.join_url)}
@@ -111,22 +112,28 @@ export default function NotificationPopup() {
     clearTimeout(timers.current[id])
     delete timers.current[id]
     seenIds.current.delete(id)
+    // Extract the item before updating state so the side-effect stays outside the updater
+    let notifId = null
     setQueue(q => {
       const item = q.find(n => n.id === id)
-      if (item?.itemType === 'notification') markNotifRead([item.notifId])
+      if (item?.itemType === 'notification') notifId = item.notifId
       return q.filter(n => n.id !== id)
     })
+    // Defer the DB call to after the state updater returns
+    if (notifId) setTimeout(() => markNotifRead([notifId]), 0)
   }, [markNotifRead])
 
   const dismissAll = useCallback(() => {
     Object.values(timers.current).forEach(clearTimeout)
     timers.current = {}
     seenIds.current.clear()
+    // Extract notif IDs before clearing state, then fire the DB call outside the updater
+    let notifIds = []
     setQueue(q => {
-      const notifIds = q.filter(n => n.itemType === 'notification').map(n => n.notifId)
-      if (notifIds.length) markNotifRead(notifIds)
+      notifIds = q.filter(n => n.itemType === 'notification').map(n => n.notifId)
       return []
     })
+    if (notifIds.length) setTimeout(() => markNotifRead(notifIds), 0)
   }, [markNotifRead])
 
   const enqueue = useCallback((items) => {

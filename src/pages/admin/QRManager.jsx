@@ -16,13 +16,16 @@ export default function QRManager() {
   const [loading,  setLoading]  = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     supabase.from('qr_settings').select('*').order('updated_at', { ascending:false })
       .then(({ data }) => {
+        if (cancelled) return
         const active = data?.find(d => d.is_active)
         setCurrent(active ?? null)
         setHistory(data ?? [])
         setLoading(false)
       })
+    return () => { cancelled = true }
   }, [])
 
   const handleFile = (e) => {
@@ -45,7 +48,8 @@ export default function QRManager() {
         qr_image_url = publicUrl
       }
       // Deactivate all existing
-      await supabase.from('qr_settings').update({ is_active:false }).eq('is_active', true)
+      const { error: deactErr } = await supabase.from('qr_settings').update({ is_active:false }).eq('is_active', true)
+      if (deactErr) throw deactErr
       // Insert new
       const { data, error } = await supabase.from('qr_settings').insert({
         qr_image_url, upi_id:form.upi_id, payee_name:form.payee_name,

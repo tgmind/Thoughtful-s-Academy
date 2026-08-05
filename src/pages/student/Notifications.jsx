@@ -48,25 +48,28 @@ export default function Notifications() {
         const batchId = profile?.batch_id ?? null
         batchIdRef.current = batchId
 
-        let q = supabase.from('notifications').select('*')
+        const batchFilter = batchId
+          ? `target_batch_id.is.null,target_batch_id.eq.${batchId}`
+          : 'target_batch_id.is.null'
+
+        const { data: notifs } = await supabase.from('notifications').select('*')
           .eq('is_active', true)
           .or('target_role.eq.student,target_role.eq.all')
-          .or('scheduled_at.is.null,scheduled_at.lte.' + now)
-          .or('expires_at.is.null,expires_at.gte.' + now)
           .or(`target_user_id.is.null,target_user_id.eq.${user.id}`)
+          .or(batchFilter)
           .order('created_at', { ascending: false })
 
-        if (batchId) {
-          q = q.or(`target_batch_id.is.null,target_batch_id.eq.${batchId}`)
-        } else {
-          q = q.is('target_batch_id', null)
-        }
+        // Client-side filtering for schedule/expiry (avoids extra .or() overwrite)
+        const filtered = (notifs ?? []).filter(n => {
+          if (n.scheduled_at && new Date(n.scheduled_at) > new Date(now)) return false
+          if (n.expires_at && new Date(n.expires_at) < new Date(now)) return false
+          return true
+        })
 
-        const [{ data: notifs }, { data: reads }] = await Promise.all([
-          q,
+        const [{ data: reads }] = await Promise.all([
           supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
         ])
-        setNotifications(notifs ?? [])
+        setNotifications(filtered)
         setReadIds(new Set((reads ?? []).map(r => r.notification_id)))
         setLoading(false)
       })
@@ -143,7 +146,19 @@ export default function Notifications() {
       setExpandedIds(new Set())
     } else {
       setExpandedIds(new Set(filtered.map(n => n.id)))
-      filtered.forEach(n => markRead(n.id))
+      // Bulk-mark as read in a single API call instead of N individual calls
+      const unread = filtered.filter(n => !readIds.has(n.id))
+      if (unread.length) {
+        supabase.from('notification_reads').upsert(
+          unread.map(n => ({ user_id: user.id, notification_id: n.id })),
+          { onConflict: 'user_id,notification_id', ignoreDuplicates: true }
+        )
+        setReadIds(prev => {
+          const next = new Set(prev)
+          unread.forEach(n => next.add(n.id))
+          return next
+        })
+      }
     }
   }
 

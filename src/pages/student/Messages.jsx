@@ -176,7 +176,7 @@ export default function Messages() {
   }, [messages])
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="flex flex-1 min-h-0 h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
 
       {/* ── Sidebar ── */}
       <div className={`${showList ? 'flex' : 'hidden'} lg:flex flex-col w-full lg:w-80 border-r border-gray-100 flex-shrink-0`}>

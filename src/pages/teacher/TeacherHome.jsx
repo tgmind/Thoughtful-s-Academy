@@ -13,6 +13,7 @@ export default function TeacherHome() {
 
   useEffect(() => {
     if (!user) return
+    let cancelled = false
     Promise.all([
       supabase.from('teacher_profiles').select('*').eq('id', user.id).maybeSingle(),
       supabase.from('study_cards').select('id', { count: 'exact' }).eq('added_by', user.id).eq('is_active', true),
@@ -20,17 +21,20 @@ export default function TeacherHome() {
       supabase.from('live_classes').select('id').eq('teacher_id', user.id).eq('is_active', true).limit(1),
       supabase.from('messages').select('*, profiles!sender_id(full_name)').eq('receiver_id', user.id).eq('is_read', false).order('created_at', { ascending: false }).limit(3),
     ]).then(([p, c, m, lc, recentMsgs]) => {
+      if (cancelled) return
       setPerms(p.data)
       setStats({ cards: c.count ?? 0, unread: m.count ?? 0, live: (lc.data?.length ?? 0) > 0 })
       setMsgs(recentMsgs.data ?? [])
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [user])
 
   // Realtime: keep the dashboard live (unread messages + live-class status)
   useEffect(() => {
     if (!user) return
     const uid = user.id
+    let cancelled = false
 
     const refreshMessages = async () => {
       const { count } = await supabase.from('messages')
@@ -40,12 +44,14 @@ export default function TeacherHome() {
         .select('*, profiles!sender_id(full_name)')
         .eq('receiver_id', uid).eq('is_read', false)
         .order('created_at', { ascending: false }).limit(3)
+      if (cancelled) return
       setStats(s => ({ ...s, unread: count ?? 0 }))
       setMsgs(data ?? [])
     }
     const refreshLive = async () => {
       const { data } = await supabase.from('live_classes')
         .select('id').eq('teacher_id', uid).eq('is_active', true).limit(1)
+      if (cancelled) return
       setStats(s => ({ ...s, live: (data?.length ?? 0) > 0 }))
     }
 
@@ -55,7 +61,7 @@ export default function TeacherHome() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes', filter: `teacher_id=eq.${uid}` }, refreshLive)
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    return () => { cancelled = true; supabase.removeChannel(channel) }
   }, [user])
 
   const features = [

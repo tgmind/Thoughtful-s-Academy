@@ -49,7 +49,8 @@ export default function TeacherManager() {
   }
 
   const toggleActive = async (t) => {
-    await supabase.from('profiles').update({ is_active: !t.is_active }).eq('id', t.id)
+    const { error } = await supabase.from('profiles').update({ is_active: !t.is_active }).eq('id', t.id)
+    if (error) { toast.error(error.message); return }
     setTeachers(list => list.map(x => x.id === t.id ? { ...x, is_active: !x.is_active } : x))
     if (selected?.id === t.id) setSelected(s => ({ ...s, is_active: !s.is_active }))
     toast.success(t.is_active ? 'Account suspended' : 'Account restored')
@@ -143,7 +144,8 @@ export default function TeacherManager() {
                   <input type="number" defaultValue={selected.salary_amount || 0}
                     onBlur={async e => {
                       const val = parseFloat(e.target.value) || 0
-                      await supabase.from('teacher_profiles').update({ salary_amount: val }).eq('id', selected.id)
+                      const { error } = await supabase.from('teacher_profiles').update({ salary_amount: val }).eq('id', selected.id)
+                      if (error) { toast.error(error.message); return }
                       setTeachers(list => list.map(t => t.id === selected.id ? { ...t, salary_amount: val } : t))
                       toast.success('Salary updated')
                     }}

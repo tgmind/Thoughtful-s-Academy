@@ -273,7 +273,8 @@ function ManageTab({ user, batches }) {
                       )}
                     </div>
                     <h3 className="font-semibold text-gray-900">{n.title}</h3>
-                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
+                    <p className="text-sm text-gray-600 mt-1 leading-relaxed whitespace-pre-line">{n.body}</p>
+
                     <div className="flex items-center gap-3 mt-2">
                       <p className="text-xs text-gray-400">
                         {new Date(n.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -390,14 +391,18 @@ function InboxTab({ user }) {
       const [{ data: notifs }, { data: reads }] = await Promise.all([
         supabase.from('notifications').select('*')
           .eq('is_active', true)
-          .or('target_role.eq.teacher,target_role.eq.all')
-          .is('target_batch_id', null)
-          .or('scheduled_at.is.null,scheduled_at.lte.' + now)
-          .or('expires_at.is.null,expires_at.gte.' + now)
           .order('created_at', { ascending: false }),
         supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
       ])
-      setNotifications(notifs ?? [])
+      const filteredNotifs = (notifs ?? []).filter(n => {
+        const nNow = new Date()
+        if (n.scheduled_at && new Date(n.scheduled_at) > nNow) return false
+        if (n.expires_at   && new Date(n.expires_at)   < nNow) return false
+        if (n.target_role !== 'all' && n.target_role !== 'teacher') return false
+        if (n.target_batch_id) return false
+        return true
+      })
+      setNotifications(filteredNotifs)
       setReadIds(new Set((reads ?? []).map(r => r.notification_id)))
       setLoading(false)
     }

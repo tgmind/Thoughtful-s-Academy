@@ -16,6 +16,78 @@ export function getYouTubeThumbnail(url) {
   return null  // caller should show a placeholder
 }
 
+// ---- Google Drive Image Helpers -----------------------------
+
+export function getDriveFileId(url) {
+  if (!url) return ''
+  const trimmed = String(url).trim()
+  if (!trimmed) return ''
+
+  // Match /file/d/FILE_ID/
+  const m1 = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+  if (m1) return m1[1]
+
+  // Match id=FILE_ID
+  const m2 = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+  if (m2) return m2[1]
+
+  // Match googleusercontent.com/.../d/FILE_ID
+  const m3 = trimmed.match(/googleusercontent\.com\/(?:[a-z0-9_-]+\/)*d\/([a-zA-Z0-9_-]+)/)
+  if (m3) return m3[1]
+
+  // Match drive.google.com/thumbnail?id=FILE_ID
+  const m4 = trimmed.match(/drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+)/)
+  if (m4) return m4[1]
+
+  // Match partial paste like "FILE_ID/view..." or "FILE_ID?usp=sharing"
+  const m5 = trimmed.match(/^([a-zA-Z0-9_-]{20,})(?:\/|\?|$)/)
+  if (m5) return m5[1]
+
+  // Match any 25+ character token in string
+  const m6 = trimmed.match(/([a-zA-Z0-9_-]{25,})/)
+  if (m6) return m6[1]
+
+  return ''
+}
+
+
+export function convertDriveUrl(url) {
+  if (!url) return ''
+  const fileId = getDriveFileId(url)
+  if (fileId) {
+    return `https://lh3.googleusercontent.com/d/${fileId}=s1200`
+  }
+  return url
+}
+
+export function getDriveImageUrls(url) {
+  if (!url) return []
+  const fileId = getDriveFileId(url)
+  if (!fileId) return url.startsWith('http') ? [url] : []
+
+  const ids = [fileId]
+  if (!fileId.startsWith('1')) {
+    ids.push('1' + fileId)
+  }
+
+  const urls = []
+  for (const id of ids) {
+    urls.push(`https://lh3.googleusercontent.com/d/${id}=s1200`)
+    urls.push(`https://lh3.googleusercontent.com/d/${id}`)
+    urls.push(`https://drive.google.com/thumbnail?id=${id}&sz=w1200`)
+    urls.push(`https://drive.google.com/uc?export=view&id=${id}`)
+    urls.push(`https://drive.google.com/uc?id=${id}`)
+  }
+
+  if (url.startsWith('http')) {
+    urls.push(url)
+  }
+
+  return urls
+}
+
+
+
 // ---- URL helpers --------------------------------------------
 
 // Ensures an external link has a protocol. Without one, an
@@ -83,7 +155,8 @@ export function formatTime(dateString) {
 }
 
 export function todayISO() {
-  return new Date().toISOString().split('T')[0]  // "YYYY-MM-DD"
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // ---- Currency helpers ---------------------------------------

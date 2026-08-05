@@ -22,7 +22,7 @@ export default function FeeChart() {
       const months = last6Months()
       const [{ data: fees }, { data: students }] = await Promise.all([
         supabase.from('fee_records').select('amount, status, payment_month, student_id'),
-        supabase.from('profiles').select('id, full_name').eq('role', 'student'),
+        supabase.from('profiles').select('id, full_name').eq('role', 'student').eq('is_active', true),
       ])
 
       // Monthly breakdown

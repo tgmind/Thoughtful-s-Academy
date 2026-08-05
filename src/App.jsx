@@ -7,6 +7,7 @@ import Home     from './pages/Home'
 import Login    from './pages/Login'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
+import BatchDetails  from './pages/BatchDetails'
 import { NotFound, Unauthorized, AccountSuspended } from './pages/ErrorPages'
 
 // Student
@@ -19,6 +20,7 @@ import PayFee               from './pages/student/PayFee'
 import StudentNotifications from './pages/student/Notifications'
 import StudentLiveClass     from './pages/student/LiveClass'
 import StudentHomework      from './pages/student/Homework'
+import WatchLecture         from './pages/student/WatchLecture'
 
 // Teacher
 import TeacherLayout        from './pages/teacher/TeacherLayout'
@@ -32,21 +34,23 @@ import TeacherFeeRecords     from './pages/teacher/FeeRecords'
 import TeacherHomework       from './pages/teacher/Homework'
 
 // Admin
-import AdminLayout     from './pages/admin/AdminLayout'
-import AdminHome       from './pages/admin/AdminHome'
-import StudentTracker  from './pages/admin/StudentTracker'
-import TeacherManager  from './pages/admin/TeacherManager'
-import FeeManager      from './pages/admin/FeeManager'
-import BatchManager    from './pages/admin/BatchManager'
-import QRManager       from './pages/admin/QRManager'
-import SalaryManager   from './pages/admin/SalaryManager'
-import Announcements   from './pages/admin/Announcements'
-import AdminMessages   from './pages/admin/AdminMessages'
-import Analytics       from './pages/admin/Analytics'
-import AdminStudyCards from './pages/teacher/StudyCards'
-import AdminLiveClass  from './pages/teacher/LiveClass'
-import AdminHomework   from './pages/teacher/Homework'
-import AdminSettings   from './pages/admin/AdminSettings'
+import AdminLayout       from './pages/admin/AdminLayout'
+import AdminHome         from './pages/admin/AdminHome'
+import StudentTracker    from './pages/admin/StudentTracker'
+import TeacherManager    from './pages/admin/TeacherManager'
+import FeeManager        from './pages/admin/FeeManager'
+import BatchManager      from './pages/admin/BatchManager'
+import AdminBatchDetails from './pages/admin/AdminBatchDetails'
+import QRManager         from './pages/admin/QRManager'
+import SalaryManager     from './pages/admin/SalaryManager'
+import Announcements     from './pages/admin/Announcements'
+import AdminMessages     from './pages/admin/AdminMessages'
+import Analytics         from './pages/admin/Analytics'
+import AdminStudyCards   from './pages/teacher/StudyCards'
+import AdminLiveClass    from './pages/teacher/LiveClass'
+import AdminHomework     from './pages/teacher/Homework'
+import AdminSettings     from './pages/admin/AdminSettings'
+
 
 export default function App() {
   return (
@@ -61,11 +65,18 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/"                  element={<Home />}             />
+        <Route path="/batch-details"     element={<BatchDetails />}    />
+        <Route path="/watch/:cardId?"    element={<WatchLecture />}     />
         <Route path="/login"             element={<Login />}            />
         <Route path="/register"          element={<Register />}         />
         <Route path="/reset-password"    element={<ResetPassword />}    />
         <Route path="/unauthorized"      element={<Unauthorized />}     />
         <Route path="/account-suspended" element={<AccountSuspended />} />
+
+        {/* Student Standalone Watch Room */}
+        <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+          <Route path="/student/watch/:cardId?" element={<WatchLecture />} />
+        </Route>
 
         {/* Student */}
         <Route element={<ProtectedRoute allowedRoles={['student']} />}>
@@ -103,9 +114,10 @@ export default function App() {
             <Route path="teachers"      element={<TeacherManager />}                  />
             <Route path="fees"          element={<FeeManager />}                      />
             <Route path="batches"       element={<BatchManager />}                    />
-            <Route path="study-cards"   element={<AdminStudyCards isAdmin={true} />} />
-            <Route path="homework"      element={<AdminHomework   isAdmin={true} />} />
-            <Route path="live-class"    element={<AdminLiveClass  isAdmin={true} />} />
+            <Route path="batch-details" element={<AdminBatchDetails />}               />
+            <Route path="study-cards"   element={<AdminStudyCards isAdmin={true} />}  />
+            <Route path="homework"      element={<AdminHomework   isAdmin={true} />}  />
+            <Route path="live-class"    element={<AdminLiveClass  isAdmin={true} />}  />
             <Route path="qr"            element={<QRManager />}                       />
             <Route path="salary"        element={<SalaryManager />}                   />
             <Route path="announcements" element={<Announcements />}                   />
@@ -114,6 +126,7 @@ export default function App() {
             <Route path="settings"      element={<AdminSettings />}                   />
           </Route>
         </Route>
+
 
         <Route path="*" element={<NotFound />} />
       </Routes>

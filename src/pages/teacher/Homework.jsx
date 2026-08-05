@@ -191,10 +191,10 @@ export default function Homework({ isAdmin = false }) {
 
   return (
     <div className="space-y-5 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold text-lg text-gray-900">Homework</h2>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white text-sm font-semibold rounded-xl hover:bg-blue-900 transition-colors">
-          <Plus className="h-4 w-4" /> Assign Homework
+      <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+        <h2 className="font-bold text-lg sm:text-xl text-gray-900 truncate">Homework</h2>
+        <button onClick={openAdd} className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 bg-blue-950 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-blue-900 shadow-xs transition-all shrink-0 whitespace-nowrap active:scale-95">
+          <Plus className="h-4 w-4 shrink-0" /> Assign Homework
         </button>
       </div>
 

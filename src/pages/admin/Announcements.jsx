@@ -43,11 +43,13 @@ export default function Announcements() {
   const [statusTab,  setStatusTab]  = useState('all')
 
   useEffect(() => {
+    let cancelled = false
     Promise.all([
       supabase.from('notifications').select('*').order('created_at', { ascending: false }),
       supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
       supabase.from('notification_reads').select('notification_id'),
     ]).then(([n, b, r]) => {
+      if (cancelled) return
       setNotifs(n.data ?? [])
       setBatches(b.data ?? [])
       // Count reads per notification
@@ -58,6 +60,7 @@ export default function Announcements() {
       setReadCounts(counts)
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [])
 
   // Realtime: reflect creates/edits/deletes (incl. from other admins) instantly
@@ -134,12 +137,14 @@ export default function Announcements() {
   }
 
   const toggleActive = async (n) => {
-    const { data } = await supabase.from('notifications').update({ is_active: !n.is_active }).eq('id', n.id).select().single()
+    const { data, error } = await supabase.from('notifications').update({ is_active: !n.is_active }).eq('id', n.id).select().single()
+    if (error) { toast.error(error.message); return }
     if (data) setNotifs(list => list.map(x => x.id === n.id ? data : x))
   }
 
   const deleteNotif = async (id) => {
-    await supabase.from('notifications').delete().eq('id', id)
+    const { error } = await supabase.from('notifications').delete().eq('id', id)
+    if (error) { toast.error(error.message); return }
     setNotifs(n => n.filter(x => x.id !== id))
     toast.success('Deleted')
   }
@@ -172,11 +177,11 @@ export default function Announcements() {
     <div className="space-y-5 pb-20 lg:pb-0">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold text-lg text-gray-900">Announcements</h2>
+      <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+        <h2 className="font-bold text-lg sm:text-xl text-gray-900 truncate">Announcements</h2>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white text-sm font-semibold rounded-xl hover:bg-blue-900 transition-colors">
-          <Plus className="h-4 w-4" /> New Announcement
+          className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 bg-blue-950 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-blue-900 shadow-xs transition-all shrink-0 whitespace-nowrap active:scale-95">
+          <Plus className="h-4 w-4 shrink-0" /> New Announcement
         </button>
       </div>
 
@@ -259,7 +264,8 @@ export default function Announcements() {
                     </div>
 
                     <h3 className="font-semibold text-gray-900">{n.title}</h3>
-                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
+                    <p className="text-sm text-gray-600 mt-1 leading-relaxed whitespace-pre-line">{n.body}</p>
+
 
                     {/* Footer: date + read count */}
                     <div className="flex items-center gap-3 mt-2">

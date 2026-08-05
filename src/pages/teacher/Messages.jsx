@@ -194,17 +194,26 @@ export default function TeacherMessages() {
 
   useEffect(() => { loadSummary() }, [loadSummary])
 
+  const selectedRef = useRef(selected)
+  useEffect(() => { selectedRef.current = selected }, [selected])
+
   useEffect(() => {
     if (!selected || !user) return
+    let cancelled = false
     supabase.from('messages').select('*')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selected.id}),and(sender_id.eq.${selected.id},receiver_id.eq.${user.id})`)
       .order('created_at')
       .then(({ data }) => {
+        if (cancelled) return
         setMessages(data ?? [])
         supabase.from('messages').update({ is_read: true })
           .eq('receiver_id', user.id).eq('sender_id', selected.id).eq('is_read', false)
-          .then(() => setUnread(u => { const n = { ...u }; delete n[selected.id]; return n }))
+          .then(() => {
+            if (cancelled) return
+            setUnread(u => { const n = { ...u }; delete n[selected.id]; return n })
+          })
       })
+    return () => { cancelled = true }
   }, [selected, user])
 
   useEffect(() => {
@@ -214,7 +223,7 @@ export default function TeacherMessages() {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `receiver_id=eq.${user.id}`,
       }, ({ new: msg }) => {
-        if (msg.sender_id === selected?.id) {
+        if (msg.sender_id === selectedRef.current?.id) {
           setMessages(m => m.some(x => x.id === msg.id) ? m : [...m, msg])
           supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then(() => {})
         } else {
@@ -234,7 +243,7 @@ export default function TeacherMessages() {
       })
       .subscribe()
     return () => supabase.removeChannel(ch)
-  }, [user, selected])
+  }, [user])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -301,13 +310,13 @@ export default function TeacherMessages() {
   }, [broadcasts])
 
   if (loading) return (
-    <div className="flex h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] items-center justify-center rounded-2xl border border-gray-200">
+    <div className="flex flex-1 min-h-0 h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-5.5rem)] items-center justify-center rounded-2xl border border-gray-200">
       <p className="text-sm text-gray-400">Loading…</p>
     </div>
   )
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="flex flex-1 min-h-0 h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
 
       {/* ── Sidebar ── */}
       <div className={`${showList ? 'flex' : 'hidden'} lg:flex flex-col w-full lg:w-80 border-r border-gray-100 flex-shrink-0`}>

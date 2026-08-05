@@ -127,6 +127,8 @@ export function useNavBadges(role, userId) {
     if (!role || !userId) return
     let cancelled = false
     let channel = null
+    // Unique suffix prevents 'cannot add callbacks after subscribe' on StrictMode remount
+    const suffix = `${userId}_${Date.now()}`
 
     // Seed initial dots, skipping any section the user is already viewing.
     const seed = (map) => {
@@ -161,6 +163,7 @@ export function useNavBadges(role, userId) {
           studentLiveActive(batchId),
           studentHomeworkPending(userId, batchId),
         ])
+        if (cancelled) return
         seed({
           '/student/messages': msg > 0,
           '/student/notifications': notif > 0,
@@ -169,7 +172,7 @@ export function useNavBadges(role, userId) {
         })
 
         channel = supabase
-          .channel(`nav_badges_${userId}`)
+          .channel(`nav_badges_s_${suffix}`)
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
             () => raise('/student/messages'))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' },
@@ -189,13 +192,14 @@ export function useNavBadges(role, userId) {
           countUnreadMessages(userId),
           teacherNotifUnread(userId),
         ])
+        if (cancelled) return
         seed({
           '/teacher/messages': msg > 0,
           '/teacher/notifications': notif > 0,
         })
 
         channel = supabase
-          .channel(`nav_badges_${userId}`)
+          .channel(`nav_badges_t_${suffix}`)
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
             () => raise('/teacher/messages'))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' },
@@ -209,13 +213,14 @@ export function useNavBadges(role, userId) {
           countUnreadMessages(userId),
           adminPendingFees(),
         ])
+        if (cancelled) return
         seed({
           '/admin/messages': msg > 0,
           '/admin/fees': fees > 0,
         })
 
         channel = supabase
-          .channel(`nav_badges_${userId}`)
+          .channel(`nav_badges_a_${suffix}`)
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
             () => raise('/admin/messages'))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records' },

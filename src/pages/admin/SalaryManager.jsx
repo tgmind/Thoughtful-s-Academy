@@ -35,10 +35,12 @@ export default function SalaryManager() {
 
   // Load teachers once (merge profiles + teacher_profiles for QR/UPI data)
   useEffect(() => {
+    let cancelled = false
     Promise.all([
       supabase.from('profiles').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
       supabase.from('teacher_profiles').select('id, salary_amount, upi_qr_url, upi_id'),
     ]).then(([p, tp]) => {
+      if (cancelled) return
       const tpMap = {}
       ;(tp.data ?? []).forEach(t => { tpMap[t.id] = t })
       setTeachers(
@@ -52,29 +54,37 @@ export default function SalaryManager() {
       )
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [])
 
   // Reload salary records for the selected month
-  const loadMonthRecords = useCallback(async () => {
-    const { data } = await supabase.from('salary_records')
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('salary_records')
       .select('*')
       .eq('payment_month', selectedMonth)
-    const map = {}
-    ;(data ?? []).forEach(r => { map[r.teacher_id] = r })
-    setMonthRecords(map)
+      .then(({ data }) => {
+        if (cancelled) return
+        const map = {}
+        ;(data ?? []).forEach(r => { map[r.teacher_id] = r })
+        setMonthRecords(map)
+      })
+    return () => { cancelled = true }
   }, [selectedMonth])
 
   // Load full history
-  const loadHistory = useCallback(async () => {
-    const { data } = await supabase.from('salary_records')
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('salary_records')
       .select('*, profiles!teacher_id(full_name)')
       .order('paid_at', { ascending: false })
       .limit(150)
-    setAllRecords(data ?? [])
+      .then(({ data }) => {
+        if (cancelled) return
+        setAllRecords(data ?? [])
+      })
+    return () => { cancelled = true }
   }, [])
-
-  useEffect(() => { loadMonthRecords() }, [loadMonthRecords])
-  useEffect(() => { loadHistory()      }, [loadHistory])
 
   const selectTeacher = (t) => {
     setSelectedTeacher(t)

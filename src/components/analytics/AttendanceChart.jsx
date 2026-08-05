@@ -84,7 +84,7 @@ export default function AttendanceChart() {
           pct:   studentAtt[s.id] ? Math.round(((studentAtt[s.id].present + studentAtt[s.id].late * 0.5) / studentAtt[s.id].total) * 100) : 0,
           batch: spMap[s.id]?.batches?.name ?? '—',
         }))
-        .filter(s => s.pct < 50)
+        .filter(s => studentAtt[s.id] !== undefined && s.pct < 50)
         .sort((a, b) => a.pct - b.pct)
         .slice(0, 10)
       setAtRisk(risks)
