@@ -5,7 +5,6 @@ import { supabase } from '../../lib/supabase'
 
 const EMPTY = { name:'', description:'', subjects:[], teacher_id:'', poster_url:'' }
 
-import { convertDriveUrl } from '../../utils/formatters'
 import DriveImage from '../../components/shared/DriveImage'
 
 // Tag input: lets admin type a subject name and press Enter or comma to add it
@@ -212,7 +211,7 @@ export default function BatchManager() {
                   className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-400">
-                  Share the file in Google Drive → Copy link → paste here. File must be set to <strong>"Anyone with the link can view"</strong>.
+                  Share the file in Google Drive → Copy link → paste here. File must be set to <strong>&quot;Anyone with the link can view&quot;</strong>.
                 </p>
                 {/* Live preview */}
                 {form.poster_url.trim() && (
@@ -224,7 +223,7 @@ export default function BatchManager() {
                       fallback={
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 text-[11px] text-amber-600 bg-amber-50 rounded-lg">
                           <p className="font-bold leading-tight mb-1">⚠️ Private Link</p>
-                          <p className="text-[10px] text-gray-500 leading-tight">In Google Drive, set access to <strong>"Anyone with link"</strong>.</p>
+                          <p className="text-[10px] text-gray-500 leading-tight">In Google Drive, set access to <strong>&quot;Anyone with link&quot;</strong>.</p>
                         </div>
                       }
                     />

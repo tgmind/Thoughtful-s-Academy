@@ -96,11 +96,6 @@ function getYTThumb(url) {
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
 }
 
-function getYTWatchUrl(url) {
-  const id = getYTVideoId(url)
-  return id ? `https://www.youtube.com/watch?v=${id}` : url
-}
-
 const TYPE_BADGES = {
   youtube_video:    { label: 'Video Lecture', color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },
   youtube_playlist: { label: 'Playlist',      color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },

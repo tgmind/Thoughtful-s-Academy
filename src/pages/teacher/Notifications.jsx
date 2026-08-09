@@ -386,7 +386,6 @@ function InboxTab({ user }) {
 
   useEffect(() => {
     if (!user) return
-    const now = new Date().toISOString()
     const load = async () => {
       const [{ data: notifs }, { data: reads }] = await Promise.all([
         supabase.from('notifications').select('*')

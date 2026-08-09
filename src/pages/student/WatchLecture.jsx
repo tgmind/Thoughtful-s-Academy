@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import {
   ArrowLeft, BookOpen, Heart, Maximize2, Minimize2,
-  ListVideo, Youtube, Sparkles, GraduationCap, PlayCircle, ExternalLink,
-  ChevronRight, ChevronLeft, ChevronDown, Layers, Clock, Search, CheckCircle2, Radio,
-  FileText, Share2
+  ListVideo, Sparkles, PlayCircle, ExternalLink,
+  ChevronRight, ChevronLeft, ChevronDown, Layers, Clock, Search, Radio,
+  Share2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -130,7 +130,7 @@ export default function WatchLecture() {
       setPlaylistItems([])
       setPlaylistLoading(false)
     }
-  }, [card?.id, card?.url, card?.type])
+  }, [card])
 
   // Fetch bookmark status for current user
   useEffect(() => {
@@ -204,10 +204,10 @@ export default function WatchLecture() {
         await el.requestFullscreen()
         try {
           await screen.orientation?.lock?.('landscape')
-        } catch { /* Fallback */ }
-      } catch { /* Fallback */ }
+        } catch (err) { void err }
+      } catch (err) { void err }
     } else {
-      try { screen.orientation?.unlock?.() } catch {}
+      try { screen.orientation?.unlock?.() } catch (err) { void err }
       document.exitFullscreen?.().catch(() => {})
     }
   }, [])
@@ -218,13 +218,13 @@ export default function WatchLecture() {
       const isFull = !!document.fullscreenElement
       setIsFullscreen(isFull)
       if (!isFull) {
-        try { screen.orientation?.unlock?.() } catch {}
+        try { screen.orientation?.unlock?.() } catch (err) { void err }
       }
     }
     document.addEventListener('fullscreenchange', handler)
     return () => {
       document.removeEventListener('fullscreenchange', handler)
-      try { screen.orientation?.unlock?.() } catch {}
+      try { screen.orientation?.unlock?.() } catch (err) { void err }
     }
   }, [])
 
@@ -284,7 +284,7 @@ export default function WatchLecture() {
 
   const handleGoBack = () => {
     if (document.fullscreenElement) {
-      try { screen.orientation?.unlock?.() } catch {}
+      try { screen.orientation?.unlock?.() } catch (err) { void err }
       document.exitFullscreen?.().catch(() => {})
     }
     if (window.history.length > 1 && window.history.state?.idx > 0) {
@@ -318,7 +318,6 @@ export default function WatchLecture() {
 
   const activePlaylistItem = playlistItems[activeVideoIndex]
   const currentTitle = activePlaylistItem?.title || card.title
-  const tagInfo = getCardTypeTag(card.type)
 
   const filteredPlaylistItems = playlistItems.filter(item =>
     item.title.toLowerCase().includes(playlistSearch.toLowerCase())
@@ -484,7 +483,7 @@ export default function WatchLecture() {
                     </span>
                   )}
                   <span className="flex items-center gap-1 text-indigo-700 font-bold">
-                    <Sparkles className="h-3 w-3" /> Thoughtful's Academy Lecture
+                    <Sparkles className="h-3 w-3" /> Thoughtful&apos;s Academy Lecture
                   </span>
                 </div>
               </div>

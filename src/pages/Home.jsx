@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   GraduationCap, PlayCircle, ExternalLink, BookOpen, Bell,
   ChevronLeft, ChevronRight, Mail, Youtube, ArrowRight,
-  Video, MessageSquare, CheckCircle2, Sparkles, X,
+  Video, MessageSquare, CheckCircle2, Sparkles,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
   INSTITUTE_NAME, INSTITUTE_TAGLINE, CONTACT_EMAIL,
 } from '../lib/constants'
-import { getYouTubeThumbnail, normalizeUrl, convertDriveUrl } from '../utils/formatters'
+import { getYouTubeThumbnail } from '../utils/formatters'
 import DriveImage from '../components/shared/DriveImage'
+import InstallHeaderButton from '../components/InstallHeaderButton'
 
 function getThumbnail(url) { return getYouTubeThumbnail(url) }
 
@@ -26,10 +27,7 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-function truncate(str, n = 90) {
-  if (!str) return ''
-  return str.length > n ? str.slice(0, n) + '…' : str
-}
+
 
 const NOTIF_STYLES = {
   fee:          { border: 'border-l-amber-400',  label: 'Fee',          bg: 'bg-amber-50',  text: 'text-amber-700'  },
@@ -67,7 +65,7 @@ function FounderPhoto({ className, fallbackSize = 'text-7xl' }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse flex flex-col w-full h-[320px] justify-between shrink-0">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse flex flex-col w-full h-[320px] justify-between">
       <div className="bg-gray-200 aspect-video w-full" />
       <div className="p-3.5 sm:p-4 flex flex-col justify-between flex-1">
         <div className="space-y-2 mb-3">
@@ -84,58 +82,79 @@ function SkeletonCard() {
 
 // ─── batch poster card ────────────────────────────────────────────────────────
 
-function BatchPosterCard({ batch }) {
-  const [imgFailed, setImgFailed] = useState(false)
-  const src = convertDriveUrl(batch.poster_url)
-
-  // Gradient colours cycle through a curated palette
-  const GRADIENTS = [
-    'from-indigo-700 to-blue-900',
-    'from-violet-700 to-purple-900',
-    'from-amber-600 to-orange-900',
-    'from-teal-600 to-cyan-900',
-    'from-rose-600 to-pink-900',
-    'from-emerald-600 to-green-900',
+function BatchPosterCard({ batch, index = 0 }) {
+  const PALETTES = [
+    'from-[#0f0c29] via-[#302b63] to-[#24243e]',
+    'from-[#1a1a2e] via-[#16213e] to-[#0f3460]',
+    'from-[#200122] via-[#6f0000] to-[#200122]',
+    'from-[#0f2027] via-[#203a43] to-[#2c5364]',
+    'from-[#1d2671] via-[#c33764] to-[#1d2671]',
+    'from-[#11998e] via-[#38ef7d] to-[#11998e]',
   ]
-  // Stable colour per batch name
-  const grad = GRADIENTS[(batch.name?.charCodeAt(0) ?? 0) % GRADIENTS.length]
+  const palette = PALETTES[index % PALETTES.length]
 
   return (
     <Link
       to={`/batch-details?id=${batch.id}`}
       className="group block flex-shrink-0 w-40 sm:w-44 lg:w-48 max-w-[200px] snap-start"
     >
-      {/* Poster image — portrait aspect 9:16 + object-contain so NO cropping happens */}
-      <div className={`relative rounded-2xl overflow-hidden aspect-[9/16] max-h-[320px] shadow-md group-hover:shadow-2xl group-hover:-translate-y-1.5 transition-all duration-300 bg-slate-900/90 flex items-center justify-center p-0.5 border border-gray-100`}>
-
-        {batch.poster_url?.trim() ? (
-          <DriveImage
-            src={batch.poster_url.trim()}
-            alt={batch.name}
-            loading="lazy"
-            className="w-full h-full object-contain rounded-xl"
-            fallback={
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center bg-gradient-to-br from-indigo-900 to-blue-950">
-                <span className="text-4xl font-extrabold text-white/30">{batch.name?.charAt(0)?.toUpperCase()}</span>
-                <span className="text-white font-bold text-sm leading-tight">{batch.name}</span>
-              </div>
-            }
+      <div className="relative rounded-2xl p-[1px] transition-all duration-300 group-hover:scale-[1.02]">
+        {/* Poster image container */}
+        <div
+          className="relative rounded-2xl overflow-hidden aspect-[9/16] max-h-[320px] bg-slate-950 flex items-center justify-center border border-slate-200/80 group-hover:border-amber-400/80 shadow-md group-hover:shadow-xl group-hover:shadow-amber-500/15 transition-all duration-300"
+          style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+        >
+          {/* Hover shimmer effect */}
+          <div
+            className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+            style={{ background: 'linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.12) 50%, transparent 65%)' }}
           />
-        ) : (
-          /* Fallback: gradient + initials */
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center bg-gradient-to-br from-indigo-900 to-blue-950">
-            <span className="text-4xl font-extrabold text-white/30">{batch.name?.charAt(0)?.toUpperCase()}</span>
-            <span className="text-white font-bold text-sm leading-tight">{batch.name}</span>
-          </div>
-        )}
 
-        {/* Hover overlay with name */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3 rounded-2xl">
-          <span className="text-white text-xs font-bold leading-snug line-clamp-2">{batch.name}</span>
+          {batch.poster_url?.trim() ? (
+            <DriveImage
+              src={batch.poster_url.trim()}
+              alt={batch.name}
+              loading="lazy"
+              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+              fallback={
+                <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-gradient-to-br ${palette}`}>
+                  <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                    <span className="text-2xl font-extrabold text-white">{batch.name?.charAt(0)?.toUpperCase()}</span>
+                  </div>
+                  <span className="text-white font-bold text-xs leading-tight px-2">{batch.name}</span>
+                </div>
+              }
+            />
+          ) : (
+            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-gradient-to-br ${palette}`}>
+              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                <span className="text-2xl font-extrabold text-white">{batch.name?.charAt(0)?.toUpperCase()}</span>
+              </div>
+              <span className="text-white font-bold text-xs leading-tight px-2">{batch.name}</span>
+            </div>
+          )}
+
+          {/* LIVE badge */}
+          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-red-600 text-white text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-full shadow-md border border-white/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            LIVE
+          </div>
+
+          {/* Bottom hover overlay */}
+          <div className="absolute inset-0 z-20 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3 rounded-2xl">
+            <p className="text-white text-[11px] font-bold leading-snug line-clamp-2 mb-1.5">{batch.name}</p>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
+              View Details <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
         </div>
       </div>
-    </Link>
 
+      {/* Batch title below */}
+      <p className="mt-2.5 text-center text-xs font-bold text-slate-800 leading-snug line-clamp-1 px-1 group-hover:text-amber-600 transition-colors">
+        {batch.name}
+      </p>
+    </Link>
   )
 }
 
@@ -145,52 +164,83 @@ function BatchPostersSection({ batches }) {
   if (!batches.length) return null
 
   return (
-    <section className="bg-white border-b border-gray-100">
-      <div className={`${CONTAINER} py-10`}>
+    <section className="relative bg-slate-50/70 border-b border-slate-200/60 overflow-hidden py-10">
+      {/* Soft ambient background glows */}
+      <div
+        className="absolute top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none opacity-40 blur-3xl"
+        style={{ background: 'radial-gradient(circle, rgba(254, 243, 199, 0.8) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full pointer-events-none opacity-30 blur-3xl"
+        style={{ background: 'radial-gradient(circle, rgba(219, 234, 254, 0.8) 0%, transparent 70%)' }}
+      />
+
+      <div className={`${CONTAINER} relative z-10`}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="w-1 h-8 bg-amber-400 rounded-full" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-start gap-3.5">
+            {/* Saffron accent indicator */}
+            <div className="w-1.5 h-10 rounded-full bg-gradient-to-b from-amber-400 to-amber-500 mt-0.5 shadow-sm shadow-amber-400/40" />
+
             <div>
-              <h2 className="font-display font-bold text-xl text-gray-900 leading-tight">Running Batches</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Join a batch and start learning today</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-900 tracking-tight">
+                  Running Batches
+                </h2>
+
+                {/* Batch count pill */}
+                <span className="inline-flex items-center justify-center min-w-[1.6rem] h-6 px-2.5 rounded-full text-xs font-extrabold bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm shadow-amber-400/40">
+                  {batches.length}
+                </span>
+
+                {/* Admissions open tag */}
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 shadow-2xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Admissions Open
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+                🎓 Join a batch today &amp; start your learning journey
+              </p>
             </div>
           </div>
+
+          {/* Desktop action buttons */}
           <div className="hidden sm:flex items-center gap-3">
             <Link
               to="/batch-details"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-amber-400 hover:text-amber-600 hover:shadow-sm transition-all"
             >
-              Batch Details <ArrowRight className="h-3.5 w-3.5 text-amber-500" />
+              All Batches <ArrowRight className="h-3.5 w-3.5 text-amber-500" />
             </Link>
             <Link
               to="/register"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-white font-bold text-xs shadow-md shadow-amber-400/30 hover:shadow-lg hover:from-amber-500 hover:to-amber-700 transition-all hover:-translate-y-0.5"
             >
               Enroll Now <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
 
-        {/* Mobile: horizontal snap scroll | Desktop: grid */}
+        {/* Mobile horizontal scroll layout - NO dark overlay mask on the right */}
         <div className="lg:hidden -mx-5 sm:-mx-8">
-          <div
-            className="flex gap-4 overflow-x-auto px-5 sm:px-8 pb-3 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
-          >
-            {batches.map(b => <BatchPosterCard key={b.id} batch={b} />)}
+          <div className="flex gap-4 overflow-x-auto px-5 sm:px-8 pb-4 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
+            {batches.map((b, i) => <BatchPosterCard key={b.id} batch={b} index={i} />)}
           </div>
         </div>
 
-        <div className="hidden lg:grid grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
-          {batches.map(b => <BatchPosterCard key={b.id} batch={b} />)}
+        {/* Desktop grid layout */}
+        <div className="hidden lg:grid grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+          {batches.map((b, i) => <BatchPosterCard key={b.id} batch={b} index={i} />)}
         </div>
 
         {/* Mobile CTA below */}
-        <div className="sm:hidden mt-5">
+        <div className="sm:hidden mt-6">
           <Link
             to="/register"
-            className="flex items-center justify-center gap-2 py-3 w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-white font-bold text-sm transition-colors shadow-md shadow-amber-400/30"
+            className="flex items-center justify-center gap-2 py-3.5 w-full rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-white font-bold text-sm shadow-lg shadow-amber-400/30 hover:shadow-xl transition-all"
           >
+            <GraduationCap className="h-5 w-5" />
             Enroll in a Batch <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -201,27 +251,45 @@ function BatchPostersSection({ batches }) {
 
 // ─── lecture card ─────────────────────────────────────────────────────────────
 
-function LectureCard({ card, onSelectCard }) {
+function LectureCard({ card }) {
+  const navigate = useNavigate()
   const thumb = card.thumbnail_url || getThumbnail(card.url)
-  const isYT  = card.type === 'youtube_video' || card.type === 'youtube_playlist'
+  const isExternal = card.type === 'external_link'
   const desc  = card.description?.trim() || ''
   const isLong = desc.length > 65
 
+  const handleOpen = (e) => {
+    if (e) e.stopPropagation()
+    if (!isExternal) {
+      navigate(`/watch/${card.id}`, { state: { card } })
+    } else {
+      window.open(card.url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const handleCardClick = (e) => {
+    if (e.target.closest('a') || e.target.closest('button')) return
+    handleOpen()
+  }
+
   return (
-    <div className="group bg-white rounded-2xl border border-gray-100/90 overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col w-full h-full justify-between shrink-0">
-      <div className="relative overflow-hidden shrink-0">
+    <div
+      onClick={handleCardClick}
+      className="group bg-white rounded-2xl border border-gray-200/80 hover:border-blue-300/80 overflow-hidden shadow-2xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col w-full h-full justify-between cursor-pointer"
+    >
+      <div className="relative aspect-video w-full overflow-hidden bg-slate-950 shrink-0">
         {thumb
           ? <img src={thumb} alt={card.title} loading="lazy"
-              className="w-full aspect-video object-cover transition-transform duration-500 group-hover:scale-105" />
-          : <div className="w-full aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-              <BookOpen className="h-10 w-10 text-blue-400/80" />
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          : <div className="w-full h-full bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-950 flex items-center justify-center">
+              <BookOpen className="h-10 w-10 text-blue-300/60" />
             </div>
         }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        {isYT && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
+        {!isExternal && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-amber-500 transition-colors duration-300 shadow-lg">
-              <PlayCircle className="h-6 w-6 sm:h-6 sm:w-6 text-white ml-0.5" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-amber-500 group-hover:border-amber-400 group-hover:scale-110 transition-all duration-300 shadow-lg border border-white/20">
+              <PlayCircle className="h-6 w-6 text-white ml-0.5" />
             </div>
           </div>
         )}
@@ -234,11 +302,11 @@ function LectureCard({ card, onSelectCard }) {
 
       {/* Symmetrical Flex Body */}
       <div className="p-3.5 sm:p-4 flex flex-col justify-between flex-1">
-        <div className="space-y-1.5 mb-3">
-          <h3 className="font-semibold text-gray-900 text-xs sm:text-sm leading-snug line-clamp-2 min-h-[2.5rem] flex items-center">
+        <div>
+          <h3 className="font-semibold text-gray-900 text-xs sm:text-sm leading-snug line-clamp-2 min-h-[2.5rem] flex items-start group-hover:text-blue-950 transition-colors">
             {card.title}
           </h3>
-          <div className="text-xs text-gray-500 leading-relaxed min-h-[2.5rem] flex items-start">
+          <div className="text-xs text-gray-500 leading-relaxed min-h-[2.5rem] mt-1.5 flex items-start">
             {desc ? (
               <p className="line-clamp-2">
                 {isLong ? (
@@ -246,7 +314,7 @@ function LectureCard({ card, onSelectCard }) {
                     {desc.slice(0, 65)}…{' '}
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); onSelectCard?.(card) }}
+                      onClick={handleOpen}
                       className="text-amber-600 hover:text-amber-700 font-bold text-[11px] inline-flex items-center hover:underline cursor-pointer"
                     >
                       Read More
@@ -257,23 +325,28 @@ function LectureCard({ card, onSelectCard }) {
                 )}
               </p>
             ) : (
-              <span>&nbsp;</span>
+              <span className="text-gray-300 italic">No description</span>
             )}
           </div>
         </div>
 
-        <div className="pt-2.5 border-t border-gray-100 shrink-0 flex items-center justify-between mt-auto">
-          <a href={normalizeUrl(card.url)} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors">
-            {isYT
+        <div className="pt-2.5 border-t border-gray-100 shrink-0 flex items-center justify-between mt-3">
+          <button
+            type="button"
+            onClick={handleOpen}
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors cursor-pointer"
+          >
+            {!isExternal
               ? <><Youtube className="h-4 w-4 text-red-600" /> Watch now</>
-              : <><ExternalLink className="h-4 w-4" /> Open resource</>}
-          </a>
+              : <><ExternalLink className="h-4 w-4 text-blue-600" /> Open resource</>}
+          </button>
         </div>
       </div>
     </div>
   )
 }
+
+
 
 // ─── notification row ─────────────────────────────────────────────────────────
 
@@ -299,8 +372,6 @@ function NotifRow({ n, isNew, compact = false }) {
 
 // ─── main ──────────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 60
-
 export default function Home() {
   const [notifications, setNotifications] = useState([])
   const [featured,      setFeatured]      = useState([])
@@ -311,9 +382,21 @@ export default function Home() {
   const [page,          setPage]          = useState(1)
   const [totalCards,    setTotalCards]    = useState(0)
   const [loading,       setLoading]       = useState(true)
-  const [activeCardModal, setActiveCardModal] = useState(null)
+  const [cols,          setCols]          = useState(2)
   const featRef     = useRef(null)
-  const lecturesRef = useRef(null)
+
+  // Screen column detector for exact dynamic responsive layout
+  useEffect(() => {
+    const updateCols = () => {
+      const w = window.innerWidth
+      if (w < 500) setCols(1)
+      else if (w < 1280) setCols(2)
+      else setCols(3)
+    }
+    updateCols()
+    window.addEventListener('resize', updateCols)
+    return () => window.removeEventListener('resize', updateCols)
+  }, [])
 
   // Featured scroll — robust: scroll by ~one card width
   const scrollFeatured = (dir) => {
@@ -322,23 +405,6 @@ export default function Home() {
       featRef.current.scrollBy({ left: dir * amount, behavior: 'smooth' })
     }
   }
-
-  // All lectures swipe scroll
-  const scrollLectures = (dir) => {
-    if (lecturesRef.current) {
-      const amount = Math.min(340, lecturesRef.current.clientWidth * 0.85)
-      lecturesRef.current.scrollBy({ left: dir * amount, behavior: 'smooth' })
-    }
-  }
-
-  // Group cards into vertical columns of 3 cards each
-  const cardColumns = useMemo(() => {
-    const cols = []
-    for (let i = 0; i < cards.length; i += 3) {
-      cols.push(cards.slice(i, i + 3))
-    }
-    return cols
-  }, [cards])
 
   useEffect(() => {
     let cancelled = false
@@ -408,33 +474,29 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    const from = (page - 1) * PAGE_SIZE
-    const to   = from + PAGE_SIZE - 1
 
     if (activeBatch === 'all') {
       supabase
         .from('study_cards')
-        .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids', { count: 'exact' })
+        .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids')
         .eq('is_active', true)
         .eq('is_public', true)
         .order('display_order')
-        .range(from, to)
-        .then(({ data, count }) => {
+        .then(({ data }) => {
           if (cancelled) return
           setCards(data ?? [])
-          setTotalCards(count ?? 0)
+          setTotalCards((data ?? []).length)
           setLoading(false)
         })
     } else {
       supabase
         .from('study_cards')
-        .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids', { count: 'exact' })
+        .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids')
         .eq('is_active', true)
         .eq('is_public', true)
         .or(`batch_ids.cs.{${activeBatch}},batch_id.eq.${activeBatch}`)
         .order('display_order')
-        .range(from, to)
-        .then(({ data, count, error }) => {
+        .then(({ data, error }) => {
           if (cancelled) return
           if (error || !data) {
             // Fallback: fetch all public cards and filter in memory if OR syntax errors on DB schema
@@ -456,15 +518,41 @@ export default function Home() {
               })
           } else {
             setCards(data ?? [])
-            setTotalCards(count ?? 0)
+            setTotalCards(data.length)
             setLoading(false)
           }
         })
     }
     return () => { cancelled = true }
-  }, [activeBatch, page])
+  }, [activeBatch])
 
-  const totalPages = Math.ceil(totalCards / PAGE_SIZE)
+  // Dynamic page size calculation: computes an optimal page size (multiple of cols)
+  // so that cards divide into equal, symmetrical pages without trailing partial rows
+  const dynamicPageSize = useMemo(() => {
+    const total = cards.length
+    if (!total || total <= 0) return cols * 2
+
+    // Check if total splits evenly into cols * rows
+    for (let r = 2; r <= 4; r++) {
+      const size = r * cols
+      if (total % size === 0) return size
+    }
+
+    if (cols === 1 && total % 5 === 0 && total >= 5) return 5
+
+    return cols * 2
+  }, [cards.length, cols])
+
+  const totalPages = Math.max(1, Math.ceil(cards.length / dynamicPageSize))
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1)
+  }, [totalPages, page])
+
+  const visibleCards = useMemo(() => {
+    const from = (page - 1) * dynamicPageSize
+    return cards.slice(from, from + dynamicPageSize)
+  }, [cards, page, dynamicPageSize])
   const now = Date.now()
   const isNew = (d) => now - new Date(d).getTime() < 86400000
   const hasNew = notifications.some(n => isNew(n.created_at))
@@ -548,9 +636,12 @@ export default function Home() {
         <div className={`relative ${CONTAINER} grid lg:grid-cols-[1.15fr_0.85fr] items-center gap-12 lg:gap-16 pt-14 pb-20 sm:pt-16 lg:pt-24 lg:pb-28`}>
           {/* LEFT */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 bg-white/10 text-blue-200 text-xs font-semibold px-4 py-1.5 rounded-full border border-white/15 mb-6 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              Batch 2025–26 · Admissions open
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-6">
+              <div className="inline-flex items-center gap-2 bg-white/10 text-blue-200 text-xs font-semibold px-4 py-1.5 rounded-full border border-white/15 backdrop-blur-sm">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                Batch 2025–26 · Admissions open
+              </div>
+              <InstallHeaderButton />
             </div>
             <h1 className="font-display font-extrabold text-white tracking-tight leading-[1.08] text-4xl sm:text-5xl lg:text-6xl xl:text-[4.25rem] mb-6">
               {INSTITUTE_NAME}
@@ -604,7 +695,7 @@ export default function Home() {
         {/* curve divider */}
         <div className="relative h-10 sm:h-14 -mb-px">
           <svg viewBox="0 0 1440 64" preserveAspectRatio="none" className="absolute bottom-0 w-full h-full" fill="none">
-            <path d="M0 64 L1440 64 L1440 24 C1080 60 360 60 0 24 Z" fill="#f9fafb" />
+            <path d="M0 64 L1440 64 L1440 24 C1080 60 360 60 0 24 Z" fill="#f8fafc" />
           </svg>
         </div>
       </section>
@@ -698,11 +789,11 @@ export default function Home() {
                   {/* Desktop scroll buttons */}
                   <div className="hidden sm:flex gap-2">
                     <button onClick={() => scrollFeatured(-1)} aria-label="Scroll left"
-                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-colors">
+                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-colors cursor-pointer">
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     <button onClick={() => scrollFeatured(1)} aria-label="Scroll right"
-                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-colors">
+                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-colors cursor-pointer">
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -717,7 +808,7 @@ export default function Home() {
                   <div className="flex gap-3 sm:gap-5" style={{ width: 'max-content' }}>
                     {featured.map(c => (
                       <div key={c.id} className="w-[65vw] max-w-[225px] sm:w-[310px] flex-shrink-0 snap-start">
-                        <LectureCard card={c} onSelectCard={setActiveCardModal} />
+                        <LectureCard card={c} />
                       </div>
                     ))}
                   </div>
@@ -739,19 +830,24 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
-                  {cards.length > 3 && (
+                  {totalPages > 1 && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
-                        onClick={() => scrollLectures(-1)}
-                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-700 hover:text-blue-600 flex items-center justify-center transition-all shadow-2xs active:scale-95"
-                        title="Scroll Left"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-700 hover:text-blue-600 disabled:opacity-30 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                        title="Previous Page"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
+                      <span className="text-xs font-semibold text-gray-500 px-1">
+                        {page}/{totalPages}
+                      </span>
                       <button
-                        onClick={() => scrollLectures(1)}
-                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-700 hover:text-blue-600 flex items-center justify-center transition-all shadow-2xs active:scale-95"
-                        title="Scroll Right"
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-700 hover:text-blue-600 disabled:opacity-30 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
+                        title="Next Page"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>
@@ -763,7 +859,7 @@ export default function Home() {
                 <div className="w-full overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
                   <div className="flex gap-2 w-max items-center">
                     <button onClick={() => { setActiveBatch('all'); setPage(1) }}
-                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 ${
+                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                         activeBatch === 'all'
                           ? 'bg-blue-950 text-white shadow-md shadow-blue-950/20'
                           : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
@@ -771,7 +867,7 @@ export default function Home() {
                     </button>
                     {batches.map(b => (
                       <button key={b.id} onClick={() => { setActiveBatch(b.id); setPage(1) }}
-                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 ${
+                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                           activeBatch === b.id
                             ? 'bg-blue-950 text-white shadow-md shadow-blue-950/20'
                             : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
@@ -783,16 +879,13 @@ export default function Home() {
               </div>
 
               {loading ? (
-                <div className="overflow-x-auto pb-3 -mx-1 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
-                  <div className="flex gap-4 sm:gap-5 w-max">
-                    {[...Array(2)].map((_, colIdx) => (
-                      <div key={colIdx} className="w-[285px] sm:w-[320px] flex-shrink-0 flex flex-col gap-4 justify-start">
-                        {[...Array(3)].map((_, i) => (
-                          <SkeletonCard key={i} />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
+                <div
+                  className="grid gap-3.5 sm:gap-5 items-stretch"
+                  style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+                >
+                  {[...Array(dynamicPageSize)].map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
                 </div>
               ) : cards.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
@@ -805,37 +898,30 @@ export default function Home() {
               ) : (
                 <>
                   <div
-                    ref={lecturesRef}
-                    className="overflow-x-auto pb-4 -mx-1 px-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
+                    className="grid gap-3.5 sm:gap-5 items-stretch"
+                    style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
                   >
-                    <div className="flex gap-4 sm:gap-5 w-max items-start">
-                      {cardColumns.map((column, colIdx) => (
-                        <div
-                          key={colIdx}
-                          className="w-[285px] sm:w-[320px] lg:w-[340px] flex-shrink-0 snap-start flex flex-col gap-4 justify-start"
-                        >
-                          {column.map(card => (
-                            <LectureCard key={card.id} card={card} onSelectCard={setActiveCardModal} />
-                          ))}
-                        </div>
-                      ))}
-                    </div>
+                    {visibleCards.map(card => (
+                      <LectureCard key={card.id} card={card} />
+                    ))}
                   </div>
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-6">
-                      <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
-                        className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 disabled:opacity-30 transition-colors">
+                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-8">
+                      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                        className="p-2 sm:p-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 disabled:opacity-30 transition-colors cursor-pointer"
+                        title="Previous page">
                         <ChevronLeft className="h-4 w-4" />
                       </button>
                       {[...Array(totalPages)].map((_, i) => (
                         <button key={i} onClick={() => setPage(i + 1)}
-                          className={`w-10 h-10 rounded-xl text-sm font-semibold transition-all duration-150 ${
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                             page === i + 1 ? 'bg-blue-950 text-white shadow-sm' : 'border border-gray-200 hover:bg-gray-100 text-gray-700'}`}>
                           {i + 1}
                         </button>
                       ))}
-                      <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages}
-                        className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 disabled:opacity-30 transition-colors">
+                      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                        className="p-2 sm:p-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 disabled:opacity-30 transition-colors cursor-pointer"
+                        title="Next page">
                         <ChevronRight className="h-4 w-4" />
                       </button>
                     </div>
@@ -933,78 +1019,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-
-      {/* ─── CARD DETAIL / READ MORE MODAL ─── */}
-      {activeCardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl overflow-hidden w-full max-w-lg shadow-2xl border border-gray-100 flex flex-col">
-            {/* Modal Header */}
-            <div className="p-4 bg-gradient-to-r from-blue-950 to-indigo-900 border-b border-white/10 flex items-center justify-between text-white">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-amber-400" />
-                <h3 className="font-bold text-sm sm:text-base leading-tight">
-                  Lecture Details
-                </h3>
-              </div>
-              <button
-                onClick={() => setActiveCardModal(null)}
-                className="p-1.5 rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-              {(activeCardModal.thumbnail_url || getThumbnail(activeCardModal.url)) && (
-                <div className="rounded-xl overflow-hidden aspect-video bg-gray-900">
-                  <img
-                    src={activeCardModal.thumbnail_url || getThumbnail(activeCardModal.url)}
-                    alt={activeCardModal.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-
-              <div>
-                <h4 className="font-bold text-gray-900 text-base sm:text-lg leading-snug">
-                  {activeCardModal.title}
-                </h4>
-              </div>
-
-              {activeCardModal.description && (
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Description</p>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                    {activeCardModal.description}
-                  </p>
-                </div>
-              )}
-
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setActiveCardModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  Close
-                </button>
-                <a
-                  href={normalizeUrl(activeCardModal.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-colors shadow-md shadow-amber-500/20"
-                >
-                  {activeCardModal.type === 'youtube_video' || activeCardModal.type === 'youtube_playlist' ? (
-                    <><Youtube className="h-4 w-4" /> Watch Now</>
-                  ) : (
-                    <><ExternalLink className="h-4 w-4" /> Open Resource</>
-                  )}
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* spacing for mobile bottom tab bar, if present */}
       <div className="h-16 lg:hidden" />

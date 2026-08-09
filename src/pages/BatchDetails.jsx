@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   GraduationCap, PlayCircle, ArrowRight, BookOpen, Video,
-  Users, ChevronLeft, ChevronRight, X, Sparkles, UserCheck, Clock, Maximize2, Download, ZoomIn, Share2, Home as HomeIcon, ChevronDown, Check, Search, ShieldCheck, FileText, CheckCircle, LogIn
+  Users, ChevronLeft, ChevronRight, X, Sparkles, UserCheck, Maximize2, Download, Share2, Home as HomeIcon, ChevronDown, Check, Search, LogIn
 } from 'lucide-react'
 
 import toast from 'react-hot-toast'
@@ -23,15 +23,12 @@ export default function BatchDetails() {
   const [activeBatch, setActiveBatch] = useState(null)
   const [publicStudyCards, setPublicStudyCards] = useState([])
   const [loading, setLoading] = useState(true)
-  const [loadingCards, setLoadingCards] = useState(false)
-  const [activeVideoModal, setActiveVideoModal] = useState(null)
   const [showPosterModal, setShowPosterModal] = useState(false)
   const [showBatchDropdown, setShowBatchDropdown] = useState(false)
   const [searchBatchQuery, setSearchBatchQuery] = useState('')
 
   const carouselRef = useRef(null)
   const dropdownRef = useRef(null)
-  const pillsContainerRef = useRef(null)
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -68,7 +65,6 @@ export default function BatchDetails() {
   }, [initialBatchId])
 
   const fetchPublicStudyCards = async (batchId) => {
-    setLoadingCards(true)
     const { data, error } = await supabase.from('study_cards')
       .select('*')
       .eq('is_active', true)
@@ -85,7 +81,6 @@ export default function BatchDetails() {
       )
       setPublicStudyCards(matched)
     }
-    setLoadingCards(false)
   }
 
   const selectBatch = (batch) => {
@@ -99,7 +94,7 @@ export default function BatchDetails() {
       try {
         await navigator.clipboard.writeText(text)
         return true
-      } catch (e) {
+      } catch {
         // Fallback to execCommand if writeText fails
       }
     }
@@ -115,7 +110,7 @@ export default function BatchDetails() {
       const successful = document.execCommand('copy')
       document.body.removeChild(textArea)
       return successful
-    } catch (err) {
+    } catch {
       return false
     }
   }
@@ -167,12 +162,7 @@ export default function BatchDetails() {
     }
   }
 
-  const scrollPills = (direction) => {
-    if (pillsContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -280 : 280
-      pillsContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
-    }
-  }
+
 
   const filteredBatches = batches.filter(b => 
     b.name.toLowerCase().includes(searchBatchQuery.toLowerCase()) ||
@@ -191,7 +181,6 @@ export default function BatchDetails() {
     )
   }
 
-  const posterSrc = activeBatch ? convertDriveUrl(activeBatch.poster_url) : ''
   const facultyList = activeBatch && Array.isArray(activeBatch.faculty_images) ? activeBatch.faculty_images : []
 
   return (
@@ -580,19 +569,17 @@ export default function BatchDetails() {
             {/* 2. FACULTY & TEACHERS */}
             {facultyList.length > 0 && (
               <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <span className="w-1.5 h-8 bg-indigo-600 rounded-full" />
+                <div className="flex items-start gap-3">
+                  <span className="w-1.5 self-stretch min-h-[2rem] bg-indigo-600 rounded-full shrink-0 mt-0.5" />
                   <div>
-                    <h2 className="font-display font-bold text-2xl text-gray-900">Faculty &amp; Educators</h2>
-                    <p className="text-xs text-gray-500">Learn from experienced educators dedicated to your success</p>
+                    <h2 className="font-display font-bold text-lg sm:text-2xl text-gray-900 leading-tight">Faculty &amp; Educators</h2>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1">Learn from experienced educators dedicated to your success</p>
                   </div>
                 </div>
 
                 {/* Horizontal Flex Layout for all screen sizes */}
                 <div className="flex gap-6 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-none scroll-smooth">
-                  {facultyList.map((fac, i) => {
-                    const imgSrc = convertDriveUrl(fac.image_url)
-                    return (
+                  {facultyList.map((fac, i) => (
                       <div
                         key={i}
                         className="flex-shrink-0 w-72 sm:w-80 snap-start bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 p-5 flex items-center gap-5"
@@ -625,8 +612,7 @@ export default function BatchDetails() {
                           </span>
                         </div>
                       </div>
-                    )
-                  })}
+                    ))}
                 </div>
               </section>
             )}
@@ -635,19 +621,26 @@ export default function BatchDetails() {
             {/* 3. PUBLIC STUDY CARDS & VIDEOS (Horizontal Album Carousel Manner) */}
             {publicStudyCards.length > 0 && (
               <section id="public-videos" className="space-y-6 pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-1.5 h-8 bg-red-600 rounded-full" />
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="w-1.5 self-stretch min-h-[2.25rem] bg-red-600 rounded-full shrink-0 mt-0.5" />
                     <div>
-                      <h2 className="font-display font-bold text-2xl text-gray-900 flex items-center gap-2">
-                        Public Video Lectures &amp; Demo Cards <span className="text-xs px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">Free Access</span>
-                      </h2>
-                      <p className="text-xs text-gray-500">Public study cards and video lectures for {activeBatch.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="font-display font-bold text-lg sm:text-2xl text-gray-900 leading-tight">
+                          Public Video Lectures &amp; Demo Cards
+                        </h2>
+                        <span className="inline-flex items-center text-xs px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold shrink-0 whitespace-nowrap">
+                          Free Access
+                        </span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                        Public study cards and video lectures for {activeBatch.name}
+                      </p>
                     </div>
                   </div>
 
                   {/* Desktop Carousel Controls */}
-                  <div className="hidden sm:flex items-center gap-2">
+                  <div className="hidden sm:flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => scrollCarousel('left')}
                       className="p-2 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 transition-colors"

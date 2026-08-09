@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom'
 import {
   Layers, Bold, Italic, Underline, Strikethrough,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Save, Plus, Trash2,
-  Image as ImageIcon, Video, UserCheck, Sparkles, RefreshCw, ExternalLink, Globe, Edit2, Check, X
+  Image as ImageIcon, Video, UserCheck, Sparkles, RefreshCw, ExternalLink, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-import { convertDriveUrl } from '../../utils/formatters'
 import DriveImage from '../../components/shared/DriveImage'
 
 function getYTVideoId(url) {
@@ -180,6 +179,7 @@ export default function AdminBatchDetails() {
         }
         setLoading(false)
       })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadBatchData = (batch) => {
@@ -400,7 +400,6 @@ export default function AdminBatchDetails() {
         ) : (
           <div className="space-y-4">
             {facultyImages.map((fac, idx) => {
-              const previewSrc = convertDriveUrl(fac.image_url)
               return (
                 <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                   <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-100 flex-shrink-0 overflow-hidden border-2 border-indigo-200 flex items-center justify-center shadow-xs">

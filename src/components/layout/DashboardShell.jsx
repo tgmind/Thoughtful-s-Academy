@@ -7,6 +7,7 @@ import { syncPush } from '../../utils/push'
 import { INSTITUTE_NAME } from '../../lib/constants'
 import NotificationPopup from '../shared/NotificationPopup'
 import EnablePushBanner from '../shared/EnablePushBanner'
+import InstallHeaderButton from '../InstallHeaderButton'
 
 function initials(name) {
   if (!name) return '?'
@@ -166,6 +167,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
             <Menu className="h-5 w-5" />
           </button>
           <h1 className="font-display font-bold text-lg text-gray-900 flex-1 truncate">{pageTitle}</h1>
+          <InstallHeaderButton />
           <div className="relative">
             <button onClick={() => setShowDropdown(s => !s)}
               className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarBg} flex items-center justify-center text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm`}>

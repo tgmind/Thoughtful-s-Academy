@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { AuthProvider }   from './context/AuthContext'
 import { ProtectedRoute } from './utils/roleGuard'
 import { Toaster }        from 'react-hot-toast'
+import InstallAppPrompt from './components/InstallAppPrompt'
 
 import Home     from './pages/Home'
 import Login    from './pages/Login'
@@ -61,6 +62,8 @@ export default function App() {
         success: { iconTheme: { primary:'#16a34a', secondary:'#fff' } },
         error:   { iconTheme: { primary:'#dc2626', secondary:'#fff' } },
       }} />
+
+      <InstallAppPrompt />
 
       <Routes>
         {/* Public */}

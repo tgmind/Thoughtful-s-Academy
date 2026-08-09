@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { DollarSign, Search, QrCode, Copy, CheckCircle, Clock, ChevronRight, X, AlertTriangle, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'

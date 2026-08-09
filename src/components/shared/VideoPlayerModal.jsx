@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
-  X, Heart, BookOpen, ListVideo, Youtube, ExternalLink, Sparkles,
+  Heart, BookOpen, ListVideo, ExternalLink, Sparkles,
   Maximize2, Minimize2, ArrowLeft, ShieldCheck
 } from 'lucide-react'
 
@@ -110,14 +110,14 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
         await el.requestFullscreen()
         try {
           await screen.orientation?.lock?.('landscape')
-        } catch {
-          // Orientation lock fallback
+        } catch (err) {
+          void err
         }
-      } catch {
-        // Fullscreen API fallback
+      } catch (err) {
+        void err
       }
     } else {
-      try { screen.orientation?.unlock?.() } catch {}
+      try { screen.orientation?.unlock?.() } catch (err) { void err }
       document.exitFullscreen?.().catch(() => {})
     }
   }, [])
@@ -128,13 +128,13 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
       const isFull = !!document.fullscreenElement
       setIsFullscreen(isFull)
       if (!isFull) {
-        try { screen.orientation?.unlock?.() } catch {}
+        try { screen.orientation?.unlock?.() } catch (err) { void err }
       }
     }
     document.addEventListener('fullscreenchange', handler)
     return () => {
       document.removeEventListener('fullscreenchange', handler)
-      try { screen.orientation?.unlock?.() } catch {}
+      try { screen.orientation?.unlock?.() } catch (err) { void err }
     }
   }, [])
 
@@ -156,7 +156,7 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
           <button
             onClick={() => {
               if (document.fullscreenElement) {
-                try { screen.orientation?.unlock?.() } catch {}
+                try { screen.orientation?.unlock?.() } catch (err) { void err }
                 document.exitFullscreen?.().catch(() => {})
               }
               onClose()

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GraduationCap, BookOpen, ShieldCheck, Eye, EyeOff, ChevronRight, ChevronLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -100,35 +100,10 @@ function RoleStep({ selected, onChange }) {
   )
 }
 
-function DetailsForm({ role, batches, onSubmit, loading }) {
-  const [searchParams] = useSearchParams()
-  const initialBatchParam = searchParams.get('batch') || searchParams.get('id')
-
-  const [form, setForm] = useState({
-    full_name: '', email: '', password: '', confirm_password: '',
-    phone: '', batch_id: initialBatchParam || '', parent_phone: '',
-    date_of_birth: '', subjects: [], subject: '', qualification: '', admin_code: '',
-  })
+function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSubjects, form, setForm, errors, setErrors }) {
   const [showPw, setShowPw] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [batchSubjects, setBatchSubjects] = useState([])
-
-  // On mount or when initialBatchParam changes, trigger subject fetch if batch selected
-  useEffect(() => {
-    if (initialBatchParam) {
-      onBatchChange(initialBatchParam)
-    }
-  }, [initialBatchParam])
-
+  
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
-
-  const onBatchChange = async (batchId) => {
-    set('batch_id', batchId)
-    set('subjects', [])
-    if (!batchId) { setBatchSubjects([]); return }
-    const { data } = await supabase.from('batches').select('subjects').eq('id', batchId).maybeSingle()
-    setBatchSubjects(data?.subjects ?? [])
-  }
 
   const toggleSubject = (sub) => {
     setForm(f => {
