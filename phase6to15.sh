@@ -978,7 +978,6 @@ cat > DEPLOY.md << 'EOF'
    - `VITE_INSTITUTE_NAME`
    - `VITE_INSTITUTE_TAGLINE`
    - `VITE_CONTACT_EMAIL`
-   - `VITE_CONTACT_PHONE`
 6. Click **Deploy** — your site gets a free `.netlify.app` URL instantly
 
 ## Deploy Supabase Edge Functions (for email notifications)

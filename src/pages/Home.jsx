@@ -2,12 +2,12 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   GraduationCap, PlayCircle, ExternalLink, BookOpen, Bell,
-  ChevronLeft, ChevronRight, Mail, Phone, Youtube, ArrowRight,
+  ChevronLeft, ChevronRight, Mail, Youtube, ArrowRight,
   Video, MessageSquare, CheckCircle2, Sparkles, X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
-  INSTITUTE_NAME, INSTITUTE_TAGLINE, CONTACT_EMAIL, CONTACT_PHONE,
+  INSTITUTE_NAME, INSTITUTE_TAGLINE, CONTACT_EMAIL,
 } from '../lib/constants'
 import { getYouTubeThumbnail, normalizeUrl, convertDriveUrl } from '../utils/formatters'
 import DriveImage from '../components/shared/DriveImage'
@@ -916,11 +916,6 @@ export default function Home() {
               {CONTACT_EMAIL && (
                 <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-2 hover:text-white transition-colors">
                   <Mail className="h-4 w-4 text-blue-400" /> {CONTACT_EMAIL}
-                </a>
-              )}
-              {CONTACT_PHONE && (
-                <a href={`tel:${CONTACT_PHONE}`} className="flex items-center gap-2 hover:text-white transition-colors">
-                  <Phone className="h-4 w-4 text-blue-400" /> {CONTACT_PHONE}
                 </a>
               )}
             </div>

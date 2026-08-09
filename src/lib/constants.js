@@ -6,7 +6,6 @@
 export const INSTITUTE_NAME    = import.meta.env.VITE_INSTITUTE_NAME    || 'Coaching Institute'
 export const INSTITUTE_TAGLINE = import.meta.env.VITE_INSTITUTE_TAGLINE || 'Learn. Grow. Succeed.'
 export const CONTACT_EMAIL     = import.meta.env.VITE_CONTACT_EMAIL     || ''
-export const CONTACT_PHONE     = import.meta.env.VITE_CONTACT_PHONE     || ''
 
 // User roles — must match CHECK constraint in profiles table
 export const ROLES = {

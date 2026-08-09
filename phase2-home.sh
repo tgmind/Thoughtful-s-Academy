@@ -12,9 +12,9 @@ echo "🏗️  Building Phase 2 — Public Homepage..."
 cat > src/pages/Home.jsx << 'EOF'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { GraduationCap, PlayCircle, ExternalLink, BookOpen, Bell, ChevronLeft, ChevronRight, Mail, Phone, Youtube } from 'lucide-react'
+import { GraduationCap, PlayCircle, ExternalLink, BookOpen, Bell, ChevronLeft, ChevronRight, Mail, Youtube } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { INSTITUTE_NAME, INSTITUTE_TAGLINE, CONTACT_EMAIL, CONTACT_PHONE } from '../lib/constants'
+import { INSTITUTE_NAME, INSTITUTE_TAGLINE, CONTACT_EMAIL } from '../lib/constants'
 
 // ---- Helpers ------------------------------------------------
 function getYouTubeId(url) {
@@ -406,11 +406,6 @@ export default function Home() {
               {CONTACT_EMAIL && (
                 <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-2 hover:text-white transition-colors">
                   <Mail className="h-4 w-4" /> {CONTACT_EMAIL}
-                </a>
-              )}
-              {CONTACT_PHONE && (
-                <a href={`tel:${CONTACT_PHONE}`} className="flex items-center gap-2 hover:text-white transition-colors">
-                  <Phone className="h-4 w-4" /> {CONTACT_PHONE}
                 </a>
               )}
             </div>
