@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GraduationCap, BookOpen, ShieldCheck, Eye, EyeOff, ChevronRight, ChevronLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -31,7 +31,7 @@ function Field({ name, label, type = 'text', placeholder, required, value, error
         id={name}
         name={name}
         type={type}
-        value={value}
+        value={value || ''}
         onChange={onChange}
         placeholder={placeholder}
         className={`input-base ${error ? 'border-red-400 focus:ring-red-400' : ''}`}
@@ -100,22 +100,23 @@ function RoleStep({ selected, onChange }) {
   )
 }
 
-function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSubjects, form, setForm, errors, setErrors }) {
+function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSubjects = [], form, setForm, errors = {}, setErrors }) {
   const [showPw, setShowPw] = useState(false)
   
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const toggleSubject = (sub) => {
     setForm(f => {
-      const already = f.subjects.includes(sub)
-      return { ...f, subjects: already ? f.subjects.filter(s => s !== sub) : [...f.subjects, sub] }
+      const current = Array.isArray(f.subjects) ? f.subjects : []
+      const already = current.includes(sub)
+      return { ...f, subjects: already ? current.filter(s => s !== sub) : [...current, sub] }
     })
   }
 
   const validate = () => {
     const e = {}
-    if (!form.full_name.trim())         e.full_name         = 'Name is required'
-    if (!form.email.trim())             e.email             = 'Email is required'
+    if (!form.full_name?.trim())         e.full_name         = 'Name is required'
+    if (!form.email?.trim())             e.email             = 'Email is required'
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email     = 'Invalid email'
     if (!form.password)                 e.password          = 'Password is required'
     else if (form.password.length < 8)  e.password          = 'At least 8 characters'
@@ -135,7 +136,7 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
     onSubmit(form)
   }
 
-  const pwStrength = passwordStrength(form.password)
+  const pwStrength = passwordStrength(form.password || '')
   const today = new Date().toISOString().split('T')[0]
 
   return (
@@ -155,7 +156,7 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
           <input
             id="password"
             type={showPw ? 'text' : 'password'}
-            value={form.password}
+            value={form.password || ''}
             onChange={e => set('password', e.target.value)}
             placeholder="Min. 8 characters"
             className={`input-base pr-10 ${errors.password ? 'border-red-400' : ''}`}
@@ -186,7 +187,7 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
         <input
           id="confirm_password"
           type={showPw ? 'text' : 'password'}
-          value={form.confirm_password}
+          value={form.confirm_password || ''}
           onChange={e => set('confirm_password', e.target.value)}
           placeholder="Re-enter password"
           className={`input-base ${errors.confirm_password ? 'border-red-400' : ''}`}
@@ -200,7 +201,7 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
             <label htmlFor="batch_id" className="label-base">Batch / Class</label>
             <select
               id="batch_id"
-              value={form.batch_id}
+              value={form.batch_id || ''}
               onChange={e => onBatchChange(e.target.value)}
               className="input-base"
             >
@@ -215,7 +216,7 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
               <label className="label-base">Subjects</label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {batchSubjects.map(sub => {
-                  const chosen = form.subjects.includes(sub)
+                  const chosen = (form.subjects || []).includes(sub)
                   return (
                     <button
                       key={sub}
@@ -258,7 +259,7 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
           <input
             id="admin_code"
             type="password"
-            value={form.admin_code}
+            value={form.admin_code || ''}
             onChange={e => set('admin_code', e.target.value)}
             placeholder="Enter the secret admin code"
             className={`input-base ${errors.admin_code ? 'border-red-400' : ''}`}
@@ -274,45 +275,85 @@ function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSub
   )
 }
 
+const INITIAL_FORM = {
+  full_name: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirm_password: '',
+  batch_id: '',
+  subjects: [],
+  parent_phone: '',
+  date_of_birth: '',
+  subject: '',
+  qualification: '',
+  admin_code: '',
+}
+
 export default function Register() {
-  const [step,    setStep]    = useState(1)
-  const [role,    setRole]    = useState('')
-  const [batches, setBatches] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [searchParams]        = useSearchParams()
+  const initialBatchId        = searchParams.get('batch') || searchParams.get('id')
+  const [step,          setStep]          = useState(1)
+  const [role,          setRole]          = useState('')
+  const [batches,       setBatches]       = useState([])
+  const [batchSubjects, setBatchSubjects] = useState([])
+  const [form,          setForm]          = useState(INITIAL_FORM)
+  const [errors,        setErrors]        = useState({})
+  const [loading,       setLoading]       = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     let cancelled = false
     supabase
       .from('batches')
-      .select('id, name')
+      .select('id, name, subjects')
       .eq('is_active', true)
       .order('name')
       .then(({ data }) => {
         if (cancelled) return
-        setBatches(data ?? [])
+        const list = data ?? []
+        setBatches(list)
+        if (initialBatchId) {
+          const found = list.find(b => b.id === initialBatchId)
+          if (found) {
+            const subs = Array.isArray(found.subjects) ? found.subjects : []
+            setBatchSubjects(subs)
+            setForm(f => ({ ...f, batch_id: found.id, subjects: subs }))
+          }
+        }
       })
     return () => { cancelled = true }
-  }, [])
+  }, [initialBatchId])
 
-  const handleRegister = async (form) => {
+  const handleBatchChange = (batchId) => {
+    const selected = batches.find(b => b.id === batchId)
+    const subs = Array.isArray(selected?.subjects) ? selected.subjects : []
+    setBatchSubjects(subs)
+    setForm(f => ({
+      ...f,
+      batch_id: batchId,
+      subjects: subs,
+    }))
+  }
+
+  const handleRegister = async (formData) => {
     setLoading(true)
     try {
-      const email = form.email.trim().toLowerCase()
+      const email = formData.email.trim().toLowerCase()
       const { data: authData, error: signUpErr } = await supabase.auth.signUp({
         email,
-        password: form.password,
+        password: formData.password,
         options: {
           data: {
             role,
-            full_name:     form.full_name.trim(),
-            phone:         form.phone.trim() || null,
-            batch_id:      form.batch_id || null,
-            parent_phone:  form.parent_phone || null,
-            date_of_birth: form.date_of_birth || null,
-            subjects:      form.subjects,
-            subject:       form.subject || null,
-            qualification: form.qualification || null,
+            full_name:     formData.full_name.trim(),
+            phone:         formData.phone.trim() || null,
+            batch_id:      formData.batch_id || null,
+            parent_phone:  formData.parent_phone || null,
+            date_of_birth: formData.date_of_birth || null,
+            subjects:      formData.subjects || [],
+            subject:       formData.subject || null,
+            qualification: formData.qualification || null,
           },
         },
       })
@@ -323,33 +364,32 @@ export default function Register() {
 
       if (authData.session) {
         await supabase.from('profiles').upsert({
-          id: uid, full_name: form.full_name.trim(), email,
-          phone: form.phone.trim() || null, role,
+          id: uid, full_name: formData.full_name.trim(), email,
+          phone: formData.phone.trim() || null, role,
         }, { onConflict: 'id', ignoreDuplicates: true })
 
         if (role === 'student') {
           const trialEndsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
           await supabase.from('student_profiles').upsert({
             id:            uid,
-            batch_id:      form.batch_id    || null,
-            parent_phone:  form.parent_phone || null,
-            date_of_birth: form.date_of_birth || null,
-            subjects:      form.subjects.length > 0 ? form.subjects : [],
+            batch_id:      formData.batch_id    || null,
+            parent_phone:  formData.parent_phone || null,
+            date_of_birth: formData.date_of_birth || null,
+            subjects:      Array.isArray(formData.subjects) && formData.subjects.length > 0 ? formData.subjects : [],
             trial_ends_at: trialEndsAt,
           }, { onConflict: 'id' })   // no ignoreDuplicates — always write trial_ends_at
 
-
           // Fetch batch name for the notification body
           let batchLabel = ''
-          if (form.batch_id) {
-            const { data: bData } = await supabase.from('batches').select('name').eq('id', form.batch_id).maybeSingle()
+          if (formData.batch_id) {
+            const { data: bData } = await supabase.from('batches').select('name').eq('id', formData.batch_id).maybeSingle()
             batchLabel = bData?.name ? ` for ${bData.name}` : ''
           }
 
           // Notify admin + teachers via the existing notifications system
           await supabase.from('notifications').insert({
-            title: `New student joined: ${form.full_name.trim()}`,
-            body:  `${form.full_name.trim()} has self-registered${batchLabel}. Free trial ends in 2 days. Please review and confirm enrollment.`,
+            title: `New student joined: ${formData.full_name.trim()}`,
+            body:  `${formData.full_name.trim()} has self-registered${batchLabel}. Free trial ends in 2 days. Please review and confirm enrollment.`,
             type:  'announcement',
             target_role: 'all',
             is_active: true,
@@ -357,8 +397,8 @@ export default function Register() {
         } else if (role === 'teacher') {
           await supabase.from('teacher_profiles').upsert({
             id:            uid,
-            subject:       form.subject       || null,
-            qualification: form.qualification || null,
+            subject:       formData.subject       || null,
+            qualification: formData.qualification || null,
           }, { onConflict: 'id', ignoreDuplicates: true })
         }
       }
@@ -456,6 +496,12 @@ export default function Register() {
                       batches={batches}
                       onSubmit={handleRegister}
                       loading={loading}
+                      onBatchChange={handleBatchChange}
+                      batchSubjects={batchSubjects}
+                      form={form}
+                      setForm={setForm}
+                      errors={errors}
+                      setErrors={setErrors}
                     />
                   </>
                 )}
@@ -472,3 +518,4 @@ export default function Register() {
     </div>
   )
 }
+

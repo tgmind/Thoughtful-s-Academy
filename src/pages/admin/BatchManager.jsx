@@ -11,21 +11,22 @@ import DriveImage from '../../components/shared/DriveImage'
 function SubjectTagInput({ value, onChange }) {
   const [input, setInput] = useState('')
   const inputRef = useRef(null)
+  const list = Array.isArray(value) ? value : []
 
   const add = () => {
     const trimmed = input.trim().replace(/,+$/, '')
     if (!trimmed) return
     const parts = trimmed.split(',').map(s => s.trim()).filter(Boolean)
-    const next = [...new Set([...value, ...parts])]
+    const next = [...new Set([...list, ...parts])]
     onChange(next)
     setInput('')
   }
 
-  const remove = (idx) => onChange(value.filter((_, i) => i !== idx))
+  const remove = (idx) => onChange(list.filter((_, i) => i !== idx))
 
   const onKey = (e) => {
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() }
-    if (e.key === 'Backspace' && !input && value.length) remove(value.length - 1)
+    if (e.key === 'Backspace' && !input && list.length) remove(list.length - 1)
   }
 
   return (
@@ -33,7 +34,7 @@ function SubjectTagInput({ value, onChange }) {
       onClick={() => inputRef.current?.focus()}
       className="min-h-[42px] w-full px-2 py-1.5 rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-600 flex flex-wrap gap-1.5 cursor-text"
     >
-      {value.map((s, i) => (
+      {list.map((s, i) => (
         <span key={i} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
           {s}
           <button type="button" onClick={() => remove(i)} className="hover:text-blue-600 leading-none">×</button>
@@ -45,7 +46,7 @@ function SubjectTagInput({ value, onChange }) {
         onChange={e => setInput(e.target.value)}
         onKeyDown={onKey}
         onBlur={add}
-        placeholder={value.length === 0 ? 'Type a subject and press Enter…' : ''}
+        placeholder={list.length === 0 ? 'Type a subject and press Enter…' : ''}
         className="flex-1 min-w-[120px] text-sm outline-none bg-transparent py-0.5"
       />
     </div>
@@ -87,7 +88,13 @@ export default function BatchManager() {
   const save = async () => {
     if (!form.name.trim()) { toast.error('Batch name is required'); return }
     setSaving(true)
-    const payload = { name: form.name, description: form.description, subjects: form.subjects, teacher_id: form.teacher_id || null, poster_url: form.poster_url.trim() || null }
+    const payload = {
+      name: form.name.trim(),
+      description: form.description || null,
+      subjects: Array.isArray(form.subjects) ? form.subjects : [],
+      teacher_id: form.teacher_id || null,
+      poster_url: (form.poster_url || '').trim() || null
+    }
     const { data, error } = editing
       ? await supabase.from('batches').update(payload).eq('id', editing).select('*, profiles!teacher_id(full_name)').single()
       : await supabase.from('batches').insert({ ...payload, is_active:true }).select('*, profiles!teacher_id(full_name)').single()

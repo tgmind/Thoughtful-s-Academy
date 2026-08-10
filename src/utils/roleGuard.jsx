@@ -14,7 +14,7 @@ export function ProtectedRoute({ allowedRoles }) {
   const { user, profile, loading } = useAuth()
 
   // Still bootstrapping or fetching profile — don't flash a redirect
-  if (loading || (user && !profile)) return <LoadingSpinner fullScreen />
+  if (loading) return <LoadingSpinner fullScreen />
 
   // Not logged in
   if (!user) return <Navigate to="/login" replace />
