@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Menu, X, LogOut, ChevronLeft, ChevronRight, GraduationCap, MoreHorizontal } from 'lucide-react'
+import { Menu, X, LogOut, ChevronLeft, ChevronRight, GraduationCap, MoreHorizontal, Smartphone, Download } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavBadges } from '../../hooks/useNavBadges'
 import { syncPush } from '../../utils/push'
 import { INSTITUTE_NAME } from '../../lib/constants'
 import NotificationPopup from '../shared/NotificationPopup'
 import EnablePushBanner from '../shared/EnablePushBanner'
-import InstallHeaderButton from '../InstallHeaderButton'
 
 function initials(name) {
   if (!name) return '?'
@@ -34,6 +33,35 @@ export default function DashboardShell({ navItems, pageTitle }) {
   const [drawerOpen,   setDrawerOpen]   = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const [showMoreNav,  setShowMoreNav]  = useState(false)
+  const [isAppInstalled, setIsAppInstalled] = useState(false)
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.includes('android-app://')
+
+    if (standalone) {
+      setIsAppInstalled(true)
+      return
+    }
+
+    try {
+      if (localStorage.getItem('pwa_app_installed') === 'true') {
+        setIsAppInstalled(true)
+      }
+    } catch (err) {
+      console.debug(err)
+    }
+
+    if ('getInstalledRelatedApps' in navigator) {
+      navigator.getInstalledRelatedApps().then(apps => {
+        if (apps && apps.length > 0) {
+          setIsAppInstalled(true)
+        }
+      }).catch(() => {})
+    }
+  }, [])
 
   // If the user has already allowed alerts on this device, keep their push
   // subscription fresh in the DB on every login. No-op if unsupported/unset.
@@ -167,7 +195,6 @@ export default function DashboardShell({ navItems, pageTitle }) {
             <Menu className="h-5 w-5" />
           </button>
           <h1 className="font-display font-bold text-lg text-gray-900 flex-1 truncate">{pageTitle}</h1>
-          <InstallHeaderButton />
           <div className="relative">
             <button onClick={() => setShowDropdown(s => !s)}
               className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarBg} flex items-center justify-center text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm`}>
@@ -176,11 +203,24 @@ export default function DashboardShell({ navItems, pageTitle }) {
             {showDropdown && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-                <div className="absolute right-0 top-11 z-20 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">
+                <div className="absolute right-0 top-11 z-20 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">
                   <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50">
                     <p className="text-xs font-semibold text-gray-900 truncate">{profile?.full_name}</p>
                     <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
                   </div>
+                  {!isAppInstalled && (
+                    <button
+                      onClick={() => {
+                        setShowDropdown(false)
+                        window.dispatchEvent(new Event('open-pwa-install-prompt'))
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50/60 hover:text-amber-700 transition-colors font-medium border-b border-gray-50 group"
+                    >
+                      <Smartphone className="h-4 w-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                      <span>Install App</span>
+                      <Download className="h-3.5 w-3.5 text-amber-500 ml-auto" />
+                    </button>
+                  )}
                   <button onClick={handleSignOut}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
                     <LogOut className="h-4 w-4" /> Sign Out

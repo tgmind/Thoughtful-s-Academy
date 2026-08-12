@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Download, ShieldCheck, Zap, Bell, Smartphone, X, Share, PlusSquare, Sparkles, CheckCircle2 } from 'lucide-react'
+import { Download, ShieldCheck, Zap, Bell, Smartphone, X, Share, PlusSquare, Sparkles, CheckCircle2, ArrowDown } from 'lucide-react'
 
 function safeGet(key) {
   try { return localStorage.getItem(key) } catch { return null }
@@ -77,18 +77,18 @@ export default function InstallAppPrompt() {
       setDeferredPrompt(null)
       setTimeout(() => {
         setIsOpen(false)
-      }, 3000)
+      }, 2500)
     }
 
     window.addEventListener('appinstalled', handleAppInstalled)
 
-    // 5. Listen for custom trigger event (e.g. when user clicks "Install App" button in Navbar)
+    // 5. Listen for custom trigger event (e.g. when user clicks "Install App" button in Navbar or Menu)
     const handleCustomOpen = () => {
       setIsOpen(true)
     }
     window.addEventListener('open-pwa-install-prompt', handleCustomOpen)
 
-    // If iOS and not snoozed, auto-show iOS prompt after delay
+    // If iOS and not snoozed, auto-show iOS prompt after 2 seconds
     if (iosDevice && !isStandalone) {
       const snoozeUntil = safeGet('pwa_install_snooze_until')
       if (!snoozeUntil || Date.now() >= parseInt(snoozeUntil, 10)) {
@@ -108,23 +108,26 @@ export default function InstallAppPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      if (isIOS) {
-        // iOS users get the step-by-step guide
-        return
-      }
-      // Browser hasn't captured deferredPrompt yet or standalone
-      alert("App installation is ready! If prompt didn't launch automatically, tap Chrome menu (⋮) and select 'Add to Home screen' or 'Install App'.")
+      if (isIOS) return
+
+      // Smooth fallback if browser delayed beforeinstallprompt
+      setIsInstalling(true)
+      setTimeout(() => {
+        setIsInstalling(false)
+        alert("App installer is ready! Tap Chrome menu (⋮) at top right and select 'Add to Home screen' or 'Install App'.")
+      }, 500)
       return
     }
 
     setIsInstalling(true)
     try {
-      // Trigger native browser install dialog
+      // Trigger native 1-tap browser install dialog
       deferredPrompt.prompt()
       const choiceResult = await deferredPrompt.userChoice
 
       if (choiceResult.outcome === 'accepted') {
         setInstallSuccess(true)
+        safeSet('pwa_app_installed', 'true')
         setDeferredPrompt(null)
         setTimeout(() => setIsOpen(false), 2500)
       } else {
@@ -157,7 +160,7 @@ export default function InstallAppPrompt() {
         {/* Close Button */}
         <button
           onClick={() => snoozePrompt(3)}
-          className="absolute top-3.5 right-3.5 z-10 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full bg-white/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="absolute top-3.5 right-3.5 z-10 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full bg-white/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           title="Dismiss"
         >
           <X className="w-5 h-5" />
@@ -187,13 +190,13 @@ export default function InstallAppPrompt() {
 
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 mb-1">
-                <Sparkles className="w-3 h-3 text-amber-400" /> Official Mobile App
+                <Sparkles className="w-3 h-3 text-amber-400" /> Free Mobile App
               </div>
               <h3 className="text-xl font-extrabold tracking-tight text-white font-display">
                 Thoughtful&apos;s Academy
               </h3>
               <p className="text-xs text-indigo-200/90 font-medium">
-                Official Student &amp; Teacher Portal App
+                Official Student &amp; Parent App
               </p>
             </div>
           </div>
@@ -208,7 +211,7 @@ export default function InstallAppPrompt() {
               </div>
               <h4 className="text-lg font-bold text-slate-900 dark:text-white">App Installed Successfully!</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Look for <strong>Thoughtful&apos;s Academy</strong> in your phone&apos;s App Drawer &amp; Home Screen.
+                Thoughtful&apos;s Academy is now on your phone&apos;s <strong>Home Screen &amp; App Drawer</strong>.
               </p>
             </div>
           ) : (
@@ -216,7 +219,7 @@ export default function InstallAppPrompt() {
               {/* Security Banner */}
               <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                <span>Verified Safe &amp; Secure • Browser Sandboxed • 0 MB Play Store download needed</span>
+                <span>🔒 100% Safe &amp; Secure • No Play Store download needed</span>
               </div>
 
               {/* Feature Highlights */}
@@ -227,10 +230,10 @@ export default function InstallAppPrompt() {
                   </div>
                   <div>
                     <h5 className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
-                      3x Faster Speed &amp; Offline Access
+                      Superfast Speed &amp; Study Material
                     </h5>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Open live classes, study notes &amp; test papers instantly even on slow network.
+                      Open live classes, study notes &amp; fees instantly on your phone.
                     </p>
                   </div>
                 </div>
@@ -241,10 +244,10 @@ export default function InstallAppPrompt() {
                   </div>
                   <div>
                     <h5 className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
-                      Instant Class &amp; Fee Alerts
+                      Instant Class Alerts
                     </h5>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Get real-time push notifications for new lectures, homework &amp; fee receipts.
+                      Get real-time alerts for live classes, homework &amp; announcements.
                     </p>
                   </div>
                 </div>
@@ -255,10 +258,10 @@ export default function InstallAppPrompt() {
                   </div>
                   <div>
                     <h5 className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
-                      Full-Screen Mobile App UI
+                      Full-Screen Mobile App
                     </h5>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Runs in full screen without browser URL bars, placed right in your phone&apos;s App Drawer.
+                      Runs full screen like any Play Store app directly from your phone screen.
                     </p>
                   </div>
                 </div>
@@ -266,11 +269,11 @@ export default function InstallAppPrompt() {
 
               {/* iOS Step-by-Step Instructions if on iPhone */}
               {isIOS ? (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-800 dark:text-slate-200 text-xs space-y-2">
-                  <p className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                    <Share className="w-4 h-4" /> To Install on iPhone / iPad:
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-800 dark:text-slate-200 text-xs space-y-2.5">
+                  <p className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-sm">
+                    <Share className="w-4 h-4 text-blue-500" /> To Install on iPhone / iPad:
                   </p>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-700 dark:text-slate-300 font-medium">
+                  <ol className="list-decimal list-inside space-y-2 text-slate-700 dark:text-slate-300 font-medium text-xs">
                     <li>
                       Tap the <strong className="text-slate-900 dark:text-white">Share button</strong> ( <Share className="w-3.5 h-3.5 inline text-blue-500" /> ) at the bottom of Safari.
                     </li>
@@ -279,6 +282,9 @@ export default function InstallAppPrompt() {
                     </li>
                     <li>Open <strong>Thoughtful&apos;s Academy</strong> from your home screen anytime!</li>
                   </ol>
+                  <div className="pt-1 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-xs animate-bounce gap-1">
+                    <ArrowDown className="w-4 h-4" /> Tap Share button below <ArrowDown className="w-4 h-4" />
+                  </div>
                 </div>
               ) : null}
 
@@ -291,13 +297,20 @@ export default function InstallAppPrompt() {
                     className="relative w-full py-3.5 px-5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 active:scale-[0.98] shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2 group disabled:opacity-75 cursor-pointer"
                   >
                     <Download className="w-5 h-5 text-white group-hover:translate-y-0.5 transition-transform" />
-                    <span>{isInstalling ? 'Opening App Installer...' : 'Install App Now'}</span>
+                    <span>{isInstalling ? 'Installing App...' : 'Tap Here to Install App (Free)'}</span>
                   </button>
                 )}
 
+                {/* Browser Recommendation Tip */}
+                <div className="text-center px-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed bg-slate-50 dark:bg-slate-800/60 py-2 px-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                    💡 For easiest app installation &amp; best performance, please open this website in <strong>Google Chrome</strong> or <strong>Apple Safari</strong>.
+                  </p>
+                </div>
+
                 <button
                   onClick={() => snoozePrompt(7)}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="w-full py-2 px-4 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Maybe Later
                 </button>
