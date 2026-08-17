@@ -39,6 +39,7 @@ CREATE OR REPLACE FUNCTION teacher_can(permission TEXT)
 RETURNS BOOLEAN AS $$
   SELECT CASE
     WHEN permission = 'study_cards'      THEN can_manage_study_cards
+    WHEN permission = 'homework'         THEN can_manage_homework
     WHEN permission = 'live_class'       THEN can_drop_live_class
     WHEN permission = 'message'          THEN can_message_students
     WHEN permission = 'view_attendance'  THEN can_view_attendance

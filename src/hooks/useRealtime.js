@@ -15,6 +15,7 @@ function playBeep() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.4)
+    osc.onended = () => ctx.close()
   } catch { /* AudioContext not supported — silent fail */ }
 }
 

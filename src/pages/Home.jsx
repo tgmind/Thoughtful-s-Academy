@@ -986,42 +986,66 @@ export default function Home() {
       </section>
 
       {/* ════════════ FOOTER ════════════ */}
-      <footer className="bg-[#0b0f3d] text-blue-200">
-        <div className={`${CONTAINER} py-12`}>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-            <div>
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-9 h-9 bg-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-400/30">
-                  <GraduationCap className="h-5 w-5 text-white" />
+      <footer className="bg-[#080d38] text-indigo-200 border-t border-indigo-900/60 relative overflow-hidden">
+        {/* Ambient background glow */}
+        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className={`${CONTAINER} py-10 sm:py-12 relative z-10`}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8">
+            {/* Branding */}
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <div className="w-9 h-9 bg-amber-400 rounded-xl flex items-center justify-center shadow-md shadow-amber-400/20 shrink-0">
+                  <GraduationCap className="h-5 w-5 text-slate-950 font-black" />
                 </div>
-                <span className="font-display font-bold text-white text-lg">{INSTITUTE_NAME}</span>
+                <span className="font-display font-extrabold text-white text-lg sm:text-xl tracking-tight">
+                  {INSTITUTE_NAME}
+                </span>
               </div>
-              <p className="text-blue-300/60 text-sm max-w-sm">{INSTITUTE_TAGLINE}</p>
+              <p className="text-indigo-200/70 text-xs sm:text-sm font-medium">
+                {INSTITUTE_TAGLINE}
+              </p>
             </div>
-            <div className="flex flex-col gap-2.5 text-sm">
-              {CONTACT_EMAIL && (
-                <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-2 hover:text-white transition-colors">
-                  <Mail className="h-4 w-4 text-blue-400" /> {CONTACT_EMAIL}
+
+            {/* Email Contact Badge */}
+            {CONTACT_EMAIL && (
+              <div className="w-full sm:w-auto flex justify-center">
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="inline-flex items-center gap-2 max-w-full px-3.5 py-2 bg-indigo-950/60 border border-indigo-800/60 rounded-xl text-indigo-200 hover:text-white text-xs sm:text-sm font-medium transition-colors shadow-sm overflow-hidden"
+                >
+                  <Mail className="h-4 w-4 text-amber-400 shrink-0" />
+                  <span className="truncate">{CONTACT_EMAIL}</span>
                 </a>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <Link to="/login" className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-amber-400/20">
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-center">
+              <Link
+                to="/login"
+                className="flex-1 sm:flex-initial px-5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-amber-400/20 transition-all text-center"
+              >
                 Login
               </Link>
-              <Link to="/register" className="px-5 py-2.5 border border-white/20 text-white hover:bg-white/10 text-sm font-semibold rounded-xl transition-colors">
+              <Link
+                to="/register"
+                className="flex-1 sm:flex-initial px-5 py-2 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all text-center"
+              >
                 Apply Now
               </Link>
             </div>
           </div>
-          <div className="border-t border-white/10 mt-10 pt-6 text-center text-xs text-blue-400/50">
+
+          {/* Copyright Divider */}
+          <div className="border-t border-indigo-900/50 mt-8 pt-5 text-center text-xs text-indigo-300/60 font-medium">
             © {new Date().getFullYear()} {INSTITUTE_NAME}. Designed for excellence.
           </div>
         </div>
-      </footer>
 
-      {/* spacing for mobile bottom tab bar, if present */}
-      <div className="h-16 lg:hidden" />
+        {/* Mobile bottom spacing inside footer so background covers all the way to the end of the page */}
+        <div className="h-16 lg:hidden bg-inherit" />
+      </footer>
     </div>
   )
 }

@@ -66,9 +66,6 @@ export function getDriveImageUrls(url) {
   if (!fileId) return url.startsWith('http') ? [url] : []
 
   const ids = [fileId]
-  if (!fileId.startsWith('1')) {
-    ids.push('1' + fileId)
-  }
 
   const urls = []
   for (const id of ids) {

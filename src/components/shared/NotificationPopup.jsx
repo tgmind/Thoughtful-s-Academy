@@ -296,13 +296,12 @@ export default function NotificationPopup() {
 
     const channel = supabase
       .channel(`lc_popup_${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_classes' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' },
         (payload) => {
+          if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return
           const lc = payload.new
-          if (!lc.is_active) return
+          if (!lc || !lc.is_active) return
           // Skip batch-restricted classes that aren't for this student's batch.
-          // (Covers students with no batch: batchIdRef.current is null, so any
-          // batch-specific class is correctly skipped.)
           if (lc.batch_id && lc.batch_id !== batchIdRef.current) return
           enqueue([{
             id:       `lc_${lc.id}`,
@@ -317,7 +316,7 @@ export default function NotificationPopup() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [user, profile, enqueue])
+  }, [user?.id, profile?.role, enqueue]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-dismiss timers ───────────────────────────────────────────────────
 

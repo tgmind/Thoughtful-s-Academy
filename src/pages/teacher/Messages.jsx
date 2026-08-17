@@ -106,7 +106,7 @@ export default function TeacherMessages() {
     if (!user) return
     supabase.from('batches')
       .select('id, name, subject')
-      .eq('teacher_id', user.id)
+      .or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`)
       .eq('is_active', true)
       .order('name')
       .then(({ data }) => setBatches(data ?? []))
@@ -252,7 +252,7 @@ export default function TeacherMessages() {
     setSending(true)
     const { data, error } = await supabase.from('messages')
       .insert({ sender_id: user.id, receiver_id: selected.id, content: text.trim() })
-      .select().single()
+      .select().maybeSingle()
     if (error) toast.error(error.message)
     else {
       setMessages(m => [...m, data])
@@ -272,7 +272,7 @@ export default function TeacherMessages() {
   const filteredContacts = useMemo(() => {
     const q = search.toLowerCase()
     return [...contacts]
-      .filter(c => !q || c.full_name?.toLowerCase().includes(q) || c.role?.includes(q))
+      .filter(c => !q || (c.full_name?.toLowerCase() || '').includes(q) || (c.role?.toLowerCase() || '').includes(q))
       .sort((a, b) =>
         (lastMsgs[b.id]?.created_at || '').localeCompare(lastMsgs[a.id]?.created_at || '')
       )

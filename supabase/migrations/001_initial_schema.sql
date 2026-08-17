@@ -58,10 +58,11 @@ CREATE TABLE IF NOT EXISTS teacher_profiles (
   subject                  TEXT,
   qualification            TEXT,
   joining_date             DATE DEFAULT CURRENT_DATE,
-  -- PERMISSIONS (managed by admin — all false by default)
+  -- PERMISSIONS (managed by admin — all false by default except can_message_students)
   can_manage_study_cards   BOOLEAN DEFAULT false,
+  can_manage_homework      BOOLEAN DEFAULT false,
   can_drop_live_class      BOOLEAN DEFAULT false,
-  can_message_students     BOOLEAN DEFAULT false,
+  can_message_students     BOOLEAN DEFAULT true,
   can_view_attendance      BOOLEAN DEFAULT false,
   can_view_fee_records     BOOLEAN DEFAULT false,
   salary_amount            NUMERIC(10,2) DEFAULT 0

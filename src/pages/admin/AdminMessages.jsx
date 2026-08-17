@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Send, ArrowLeft, MessageCircle, Search, Check, CheckCheck, X, Megaphone, Users, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -62,6 +63,7 @@ const ROLE_ORDER = { teacher: 0, student: 1 }
 
 export default function AdminMessages() {
   const { user } = useAuth()
+  const location = useLocation()
 
   // Mode toggle
   const [mode, setMode] = useState('direct') // 'direct' | 'broadcast'
@@ -100,6 +102,21 @@ export default function AdminMessages() {
       .order('role').order('full_name')
       .then(({ data }) => setContacts(data ?? []))
   }, [])
+
+  // Auto-select contact if query param ?student= or ?contact= is passed in URL
+  useEffect(() => {
+    if (contacts.length === 0) return
+    const params = new URLSearchParams(location.search)
+    const targetId = params.get('student') || params.get('contact')
+    if (targetId) {
+      const found = contacts.find(c => c.id === targetId)
+      if (found) {
+        setMode('direct')
+        setSelected(found)
+        setShowList(false)
+      }
+    }
+  }, [contacts, location.search])
 
   // Load all active batches for broadcast
   useEffect(() => {
@@ -256,7 +273,7 @@ export default function AdminMessages() {
     setSending(true)
     const { data, error } = await supabase.from('messages')
       .insert({ sender_id: user.id, receiver_id: selected.id, content: text.trim() })
-      .select().single()
+      .select().maybeSingle()
     if (error) toast.error(error.message)
     else {
       setMessages(m => [...m, data])
@@ -280,7 +297,7 @@ export default function AdminMessages() {
     return [...contacts]
       .filter(c => {
         if (roleTab !== 'all' && c.role !== roleTab) return false
-        return !q || c.full_name?.toLowerCase().includes(q)
+        return !q || (c.full_name?.toLowerCase() || '').includes(q)
       })
       .sort((a, b) => {
         const ta = lastMsgs[a.id]?.created_at || ''
@@ -293,7 +310,7 @@ export default function AdminMessages() {
   const filteredBatches = useMemo(() => {
     const q = batchSearch.toLowerCase()
     return batches.filter(b =>
-      !q || b.name?.toLowerCase().includes(q) || b.subject?.toLowerCase().includes(q)
+      !q || (b.name?.toLowerCase() || '').includes(q) || (b.subject?.toLowerCase() || '').includes(q)
     )
   }, [batches, batchSearch])
 

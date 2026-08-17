@@ -68,8 +68,7 @@ export default function SalaryStatus() {
       }
 
       const { error } = await supabase.from('teacher_profiles')
-        .update({ upi_id: upiId.trim() || null, upi_qr_url: newQrUrl })
-        .eq('id', user.id)
+        .upsert({ id: user.id, upi_id: upiId.trim() || null, upi_qr_url: newQrUrl }, { onConflict: 'id' })
       if (error) throw error
 
       setProfile(prev => ({ ...prev, upi_id: upiId.trim() || null, upi_qr_url: newQrUrl }))

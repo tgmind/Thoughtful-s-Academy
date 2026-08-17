@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
+import CustomSelect from '../../components/ui/CustomSelect'
 
 const PLATFORMS = [
   { value: 'zoom',        label: '🎥 Zoom'         },
@@ -29,12 +30,26 @@ export default function LiveClass({ isAdmin = false }) {
     let cancelled = false
     let channel = null
 
-    // Reload this teacher's active + recent classes from the DB.
+    // Reload active + recent classes from the DB.
     const loadClasses = async () => {
-      const [a, p] = await Promise.all([
-        supabase.from('live_classes').select('*, batches(name)').eq('teacher_id', user.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1),
-        supabase.from('live_classes').select('*, batches(name)').eq('teacher_id', user.id).eq('is_active', false).order('created_at', { ascending: false }).limit(10),
-      ])
+      let activeQuery = supabase.from('live_classes').select('*, batches(name), profiles!teacher_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(1)
+      let pastQuery = supabase.from('live_classes').select('*, batches(name), profiles!teacher_id(full_name)').eq('is_active', false).order('created_at', { ascending: false }).limit(10)
+
+      if (!isAdmin) {
+        // Fetch batches assigned to this teacher
+        const { data: bList } = await supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`)
+        const assignedBatchIds = (bList ?? []).map(b => b.id)
+        
+        let filterOrStr = `teacher_id.eq.${user.id},batch_id.is.null`
+        if (assignedBatchIds.length > 0) {
+          filterOrStr += `,batch_id.in.(${assignedBatchIds.join(',')})`
+        }
+
+        activeQuery = activeQuery.or(filterOrStr)
+        pastQuery = pastQuery.or(filterOrStr)
+      }
+
+      const [a, p] = await Promise.all([activeQuery, pastQuery])
       if (cancelled) return
       setActive(a.data?.[0] ?? null)
       setPast(p.data ?? [])
@@ -42,27 +57,35 @@ export default function LiveClass({ isAdmin = false }) {
 
     const permCheck = isAdmin
       ? Promise.resolve(true)
-      : supabase.from('teacher_profiles').select('can_drop_live_class').eq('id', user.id).maybeSingle()
-          .then(({ data }) => data?.can_drop_live_class ?? false)
+      : Promise.all([
+          supabase.from('teacher_profiles').select('can_drop_live_class').eq('id', user.id).maybeSingle(),
+          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
+        ]).then(([{ data: p }, { data: b }]) => (p?.can_drop_live_class ?? false) || (b && b.length > 0))
           .catch(() => false)
 
     permCheck.then(async (ok) => {
       if (cancelled) return
       setAllowed(ok)
       if (!ok) { setLoading(false); return }
-      const { data: b } = await supabase.from('batches').select('id, name').eq('is_active', true).order('name')
+
+      // For non-admin teachers, restrict batch selection to assigned batches
+      let bQuery = supabase.from('batches').select('id, name').eq('is_active', true).order('name')
+      if (!isAdmin) {
+        bQuery = bQuery.or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`)
+      }
+      const { data: b } = await bQuery
       if (cancelled) return
       setBatches(b ?? [])
       await loadClasses()
       if (cancelled) return
       setLoading(false)
-      // Keep this console in sync if the class is ended/deleted elsewhere
-      // (another tab, another device, or an admin force-ending it).
+
+      if (cancelled) return
+      const channelConfig = { event: '*', schema: 'public', table: 'live_classes' }
+
       channel = supabase
-        .channel(`lc_manage_${user.id}`)
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'live_classes', filter: `teacher_id=eq.${user.id}` },
-          loadClasses)
+        .channel(`lc_manage_${user.id}_${Date.now()}`)
+        .on('postgres_changes', channelConfig, loadClasses)
         .subscribe()
     })
 
@@ -76,6 +99,15 @@ export default function LiveClass({ isAdmin = false }) {
     const title = form.title.trim()
     const joinUrl = normalizeUrl(form.join_url)
     if (!title || !form.join_url.trim()) { toast.error('Title and join URL are required'); return }
+
+    // If another teacher's class is active for this batch, prevent duplicate class
+    if (active && active.teacher_id !== user.id) {
+      const hostName = active.profiles?.full_name || 'another teacher'
+      const batchTitle = active.batches?.name || 'this batch'
+      toast.error(`A live class for ${batchTitle} is already in progress by ${hostName}.`)
+      return
+    }
+
     setSaving(true)
     // Guarantee a single active class per teacher: end any existing active ones first.
     const { error: endErr } = await supabase.from('live_classes')
@@ -89,7 +121,7 @@ export default function LiveClass({ isAdmin = false }) {
       batch_id:   form.batch_id || null,
       teacher_id: user.id,
       is_active:  true,
-    }).select('*, batches(name)').single()
+    }).select('*, batches(name), profiles!teacher_id(full_name)').maybeSingle()
     setSaving(false)
     if (error) { toast.error(error.message); return }
     setActive(data)
@@ -98,7 +130,7 @@ export default function LiveClass({ isAdmin = false }) {
   }
 
   const endClass = async () => {
-    if (!active || ending) return
+    if (!active || ending || active.teacher_id !== user.id) return
     setEnding(true)
     const ended = active
     const { error } = await supabase.from('live_classes').update({ is_active: false }).eq('id', ended.id)
@@ -121,32 +153,70 @@ export default function LiveClass({ isAdmin = false }) {
     </div>
   )
 
+  const isHost = active && active.teacher_id === user.id
+  const hostName = active?.profiles?.full_name || 'Teacher'
+  const batchName = active?.batches?.name || 'All Batches'
+
   return (
     <div className="space-y-6 pb-20 lg:pb-0 max-w-2xl">
 
-      {/* Active class */}
+      {/* Active class banner / notification */}
       {active && (
-        <div className="bg-gradient-to-r from-red-600 to-red-500 rounded-2xl p-5 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
-            <span className="font-bold uppercase tracking-wide text-sm">Live Now</span>
+        isHost ? (
+          /* Host Teacher Console (Started by current user) */
+          <div className="bg-gradient-to-r from-red-600 to-red-500 rounded-2xl p-5 text-white shadow-md">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
+              <span className="font-bold uppercase tracking-wide text-xs">Live Class Active (Hosted by You)</span>
+            </div>
+            <h2 className="font-bold text-xl">{active.title}</h2>
+            <p className="text-red-100 text-sm mt-1">{batchName}</p>
+            {active.password && (
+              <p className="text-sm mt-1">Password: <span className="font-mono bg-white/20 px-2 py-0.5 rounded">{active.password}</span></p>
+            )}
+            <div className="flex gap-3 mt-4">
+              <a href={normalizeUrl(active.join_url)} target="_blank" rel="noopener noreferrer"
+                className="px-5 py-2 bg-white text-red-600 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors">
+                Join Class →
+              </a>
+              <button onClick={endClass} disabled={ending}
+                className="flex items-center gap-2 px-5 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl text-sm transition-colors">
+                <Square className="h-4 w-4 fill-current" /> {ending ? 'Ending…' : 'End Class'}
+              </button>
+            </div>
           </div>
-          <h2 className="font-bold text-xl">{active.title}</h2>
-          <p className="text-red-100 text-sm mt-1">{active.batches?.name || 'All Students'}</p>
-          {active.password && (
-            <p className="text-sm mt-1">Password: <span className="font-mono bg-white/20 px-2 py-0.5 rounded">{active.password}</span></p>
-          )}
-          <div className="flex gap-3 mt-4">
-            <a href={normalizeUrl(active.join_url)} target="_blank" rel="noopener noreferrer"
-              className="px-5 py-2 bg-white text-red-600 font-bold rounded-xl text-sm hover:bg-red-50">
-              Join Class →
-            </a>
-            <button onClick={endClass} disabled={ending}
-              className="flex items-center gap-2 px-5 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl text-sm transition-colors">
-              <Square className="h-4 w-4 fill-current" /> {ending ? 'Ending…' : 'End Class'}
-            </button>
+        ) : (
+          /* Admin / Co-Teacher Informational Message Banner (Started by another teacher) */
+          <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-5 text-white border border-indigo-900/60 shadow-lg space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                <span className="font-black text-xs text-red-400 uppercase tracking-wider bg-red-950/80 px-2.5 py-0.5 rounded-full border border-red-800/60">
+                  🔴 Live Class In Progress
+                </span>
+              </div>
+              <span className="text-[11px] text-gray-400 font-medium">
+                Started {new Date(active.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+
+            <div>
+              <h3 className="font-black text-lg text-white leading-snug">{active.title}</h3>
+              <p className="text-xs text-indigo-200 mt-1">
+                Batch: <span className="font-bold text-white">{batchName}</span>
+              </p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 text-xs space-y-1">
+              <p className="text-gray-200">
+                Conducted by: <span className="font-bold text-amber-300">{hostName}</span>
+              </p>
+              <p className="text-gray-400 text-[11px] leading-relaxed">
+                ℹ️ Admins and co-teachers do not need to join this live class. Students are attending the live session.
+              </p>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {/* Drop link form */}
@@ -185,11 +255,14 @@ export default function LiveClass({ isAdmin = false }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Target Batch</label>
-              <select value={form.batch_id} onChange={e => set('batch_id', e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm">
-                <option value="">All Batches</option>
-                {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <CustomSelect
+                value={form.batch_id}
+                onChange={val => set('batch_id', val)}
+                options={[
+                  { value: '', label: 'All Batches' },
+                  ...batches.map(b => ({ value: b.id, label: b.name }))
+                ]}
+              />
             </div>
           </div>
           <button onClick={goLive} disabled={saving}

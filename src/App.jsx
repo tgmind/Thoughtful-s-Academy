@@ -26,7 +26,7 @@ import WatchLecture         from './pages/student/WatchLecture'
 // Teacher
 import TeacherLayout        from './pages/teacher/TeacherLayout'
 import TeacherHome           from './pages/teacher/TeacherHome'
-import TeacherStudyCards     from './pages/teacher/StudyCards'
+import TeacherStudySection   from './pages/teacher/StudySection'
 import TeacherLiveClass      from './pages/teacher/LiveClass'
 import TeacherMessages       from './pages/teacher/Messages'
 import SalaryStatus          from './pages/teacher/SalaryStatus'
@@ -47,7 +47,6 @@ import SalaryManager     from './pages/admin/SalaryManager'
 import Announcements     from './pages/admin/Announcements'
 import AdminMessages     from './pages/admin/AdminMessages'
 import Analytics         from './pages/admin/Analytics'
-import AdminStudyCards   from './pages/teacher/StudyCards'
 import AdminLiveClass    from './pages/teacher/LiveClass'
 import AdminHomework     from './pages/teacher/Homework'
 import AdminSettings     from './pages/admin/AdminSettings'
@@ -81,6 +80,16 @@ export default function App() {
           <Route path="/student/watch/:cardId?" element={<WatchLecture />} />
         </Route>
 
+        {/* Teacher Standalone Watch Room */}
+        <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
+          <Route path="/teacher/watch/:cardId?" element={<WatchLecture />} />
+        </Route>
+
+        {/* Admin Standalone Watch Room */}
+        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          <Route path="/admin/watch/:cardId?" element={<WatchLecture />} />
+        </Route>
+
         {/* Student */}
         <Route element={<ProtectedRoute allowedRoles={['student']} />}>
           <Route path="/student" element={<StudentLayout />}>
@@ -99,7 +108,8 @@ export default function App() {
         <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
           <Route path="/teacher" element={<TeacherLayout />}>
             <Route path="dashboard"     element={<TeacherHome />}            />
-            <Route path="study-cards"   element={<TeacherStudyCards />}      />
+            <Route path="study"         element={<TeacherStudySection />}    />
+            <Route path="study-cards"   element={<TeacherStudySection />}    />
             <Route path="homework"      element={<TeacherHomework />}         />
             <Route path="live-class"    element={<TeacherLiveClass />}        />
             <Route path="messages"      element={<TeacherMessages />}         />
@@ -118,7 +128,8 @@ export default function App() {
             <Route path="fees"          element={<FeeManager />}                      />
             <Route path="batches"       element={<BatchManager />}                    />
             <Route path="batch-details" element={<AdminBatchDetails />}               />
-            <Route path="study-cards"   element={<AdminStudyCards isAdmin={true} />}  />
+            <Route path="study"         element={<TeacherStudySection isAdmin={true} />} />
+            <Route path="study-cards"   element={<TeacherStudySection isAdmin={true} />} />
             <Route path="homework"      element={<AdminHomework   isAdmin={true} />}  />
             <Route path="live-class"    element={<AdminLiveClass  isAdmin={true} />}  />
             <Route path="qr"            element={<QRManager />}                       />

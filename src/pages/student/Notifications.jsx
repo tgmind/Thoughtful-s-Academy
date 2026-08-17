@@ -168,8 +168,8 @@ export default function Notifications() {
     if (hideRead && readIds.has(n.id)) return false
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      const matchTitle = n.title?.toLowerCase().includes(q)
-      const matchBody = n.body?.toLowerCase().includes(q)
+      const matchTitle = (n.title?.toLowerCase() || '').includes(q)
+      const matchBody = (n.body?.toLowerCase() || '').includes(q)
       if (!matchTitle && !matchBody) return false
     }
     return true

@@ -4,6 +4,9 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { copyToClipboard } from '../../utils/clipboard'
+import CustomSelect from '../../components/ui/CustomSelect'
+
+import { useSearchParams } from 'react-router-dom'
 
 function getMonths() {
   const months = []
@@ -23,21 +26,32 @@ const FEE_STATUS = {
 
 export default function PayFee() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
   const [step,     setStep]     = useState(1)
   const [qr,       setQr]       = useState(null)
   const [history,  setHistory]  = useState([])
   const [loading,  setLoading]  = useState(false)
   const [success,  setSuccess]  = useState(null)
-  const [form, setForm] = useState({ amount: '', month: getMonths()[0], reference_id: '', screenshot_url: '' })
+  const [form, setForm] = useState({
+    amount: searchParams.get('amount') || '',
+    month: searchParams.get('month') || getMonths()[0],
+    reference_id: '',
+    screenshot_url: ''
+  })
 
   useEffect(() => {
-    supabase.from('qr_settings').select('*').eq('is_active', true).limit(1).maybeSingle()
-      .then(({ data }) => setQr(data))
-    if (user) {
-      supabase.from('fee_records').select('*').eq('student_id', user.id)
-        .order('paid_at', { ascending: false })
-        .then(({ data }) => setHistory(data ?? []))
-    }
+    let cancelled = false
+    Promise.all([
+      supabase.from('qr_settings').select('*').eq('is_active', true).limit(1).maybeSingle(),
+      user?.id ? supabase.from('fee_records').select('*').eq('student_id', user.id).order('paid_at', { ascending: false }) : Promise.resolve({ data: [] }),
+    ]).then(([qrRes, feeRes]) => {
+      if (cancelled) return
+      setQr(qrRes.data ?? null)
+      setHistory(feeRes.data ?? [])
+    }).catch(err => {
+      console.error(err)
+    })
+    return () => { cancelled = true }
   }, [user])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -50,7 +64,7 @@ export default function PayFee() {
       student_id: user.id, amount: parseFloat(form.amount),
       payment_month: form.month, reference_id: form.reference_id,
       screenshot_url: form.screenshot_url || null, status: 'pending',
-    }).select().single()
+    }).select().maybeSingle()
     setLoading(false)
     if (error) { toast.error(error.message); return }
     setSuccess(data)
@@ -95,10 +109,11 @@ export default function PayFee() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Payment Month</label>
-            <select value={form.month} onChange={e => set('month', e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600">
-              {getMonths().map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <CustomSelect
+              value={form.month}
+              onChange={val => set('month', val)}
+              options={getMonths().map(m => ({ value: m, label: m }))}
+            />
           </div>
           <button onClick={() => setStep(2)} disabled={!form.amount || parseFloat(form.amount) <= 0}
             className="w-full py-3 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl disabled:opacity-50 transition-colors">

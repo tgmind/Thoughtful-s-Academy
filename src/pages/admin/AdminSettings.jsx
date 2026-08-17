@@ -248,9 +248,19 @@ export default function AdminSettings() {
     try { await supabase.from('live_classes').delete().in('teacher_id', ids) } catch { /* ignore */ }
     setTeacherProgress(p => [...p, 'Live classes'])
 
-    // Nullify FK columns that reference these profiles before deleting them.
-    // Without this, Postgres rejects the DELETE due to FK constraints.
-    try { await supabase.from('batches').update({ teacher_id: null }).in('teacher_id', ids) } catch { /* ignore */ }
+    // Nullify FK columns and clean up teacher_ids array before deleting profiles.
+    try {
+      await supabase.from('batches').update({ teacher_id: null }).in('teacher_id', ids)
+      const { data: bList } = await supabase.from('batches').select('id, teacher_ids')
+      if (bList && bList.length > 0) {
+        for (const b of bList) {
+          if (Array.isArray(b.teacher_ids) && b.teacher_ids.some(tId => ids.includes(tId))) {
+            const nextIds = b.teacher_ids.filter(tId => !ids.includes(tId))
+            await supabase.from('batches').update({ teacher_ids: nextIds }).eq('id', b.id)
+          }
+        }
+      }
+    } catch { /* ignore */ }
     try { await supabase.from('study_cards').update({ added_by: null }).in('added_by', ids) } catch { /* ignore */ }
     try { await supabase.from('attendance').update({ marked_by: null }).in('marked_by', ids) } catch { /* ignore */ }
     try { await supabase.from('notifications').update({ created_by: null }).in('created_by', ids) } catch { /* ignore */ }

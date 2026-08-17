@@ -79,19 +79,28 @@ export default function Messages() {
 
   useEffect(() => { loadSummary() }, [loadSummary])
 
+  const selectedRef = useRef(selected)
+  useEffect(() => { selectedRef.current = selected }, [selected])
+
   // Load full conversation when a contact is selected
   useEffect(() => {
     if (!selected || !user) return
+    let cancelled = false
     supabase.from('messages').select('*')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selected.id}),and(sender_id.eq.${selected.id},receiver_id.eq.${user.id})`)
       .order('created_at')
       .then(({ data }) => {
+        if (cancelled) return
         setMessages(data ?? [])
         // Mark incoming messages as read
         supabase.from('messages').update({ is_read: true })
           .eq('receiver_id', user.id).eq('sender_id', selected.id).eq('is_read', false)
-          .then(() => setUnread(u => { const n = { ...u }; delete n[selected.id]; return n }))
+          .then(() => {
+            if (cancelled) return
+            setUnread(u => { const n = { ...u }; delete n[selected.id]; return n })
+          })
       })
+    return () => { cancelled = true }
   }, [selected, user])
 
   // Realtime: incoming messages
@@ -102,7 +111,7 @@ export default function Messages() {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `receiver_id=eq.${user.id}`,
       }, ({ new: msg }) => {
-        if (msg.sender_id === selected?.id) {
+        if (msg.sender_id === selectedRef.current?.id) {
           setMessages(m => m.some(x => x.id === msg.id) ? m : [...m, msg])
           supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then(() => {})
         } else {
@@ -122,7 +131,7 @@ export default function Messages() {
       })
       .subscribe()
     return () => supabase.removeChannel(ch)
-  }, [user, selected])
+  }, [user])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -131,7 +140,7 @@ export default function Messages() {
     setSending(true)
     const { data, error } = await supabase.from('messages')
       .insert({ sender_id: user.id, receiver_id: selected.id, content: text.trim() })
-      .select().single()
+      .select().maybeSingle()
     if (error) toast.error(error.message)
     else {
       setMessages(m => [...m, data])
@@ -151,7 +160,7 @@ export default function Messages() {
   const filteredContacts = useMemo(() => {
     const q = search.toLowerCase()
     return [...contacts]
-      .filter(c => !q || c.full_name?.toLowerCase().includes(q) || c.role?.includes(q))
+      .filter(c => !q || (c.full_name?.toLowerCase() || '').includes(q) || (c.role?.toLowerCase() || '').includes(q))
       .sort((a, b) =>
         (lastMsgs[b.id]?.created_at || '').localeCompare(lastMsgs[a.id]?.created_at || '')
       )

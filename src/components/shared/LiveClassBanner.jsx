@@ -67,10 +67,12 @@ export default function LiveClassBanner({ liveClass, onDismiss }) {
           )}
 
           {/* Join button */}
-          <a href={joinUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-block mt-3 px-5 py-2 bg-white text-red-600 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors shadow">
-            Join Class →
-          </a>
+          {joinUrl && (
+            <a href={joinUrl} target="_blank" rel="noopener noreferrer"
+              className="inline-block mt-3 px-5 py-2 bg-white text-red-600 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors shadow">
+              Join Class →
+            </a>
+          )}
         </div>
 
         {/* Dismiss */}

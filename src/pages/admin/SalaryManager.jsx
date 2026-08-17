@@ -113,7 +113,7 @@ export default function SalaryManager() {
       status:          'paid',
       paid_at:         new Date().toISOString(),
       paid_by:         user.id,
-    }).select('*, profiles!teacher_id(full_name)').single()
+    }).select('*, profiles!teacher_id(full_name)').maybeSingle()
     setSaving(false)
 
     if (error) { toast.error(error.message); return }
@@ -131,7 +131,7 @@ export default function SalaryManager() {
   const totalPaid  = paid.reduce((s, t) => s + (monthRecords[t.id]?.amount ?? 0), 0)
 
   const filteredHistory = allRecords.filter(r => {
-    const nameOk  = !search || r.profiles?.full_name?.toLowerCase().includes(search.toLowerCase())
+    const nameOk  = !search || (r.profiles?.full_name?.toLowerCase() || '').includes(search.toLowerCase())
     const monthOk = !historyMonth || r.payment_month === historyMonth
     return nameOk && monthOk
   })

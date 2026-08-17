@@ -75,7 +75,8 @@ export default function WatchLecture() {
   
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const rolePrefix = profile?.role === 'admin' ? '/admin' : profile?.role === 'teacher' ? '/teacher' : '/student'
 
   const playerContainerRef = useRef(null)
 
@@ -153,7 +154,7 @@ export default function WatchLecture() {
       .eq('is_active', true)
       .eq('subject', card.subject)
       .neq('id', card.id)
-      .or('type.eq.youtube_video,type.eq.youtube_playlist,type.like.youtube%')
+      .or('type.eq.youtube_video,type.eq.youtube_playlist')
       .limit(6)
       .then(({ data }) => setRelatedCards(data ?? []))
   }, [card?.subject, card?.id])
@@ -248,7 +249,7 @@ export default function WatchLecture() {
           The requested video lecture could not be loaded or is no longer available.
         </p>
         <button
-          onClick={() => navigate('/student/study')}
+          onClick={() => navigate(`${rolePrefix}/study`)}
           className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" /> Return to Study Portal
@@ -290,9 +291,9 @@ export default function WatchLecture() {
     if (window.history.length > 1 && window.history.state?.idx > 0) {
       navigate(-1)
     } else if (returnSubject) {
-      navigate(`/student/study?subject=${encodeURIComponent(returnSubject)}&category=video`, { replace: true })
+      navigate(`${rolePrefix}/study?subject=${encodeURIComponent(returnSubject)}&category=video`, { replace: true })
     } else {
-      navigate('/student/study', { replace: true })
+      navigate(`${rolePrefix}/study`, { replace: true })
     }
   }
 
@@ -320,7 +321,7 @@ export default function WatchLecture() {
   const currentTitle = activePlaylistItem?.title || card.title
 
   const filteredPlaylistItems = playlistItems.filter(item =>
-    item.title.toLowerCase().includes(playlistSearch.toLowerCase())
+    (item.title?.toLowerCase() || '').includes(playlistSearch.toLowerCase())
   )
 
   return (
@@ -661,7 +662,7 @@ export default function WatchLecture() {
                     key={rc.id}
                     onClick={() => {
                       setCard(rc)
-                      navigate(`/student/watch/${rc.id}`, { state: { card: rc }, replace: true })
+                      navigate(`${rolePrefix}/watch/${rc.id}`, { state: { card: rc }, replace: true })
                     }}
                     className="w-full p-2.5 bg-white hover:bg-indigo-100/70 border border-slate-200/90 hover:border-indigo-300 transition-all rounded-xl text-left flex items-center justify-between gap-2.5 group cursor-pointer shadow-2xs"
                   >

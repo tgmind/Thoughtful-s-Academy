@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Download, X, Edit2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
+import CustomSelect from '../../components/ui/CustomSelect'
 
 function monthLabel() { return new Date().toLocaleDateString('en-IN', { month:'long', year:'numeric' }) }
 
@@ -34,6 +35,7 @@ export default function StudentTracker() {
   const [savingEnroll,  setSavingEnroll]  = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     Promise.all([
       // Ordered by newest first to act as a notification list for admins
       supabase.from('profiles').select('id, full_name, email, phone, is_active, created_at')
@@ -44,6 +46,7 @@ export default function StudentTracker() {
       supabase.from('fee_records').select('student_id, status, payment_month').eq('payment_month', monthLabel()),
       supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
     ]).then(([p, sp, att, fees, b]) => {
+      if (cancelled) return
       const spMap  = {}; (sp.data ?? []).forEach(s => { spMap[s.id] = s })
       const feeMap = {}; (fees.data ?? []).forEach(f => { feeMap[f.student_id] = f.status })
       const attMap = {}
@@ -69,6 +72,7 @@ export default function StudentTracker() {
       setBatches(b.data ?? [])
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [])
 
   const openStudent = async (s) => {
@@ -92,12 +96,7 @@ export default function StudentTracker() {
     setEnrollSubjects([])
     if (!batchId) { setBatchSubjects([]); return }
     const { data } = await supabase.from('batches').select('subjects').eq('id', batchId).maybeSingle()
-    setEnrollBatch(currentBatchId => {
-      if (currentBatchId === batchId) {
-        setBatchSubjects(data?.subjects ?? [])
-      }
-      return currentBatchId
-    })
+    setBatchSubjects(data?.subjects ?? [])
   }
 
   const toggleEnrollSubject = (sub) => {
@@ -107,8 +106,7 @@ export default function StudentTracker() {
   const saveEnrollment = async () => {
     setSavingEnroll(true)
     const { error } = await supabase.from('student_profiles')
-      .update({ batch_id: enrollBatch || null, subjects: enrollSubjects })
-      .eq('id', selected.id)
+      .upsert({ id: selected.id, batch_id: enrollBatch || null, subjects: enrollSubjects }, { onConflict: 'id' })
     setSavingEnroll(false)
     if (error) { toast.error(error.message); return }
     const batchName = batches.find(b => b.id === enrollBatch)?.name ?? '—'
@@ -162,7 +160,7 @@ export default function StudentTracker() {
   // Admin action: clear trial (grants full access)
   const clearTrial = async (studentId) => {
     const { error } = await supabase.from('student_profiles')
-      .update({ trial_ends_at: null }).eq('id', studentId)
+      .upsert({ id: studentId, trial_ends_at: null }, { onConflict: 'id' })
     if (error) { toast.error(error.message); return }
     setStudents(list => list.map(x => x.id === studentId ? { ...x, trial_ends_at: null } : x))
     setSelected(s => s ? { ...s, trial_ends_at: null } : s)
@@ -176,7 +174,8 @@ export default function StudentTracker() {
   }
 
   const filtered = students.filter(s => {
-    const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase().trim()
+    const matchSearch = !q || (s.full_name?.toLowerCase() ?? '').includes(q) || (s.email?.toLowerCase() ?? '').includes(q)
     const matchBatch  = !batchF || s.batch_id === batchF
     const matchAtt    = attF === 'all'
       || (attF==='good'         && s.att_pct>=75)
@@ -191,28 +190,40 @@ export default function StudentTracker() {
 
   return (
     <div className="space-y-4 pb-20 lg:pb-0">
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-48">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search students…"
-            className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-gray-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white shadow-2xs" />
         </div>
-        <select value={batchF} onChange={e => setBatchF(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
-          <option value="">All Batches</option>
-          {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-        <select value={attF} onChange={e => setAttF(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
-          <option value="all">All Attendance</option>
-          <option value="good">Good (≥75%)</option>
-          <option value="warning">Warning (50–75%)</option>
-          <option value="poor">Poor (&lt;50%)</option>
-          <option value="trial_expired">🔴 Trial Expired</option>
-        </select>
-        <button onClick={exportCSV} className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium hover:bg-gray-50 transition-all shrink-0 whitespace-nowrap active:scale-95">
-          <Download className="h-4 w-4 shrink-0" /> Export CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <div className="flex-1 sm:flex-initial min-w-[125px]">
+            <CustomSelect
+              value={batchF}
+              onChange={setBatchF}
+              options={[
+                { value: '', label: 'All Batches' },
+                ...batches.map(b => ({ value: b.id, label: b.name }))
+              ]}
+            />
+          </div>
+          <div className="flex-1 sm:flex-initial min-w-[135px]">
+            <CustomSelect
+              value={attF}
+              onChange={setAttF}
+              options={[
+                { value: 'all', label: 'All Attendance' },
+                { value: 'good', label: 'Good (≥75%)' },
+                { value: 'warning', label: 'Warning (50–75%)' },
+                { value: 'poor', label: 'Poor (<50%)' },
+                { value: 'trial_expired', label: '🔴 Trial Expired' },
+              ]}
+            />
+          </div>
+          <button onClick={exportCSV} className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 bg-white rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-all shrink-0 whitespace-nowrap active:scale-95 shadow-2xs h-[36px]">
+            <Download className="h-3.5 w-3.5 shrink-0 text-gray-500" /> Export CSV
+          </button>
+        </div>
       </div>
 
       <p className="text-sm text-gray-500">{filtered.length} students</p>
@@ -404,11 +415,14 @@ export default function StudentTracker() {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Batch</label>
-                      <select value={enrollBatch} onChange={e => onEnrollBatchChange(e.target.value)}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600">
-                        <option value="">No batch</option>
-                        {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={enrollBatch}
+                        onChange={val => onEnrollBatchChange(val)}
+                        options={[
+                          { value: '', label: 'No batch' },
+                          ...batches.map(b => ({ value: b.id, label: b.name }))
+                        ]}
+                      />
                     </div>
                     {batchSubjects.length > 0 && (
                       <div>

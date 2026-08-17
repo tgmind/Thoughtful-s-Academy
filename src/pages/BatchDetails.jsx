@@ -376,7 +376,7 @@ export default function BatchDetails() {
                   
                   {/* Subjects + Faculty on one line */}
                   <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-start">
-                    {activeBatch.subjects && activeBatch.subjects.length > 0 ? (
+                    {Array.isArray(activeBatch.subjects) && activeBatch.subjects.length > 0 ? (
                       activeBatch.subjects.map((sub, idx) => (
                         <span key={idx} className="px-2.5 py-1 rounded-lg bg-blue-900/60 border border-blue-400/20 text-blue-200 text-xs font-semibold">
                           {sub}

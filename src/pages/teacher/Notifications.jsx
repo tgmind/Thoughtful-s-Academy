@@ -69,14 +69,20 @@ function ManageTab({ user, batches }) {
   useEffect(() => {
     Promise.all([
       supabase.from('notifications').select('*').eq('created_by', user.id).order('created_at', { ascending: false }),
-      supabase.from('notification_reads').select('notification_id'),
-    ]).then(([n, r]) => {
+    ]).then(([n]) => {
+      const notifIds = (n.data ?? []).map(x => x.id)
       setNotifs(n.data ?? [])
-      const counts = {}
-      ;(r.data ?? []).forEach(row => {
-        counts[row.notification_id] = (counts[row.notification_id] ?? 0) + 1
-      })
-      setReadCounts(counts)
+      // Only fetch read counts for this teacher's own notifications
+      if (notifIds.length > 0) {
+        supabase.from('notification_reads').select('notification_id').in('notification_id', notifIds)
+          .then(({ data: rData }) => {
+            const counts = {}
+            ;(rData ?? []).forEach(row => {
+              counts[row.notification_id] = (counts[row.notification_id] ?? 0) + 1
+            })
+            setReadCounts(counts)
+          })
+      }
       setLoading(false)
     })
   }, [user.id])
@@ -139,24 +145,25 @@ function ManageTab({ user, batches }) {
 
     if (editTarget) {
       const { data, error } = await supabase
-        .from('notifications').update(payload).eq('id', editTarget.id).select().single()
+        .from('notifications').update(payload).eq('id', editTarget.id).select().maybeSingle()
       setSaving(false)
       if (error) { toast.error(error.message); return }
-      setNotifs(list => list.map(x => x.id === editTarget.id ? data : x))
+      if (data) setNotifs(list => list.map(x => x.id === editTarget.id ? data : x))
       toast.success('Notification updated!')
     } else {
       const { data, error } = await supabase
-        .from('notifications').insert({ ...payload, is_active: true, created_by: user.id }).select().single()
+        .from('notifications').insert({ ...payload, is_active: true, created_by: user.id }).select().maybeSingle()
       setSaving(false)
       if (error) { toast.error(error.message); return }
-      setNotifs(n => [data, ...n])
+      if (data) setNotifs(n => [data, ...n])
       toast.success('Notification published!')
     }
     closeForm()
   }
 
   const toggleActive = async (n) => {
-    const { data } = await supabase.from('notifications').update({ is_active: !n.is_active }).eq('id', n.id).select().single()
+    const { data, error } = await supabase.from('notifications').update({ is_active: !n.is_active }).eq('id', n.id).select().maybeSingle()
+    if (error) { toast.error(error.message); return }
     if (data) setNotifs(list => list.map(x => x.id === n.id ? data : x))
   }
 
@@ -171,7 +178,7 @@ function ManageTab({ user, batches }) {
     if (statusTab !== 'all') list = list.filter(n => getStatus(n) === statusTab)
     if (search.trim()) {
       const q = search.toLowerCase()
-      list = list.filter(n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q))
+      list = list.filter(n => (n.title?.toLowerCase() || '').includes(q) || (n.body?.toLowerCase() || '').includes(q))
     }
     return list
   }, [notifs, statusTab, search])
@@ -387,21 +394,18 @@ function InboxTab({ user }) {
   useEffect(() => {
     if (!user) return
     const load = async () => {
+      const now = new Date().toISOString()
       const [{ data: notifs }, { data: reads }] = await Promise.all([
         supabase.from('notifications').select('*')
           .eq('is_active', true)
+          .or('target_role.eq.teacher,target_role.eq.all')
+          .is('target_batch_id', null)
+          .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
+          .or(`expires_at.is.null,expires_at.gte.${now}`)
           .order('created_at', { ascending: false }),
         supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
       ])
-      const filteredNotifs = (notifs ?? []).filter(n => {
-        const nNow = new Date()
-        if (n.scheduled_at && new Date(n.scheduled_at) > nNow) return false
-        if (n.expires_at   && new Date(n.expires_at)   < nNow) return false
-        if (n.target_role !== 'all' && n.target_role !== 'teacher') return false
-        if (n.target_batch_id) return false
-        return true
-      })
-      setNotifications(filteredNotifs)
+      setNotifications(notifs ?? [])
       setReadIds(new Set((reads ?? []).map(r => r.notification_id)))
       setLoading(false)
     }

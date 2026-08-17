@@ -35,32 +35,36 @@ export default function StudentLiveClass() {
     }
 
     const init = async () => {
-      const { data: sp } = await supabase
-        .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
-      batchIdRef.current = sp?.batch_id ?? null
-      if (unmounted) return
+      try {
+        const { data: sp } = await supabase
+          .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
+        batchIdRef.current = sp?.batch_id ?? null
+        if (unmounted) return
 
-      await fetchLive()
-      if (unmounted) return
+        await fetchLive()
+        if (unmounted) return
 
-      channel = supabase
-        .channel(`lc_student_page_${user.id}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' },
-          (payload) => {
-            if (unmounted) return
-            // Class ended or deleted: clear immediately — no DB round-trip needed
-            if (
-              payload.eventType === 'DELETE' ||
-              (payload.eventType === 'UPDATE' && !payload.new?.is_active)
-            ) {
-              setLiveClass(null)
-            } else {
-              // New class started or reactivated: refetch to get joined teacher name
-              fetchLive()
+        channel = supabase
+          .channel(`lc_student_page_${user.id}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' },
+            (payload) => {
+              if (unmounted) return
+              // Class ended or deleted: clear immediately — no DB round-trip needed
+              if (
+                payload.eventType === 'DELETE' ||
+                (payload.eventType === 'UPDATE' && !payload.new?.is_active)
+              ) {
+                setLiveClass(null)
+              } else {
+                // New class started or reactivated: refetch to get joined teacher name
+                fetchLive()
+              }
             }
-          }
-        )
-        .subscribe()
+          )
+          .subscribe()
+      } catch {
+        if (!unmounted) setLoading(false)
+      }
     }
 
     init()

@@ -190,7 +190,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
       {/* ---- Main area ---- */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm relative z-40">
           <button onClick={() => setDrawerOpen(true)} className="lg:hidden p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
             <Menu className="h-5 w-5" />
           </button>
@@ -202,8 +202,8 @@ export default function DashboardShell({ navItems, pageTitle }) {
             </button>
             {showDropdown && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-                <div className="absolute right-0 top-11 z-20 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">
+                <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+                <div className="absolute right-0 top-11 z-50 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">
                   <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50">
                     <p className="text-xs font-semibold text-gray-900 truncate">{profile?.full_name}</p>
                     <p className="text-xs text-gray-500 truncate">{profile?.email}</p>

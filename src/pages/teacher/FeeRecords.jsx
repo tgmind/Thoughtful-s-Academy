@@ -3,6 +3,7 @@ import { Search, Download, Lock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
+import CustomSelect from '../../components/ui/CustomSelect'
 
 const STATUS_COLORS = {
   pending:  'bg-amber-100 text-amber-800',
@@ -44,8 +45,9 @@ export default function FeeRecords() {
   }, [user])
 
   const filtered = records.filter(r => {
-    const matchS  = r.profiles?.full_name?.toLowerCase().includes(search.toLowerCase())
-                 || r.profiles?.email?.toLowerCase().includes(search.toLowerCase())
+    const sLower  = search.toLowerCase()
+    const matchS  = (r.profiles?.full_name?.toLowerCase() || '').includes(sLower)
+                 || (r.profiles?.email?.toLowerCase() || '').includes(sLower)
     const matchSt = !statusF || r.status === statusF
     return matchS && matchSt
   })
@@ -94,16 +96,18 @@ export default function FeeRecords() {
             className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
         </div>
-        <select
-          value={statusF}
-          onChange={e => setStatusF(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none"
-        >
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="verified">Verified</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <div className="w-auto min-w-[130px]">
+          <CustomSelect
+            value={statusF}
+            onChange={setStatusF}
+            options={[
+              { value: '', label: 'All Status' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'verified', label: 'Verified' },
+              { value: 'rejected', label: 'Rejected' },
+            ]}
+          />
+        </div>
         <button
           onClick={exportCSV}
           className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"

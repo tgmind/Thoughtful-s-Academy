@@ -27,7 +27,7 @@ function todayISO() {
 
 export default function StudentDashboard() {
   const { profile, user } = useAuth()
-  const [stats, setStats] = useState({ present: 0, absent: 0, pending_fees: 0, unread: 0, live: false })
+  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, pending_fees: 0, unread: 0, live: false })
   const [notifications, setNotifications] = useState([])
   const [recentHomework, setRecentHomework] = useState([])
   const [recentStudyCards, setRecentStudyCards] = useState([])
@@ -41,69 +41,78 @@ export default function StudentDashboard() {
   const [trialEndsAt, setTrialEndsAt] = useState(null)
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(false)
   const batchIdRef = useRef(null)
+  const cancelledRef = useRef(false)
 
   useEffect(() => {
     if (!user) return
     const load = async () => {
-      const [attRes, feeRes, msgRes, todayRes, spRes] = await Promise.all([
-        supabase.from('attendance').select('status').eq('student_id', user.id),
-        supabase.from('fee_records').select('id, amount').eq('student_id', user.id).eq('status', 'pending'),
-        supabase.from('messages').select('id').eq('receiver_id', user.id).eq('is_read', false),
-        supabase.from('attendance').select('id').eq('student_id', user.id).eq('date', todayISO()).maybeSingle(),
-        supabase.from('student_profiles').select('batch_id, trial_ends_at').eq('id', user.id).maybeSingle(),
-      ])
-      const batchId = spRes.data?.batch_id ?? null
-      batchIdRef.current = batchId
-      setTrialEndsAt(spRes.data?.trial_ends_at ?? null)
+      try {
+        const [attRes, feeRes, msgRes, todayRes, spRes] = await Promise.all([
+          supabase.from('attendance').select('status').eq('student_id', user.id),
+          supabase.from('fee_records').select('id, amount').eq('student_id', user.id).eq('status', 'pending'),
+          supabase.from('messages').select('id').eq('receiver_id', user.id).eq('is_read', false),
+          supabase.from('attendance').select('id').eq('student_id', user.id).eq('date', todayISO()).maybeSingle(),
+          supabase.from('student_profiles').select('batch_id, trial_ends_at').eq('id', user.id).maybeSingle(),
+        ])
+        if (cancelledRef.current) return
+        const batchId = spRes.data?.batch_id ?? null
+        batchIdRef.current = batchId
+        setTrialEndsAt(spRes.data?.trial_ends_at ?? null)
 
-      let notifQ = supabase.from('notifications').select('id, title, body, type, created_at')
-        .eq('is_active', true).or('target_role.eq.student,target_role.eq.all')
-        .order('created_at', { ascending: false }).limit(5)
-      if (batchId) notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${batchId}`)
-      else         notifQ = notifQ.is('target_batch_id', null)
+        let notifQ = supabase.from('notifications').select('id, title, body, type, created_at')
+          .eq('is_active', true).or('target_role.eq.student,target_role.eq.all')
+          .order('created_at', { ascending: false }).limit(5)
+        if (batchId) notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${batchId}`)
+        else         notifQ = notifQ.is('target_batch_id', null)
 
-      let liveQ = supabase.from('live_classes').select('id, title').eq('is_active', true).order('created_at', { ascending: false }).limit(1)
-      if (batchId) liveQ = liveQ.or(`batch_id.is.null,batch_id.eq.${batchId}`)
-      else         liveQ = liveQ.is('batch_id', null)
+        let liveQ = supabase.from('live_classes').select('id, title').eq('is_active', true).order('created_at', { ascending: false }).limit(1)
+        if (batchId) liveQ = liveQ.or(`batch_id.is.null,batch_id.eq.${batchId}`)
+        else         liveQ = liveQ.is('batch_id', null)
 
-      let hwQ = batchId
-        ? supabase.from('homework').select('id, title, due_date, created_at').eq('batch_id', batchId).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
-        : Promise.resolve({ data: [] })
+        let hwQ = batchId
+          ? supabase.from('homework').select('id, title, due_date, created_at').eq('batch_id', batchId).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
+          : Promise.resolve({ data: [] })
 
-      let studyQ = batchId
-        ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${batchId}},batch_id.eq.${batchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
-        : Promise.resolve({ data: [] })
+        let studyQ = batchId
+          ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${batchId}},batch_id.eq.${batchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
+          : Promise.resolve({ data: [] })
 
-      const [notifRes, readRes, liveRes, hwRes, studyRes] = await Promise.all([
-        notifQ,
-        supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
-        liveQ,
-        hwQ,
-        studyQ,
-      ])
+        const [notifRes, readRes, liveRes, hwRes, studyRes] = await Promise.all([
+          notifQ,
+          supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
+          liveQ,
+          hwQ,
+          studyQ,
+        ])
+        if (cancelledRef.current) return
 
-      const readSet = new Set((readRes.data ?? []).map(r => r.notification_id))
-      const att = attRes.data ?? []
-      const activeLive = liveRes.data?.[0] ?? null
-      setLiveClassData(activeLive)
+        const readSet = new Set((readRes.data ?? []).map(r => r.notification_id))
+        const att = attRes.data ?? []
+        const activeLive = liveRes.data?.[0] ?? null
+        setLiveClassData(activeLive)
 
-      setStats({
-        present: att.filter(a => a.status === 'present').length,
-        late:    att.filter(a => a.status === 'late').length,
-        absent:  att.filter(a => a.status === 'absent').length,
-        pending_fees: feeRes.data?.length ?? 0,
-        unread:  msgRes.data?.length ?? 0,
-        live:    !!activeLive,
-      })
+        setStats({
+          present: att.filter(a => a.status === 'present').length,
+          late:    att.filter(a => a.status === 'late').length,
+          absent:  att.filter(a => a.status === 'absent').length,
+          pending_fees: feeRes.data?.length ?? 0,
+          unread:  msgRes.data?.length ?? 0,
+          live:    !!activeLive,
+        })
 
-      setNotifications((notifRes.data ?? []).filter(n => !readSet.has(n.id)))
-      setRecentHomework(hwRes.data ?? [])
-      setRecentStudyCards(studyRes.data ?? [])
+        setNotifications((notifRes.data ?? []).filter(n => !readSet.has(n.id)))
+        setRecentHomework(hwRes.data ?? [])
+        setRecentStudyCards(studyRes.data ?? [])
 
-      if (!todayRes.data) setShowPopup(true)
-      setLoading(false)
+        if (!todayRes.error && !todayRes.data) setShowPopup(true)
+      } catch (err) {
+        console.error('Failed to load student dashboard:', err)
+      } finally {
+        if (!cancelledRef.current) setLoading(false)
+      }
     }
     load()
+    return () => { cancelledRef.current = true }
   }, [user])
 
   // Realtime + Fast 4s Polling Fallback: keep dashboard 100% updated instantly without page refresh
@@ -183,11 +192,11 @@ export default function StudentDashboard() {
         }
       })
 
-    // Background 4-second fast sync polling fallback
-    const interval = setInterval(fetchAllDynamicData, 4000)
+    // Remove the aggressive 4-second polling — realtime handles all updates
+    // If realtime subscription fails, a single fetchAllDynamicData() fires on SUBSCRIBED status above
 
     return () => {
-      clearInterval(interval)
+      cancelledRef.current = true
       supabase.removeChannel(channel)
     }
   }, [user])
@@ -196,7 +205,7 @@ export default function StudentDashboard() {
     setMarking(status)
     const { data, error } = await supabase.from('attendance').insert({
       student_id: user.id, date: todayISO(), status, marked_by: user.id,
-    }).select().single()
+    }).select().maybeSingle()
     if (error) {
       if (error.code === '23505') {
         toast.error('Attendance already marked for today.')

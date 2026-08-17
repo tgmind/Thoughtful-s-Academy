@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Video, MessageCircle, DollarSign, Lock, CheckCircle, Receipt } from 'lucide-react'
+import { BookOpen, ClipboardList, Video, MessageCircle, DollarSign, Lock, CheckCircle, Receipt } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
@@ -18,12 +18,28 @@ export default function TeacherHome() {
       supabase.from('teacher_profiles').select('*').eq('id', user.id).maybeSingle(),
       supabase.from('study_cards').select('id', { count: 'exact' }).eq('added_by', user.id).eq('is_active', true),
       supabase.from('messages').select('id', { count: 'exact' }).eq('receiver_id', user.id).eq('is_read', false),
-      supabase.from('live_classes').select('id').eq('teacher_id', user.id).eq('is_active', true).limit(1),
       supabase.from('messages').select('*, profiles!sender_id(full_name)').eq('receiver_id', user.id).eq('is_read', false).order('created_at', { ascending: false }).limit(3),
-    ]).then(([p, c, m, lc, recentMsgs]) => {
+      supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true),
+    ]).then(async ([p, c, m, recentMsgs, myBatches]) => {
       if (cancelled) return
-      setPerms(p.data)
-      setStats({ cards: c.count ?? 0, unread: m.count ?? 0, live: (lc.data?.length ?? 0) > 0 })
+      const assignedBatchIds = (myBatches.data ?? []).map(b => b.id)
+      const hasAssignedBatch = assignedBatchIds.length > 0
+      const profilePerms = p.data || {}
+
+      let filterOrStr = `teacher_id.eq.${user.id},batch_id.is.null`
+      if (assignedBatchIds.length > 0) {
+        filterOrStr += `,batch_id.in.(${assignedBatchIds.join(',')})`
+      }
+      const { data: lc } = await supabase.from('live_classes').select('id').eq('is_active', true).or(filterOrStr).limit(1)
+
+      if (cancelled) return
+      setPerms({
+        ...profilePerms,
+        can_manage_study_cards: profilePerms.can_manage_study_cards || hasAssignedBatch,
+        can_manage_homework: profilePerms.can_manage_homework || hasAssignedBatch,
+        can_drop_live_class: profilePerms.can_drop_live_class || hasAssignedBatch,
+      })
+      setStats({ cards: c.count ?? 0, unread: m.count ?? 0, live: (lc?.length ?? 0) > 0 })
       setMsgs(recentMsgs.data ?? [])
       setLoading(false)
     })
@@ -49,8 +65,13 @@ export default function TeacherHome() {
       setMsgs(data ?? [])
     }
     const refreshLive = async () => {
-      const { data } = await supabase.from('live_classes')
-        .select('id').eq('teacher_id', uid).eq('is_active', true).limit(1)
+      const { data: myBatches } = await supabase.from('batches').select('id').or(`teacher_id.eq.${uid},teacher_ids.cs.{${uid}}`).eq('is_active', true)
+      const assignedBatchIds = (myBatches ?? []).map(b => b.id)
+      let filterOrStr = `teacher_id.eq.${uid},batch_id.is.null`
+      if (assignedBatchIds.length > 0) {
+        filterOrStr += `,batch_id.in.(${assignedBatchIds.join(',')})`
+      }
+      const { data } = await supabase.from('live_classes').select('id').eq('is_active', true).or(filterOrStr).limit(1)
       if (cancelled) return
       setStats(s => ({ ...s, live: (data?.length ?? 0) > 0 }))
     }
@@ -58,14 +79,15 @@ export default function TeacherHome() {
     const channel = supabase
       .channel(`teacher_dash_${uid}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${uid}` }, refreshMessages)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes', filter: `teacher_id=eq.${uid}` }, refreshLive)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' }, refreshLive)
       .subscribe()
 
     return () => { cancelled = true; supabase.removeChannel(channel) }
   }, [user])
 
   const features = [
-    { key: 'study_cards',   label: 'Study Cards',    perm: perms?.can_manage_study_cards, path: '/teacher/study-cards', icon: <BookOpen className="h-5 w-5" />,    color: 'bg-blue-50 text-blue-700'   },
+    { key: 'study_cards',   label: 'Study Cards',    perm: perms?.can_manage_study_cards, path: '/teacher/study', icon: <BookOpen className="h-5 w-5" />,    color: 'bg-blue-50 text-blue-700'   },
+    { key: 'homework',      label: 'Homework',       perm: perms?.can_manage_homework,    path: '/teacher/homework', icon: <ClipboardList className="h-5 w-5" />, color: 'bg-indigo-50 text-indigo-700' },
     { key: 'live_class',    label: 'Live Class',     perm: perms?.can_drop_live_class,    path: '/teacher/live-class',  icon: <Video className="h-5 w-5" />,        color: 'bg-red-50 text-red-700'     },
     { key: 'message',       label: 'Messages',       perm: perms?.can_message_students,   path: '/teacher/messages',    icon: <MessageCircle className="h-5 w-5" />, color: 'bg-purple-50 text-purple-700'},
     { key: 'salary',        label: 'My Salary',      perm: true,                          path: '/teacher/salary',      icon: <DollarSign className="h-5 w-5" />,   color: 'bg-green-50 text-green-700'  },
@@ -158,6 +180,7 @@ export default function TeacherHome() {
           <div className="space-y-2">
             {[
               { label: 'Manage Study Cards',   val: perms.can_manage_study_cards  },
+              { label: 'Manage Homework',      val: perms.can_manage_homework     },
               { label: 'Drop Live Class Links', val: perms.can_drop_live_class     },
               { label: 'Message Students',      val: perms.can_message_students    },
               { label: 'View Attendance',       val: perms.can_view_attendance     },

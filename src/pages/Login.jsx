@@ -100,6 +100,13 @@ export default function Login() {
     }
   }
 
+  // Feature highlights displayed in glassmorphic cards (qualitative pillars)
+  const featureHighlights = [
+    { value: 'Live',    label: 'Classes' },
+    { value: 'Smart',   label: 'Study Cards' },
+    { value: 'Instant', label: 'Messaging' },
+  ]
+
   // ---- Render ---------------------------------------------
   return (
     <div className="min-h-screen flex">
@@ -129,14 +136,10 @@ export default function Login() {
           </h2>
           <p className="text-navy-200 text-lg">{INSTITUTE_TAGLINE}</p>
 
-          {/* Stats */}
+          {/* Feature Highlights Cards (No numbers) */}
           <div className="mt-10 grid grid-cols-3 gap-4">
-            {[
-              { label: 'Students', value: '40K+' },
-              { label: 'Teachers', value: '100+' },
-              { label: 'Batches',  value: '50+'  },
-            ].map(s => (
-              <div key={s.label} className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm">
+            {featureHighlights.map(s => (
+              <div key={s.label} className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm border border-white/10">
                 <p className="font-display font-bold text-2xl text-white">{s.value}</p>
                 <p className="text-navy-200 text-xs mt-0.5">{s.label}</p>
               </div>

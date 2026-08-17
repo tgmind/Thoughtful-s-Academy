@@ -46,6 +46,7 @@ async function teacherNotifUnread(userId) {
     .select('id')
     .eq('is_active', true)
     .or('target_role.eq.teacher,target_role.eq.all')
+    .is('target_batch_id', null)
     .or('scheduled_at.is.null,scheduled_at.lte.' + now)
     .or('expires_at.is.null,expires_at.gte.' + now)
 

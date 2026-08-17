@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   Layers, Bold, Italic, Underline, Strikethrough,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Save, Plus, Trash2,
-  Image as ImageIcon, Video, UserCheck, Sparkles, RefreshCw, ExternalLink, X
+  Image as ImageIcon, Video, UserCheck, Sparkles, RefreshCw, ExternalLink, X, Clock
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import CustomSelect from '../../components/ui/CustomSelect'
+import ActivityLogModal from '../../components/shared/ActivityLogModal'
+import { logActivity } from '../../lib/activityLogger'
 
 import DriveImage from '../../components/shared/DriveImage'
 
@@ -166,6 +169,7 @@ export default function AdminBatchDetails() {
     title: '', description: '', type: 'youtube_video', url: '', subject: '', is_public: true
   })
   const [savingCard, setSavingCard] = useState(false)
+  const [showActivityLog, setShowActivityLog] = useState(false)
 
   // Load batches on mount
   useEffect(() => {
@@ -261,6 +265,15 @@ export default function AdminBatchDetails() {
     } else {
       toast.success('Removed from Public Batch Details page')
       setStudyCards(prev => prev.filter(c => c.id !== card.id))
+      logActivity({
+        batchId: selectedBatchId,
+        user,
+        userName: user?.user_metadata?.full_name || 'Admin',
+        userRole: 'admin',
+        actionType: 'toggle_visibility',
+        entityTitle: card.title,
+        details: 'Card Hidden from Public Batch Details page'
+      })
     }
   }
 
@@ -287,7 +300,7 @@ export default function AdminBatchDetails() {
       added_by: user?.id || null,
     }
 
-    const { data, error } = await supabase.from('study_cards').insert(payload).select().single()
+    const { data, error } = await supabase.from('study_cards').insert(payload).select().maybeSingle()
     setSavingCard(false)
 
     if (error) {
@@ -296,7 +309,18 @@ export default function AdminBatchDetails() {
       toast.success('Public Study Card added!')
       setShowCardModal(false)
       setCardForm({ title: '', description: '', type: 'youtube_video', url: '', subject: '', is_public: true })
-      if (data) setStudyCards(prev => [data, ...prev])
+      if (data) {
+        setStudyCards(prev => [data, ...prev])
+        logActivity({
+          batchId: selectedBatchId,
+          user,
+          userName: user?.user_metadata?.full_name || 'Admin',
+          userRole: 'admin',
+          actionType: 'create',
+          entityTitle: data.title,
+          details: `Subject: ${data.subject || 'General'} | Added from Admin Batch Details`
+        })
+      }
     }
   }
 
@@ -342,18 +366,31 @@ export default function AdminBatchDetails() {
       {/* Batch Select Box */}
       <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
         <label className="block text-sm font-bold text-gray-900">Select Batch to Edit</label>
-        <select
+        <CustomSelect
           value={selectedBatchId}
-          onChange={e => handleBatchSelect(e.target.value)}
-          className="w-full px-4 py-3 rounded-xl border border-gray-300 font-semibold text-gray-900 focus:ring-2 focus:ring-blue-900 focus:outline-none"
-        >
-          {batches.length === 0 && <option value="">No batches found</option>}
-          {batches.map(b => (
-            <option key={b.id} value={b.id}>
-              {b.name} {b.subject ? `(${b.subject})` : ''}
-            </option>
-          ))}
-        </select>
+          onChange={val => handleBatchSelect(val)}
+          options={
+            batches.length === 0
+              ? [{ value: '', label: 'No batches found' }]
+              : batches.map(b => ({
+                  value: b.id,
+                  label: `${b.name} ${b.subject ? `(${b.subject})` : ''}`
+                }))
+          }
+        />
+        {selectedBatchId && (
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 flex-wrap gap-2">
+            <span className="text-xs text-gray-500 font-medium">Batch Security & Audit Trail</span>
+            <button
+              type="button"
+              onClick={() => setShowActivityLog(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer shadow-2xs"
+            >
+              <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span>View 24h Activity Log</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* SECTION 1: Rich Text Details */}
@@ -631,6 +668,15 @@ export default function AdminBatchDetails() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 24-Hour Batch Activity Log Modal */}
+      {showActivityLog && selectedBatchId && (
+        <ActivityLogModal
+          batchId={selectedBatchId}
+          batchName={batches.find(b => b.id === selectedBatchId)?.name}
+          onClose={() => setShowActivityLog(false)}
+        />
       )}
     </div>
   )

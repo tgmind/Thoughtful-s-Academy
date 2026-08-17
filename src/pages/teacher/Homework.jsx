@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, X, Eye, EyeOff, ClipboardList, ExternalLink, Users, CheckCircle } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Eye, EyeOff, ClipboardList, ExternalLink, Users, CheckCircle, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
+import CustomSelect from '../../components/ui/CustomSelect'
 
 const EMPTY = { title: '', description: '', drive_link: '', batch_id: '', due_date: '' }
 
@@ -62,6 +63,7 @@ function SubmissionRow({ sub, onSave }) {
 
 export default function Homework({ isAdmin = false }) {
   const { user } = useAuth()
+  const [allowed,  setAllowed]  = useState(isAdmin)
   const [items,    setItems]    = useState([])
   const [batches,  setBatches]  = useState([])
   const [counts,   setCounts]   = useState({})   // homework_id -> submission count
@@ -81,31 +83,53 @@ export default function Homework({ isAdmin = false }) {
     if (!user) return
     let cancelled = false
 
-    const load = async () => {
-      const hwQuery = isAdmin
-        ? supabase.from('homework').select('*, batches(name)').order('created_at', { ascending: false })
-        : supabase.from('homework').select('*, batches(name)').eq('teacher_id', user.id).order('created_at', { ascending: false })
-      const [hw, b] = await Promise.all([
-        hwQuery,
-        supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
-      ])
+    const permCheck = isAdmin
+      ? Promise.resolve(true)
+      : Promise.all([
+          supabase.from('teacher_profiles').select('can_manage_homework').eq('id', user.id).maybeSingle(),
+          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
+        ]).then(([{ data: p }, { data: b }]) => (p?.can_manage_homework ?? false) || (b && b.length > 0))
+          .catch(() => false)
+
+    permCheck.then(ok => {
       if (cancelled) return
-      const list = hw.data ?? []
-      setItems(list)
-      setBatches(b.data ?? [])
-      setLoading(false)
+      setAllowed(ok)
+      if (!ok) { setLoading(false); return }
 
-      const ids = list.map(h => h.id)
-      if (ids.length) {
-        const { data: subRows } = await supabase.from('homework_submissions').select('homework_id').in('homework_id', ids)
+      const load = async () => {
+        let hwQuery = supabase.from('homework').select('*, batches(name)').order('created_at', { ascending: false })
+        if (!isAdmin) {
+          const { data: bList } = await supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`)
+          const assignedBatchIds = (bList ?? []).map(b => b.id)
+          let orClause = `teacher_id.eq.${user.id},added_by.eq.${user.id}`
+          if (assignedBatchIds.length > 0) {
+            orClause += `,batch_id.in.(${assignedBatchIds.join(',')})`
+          }
+          hwQuery = hwQuery.or(orClause)
+        }
+        const [hw, b] = await Promise.all([
+          hwQuery,
+          supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
+        ])
         if (cancelled) return
-        const c = {}
-        ;(subRows ?? []).forEach(s => { c[s.homework_id] = (c[s.homework_id] || 0) + 1 })
-        setCounts(c)
-      }
-    }
+        const list = hw.data ?? []
+        setItems(list)
+        setBatches(b.data ?? [])
+        setLoading(false)
 
-    load()
+        const ids = list.map(h => h.id)
+        if (ids.length) {
+          const { data: subRows } = await supabase.from('homework_submissions').select('homework_id').in('homework_id', ids)
+          if (cancelled) return
+          const c = {}
+          ;(subRows ?? []).forEach(s => { c[s.homework_id] = (c[s.homework_id] || 0) + 1 })
+          setCounts(c)
+        }
+      }
+
+      load()
+    })
+
     return () => { cancelled = true }
   }, [user, isAdmin])
 
@@ -137,8 +161,8 @@ export default function Homework({ isAdmin = false }) {
       due_date:    form.due_date || null,
     }
     const { data, error } = editing
-      ? await supabase.from('homework').update(payload).eq('id', editing).select('*, batches(name)').single()
-      : await supabase.from('homework').insert({ ...payload, teacher_id: user.id, is_active: true }).select('*, batches(name)').single()
+      ? await supabase.from('homework').update(payload).eq('id', editing).select('*, batches(name)').maybeSingle()
+      : await supabase.from('homework').insert({ ...payload, teacher_id: user.id, is_active: true }).select('*, batches(name)').maybeSingle()
     setSaving(false)
     if (error) { toast.error(error.message); return }
     if (editing) setItems(l => l.map(x => x.id === editing ? data : x))
@@ -148,7 +172,7 @@ export default function Homework({ isAdmin = false }) {
   }
 
   const toggleActive = async (h) => {
-    const { data, error } = await supabase.from('homework').update({ is_active: !h.is_active }).eq('id', h.id).select('*, batches(name)').single()
+    const { data, error } = await supabase.from('homework').update({ is_active: !h.is_active }).eq('id', h.id).select('*, batches(name)').maybeSingle()
     if (error) { toast.error(error.message); return }
     if (data) setItems(l => l.map(x => x.id === h.id ? data : x))
   }
@@ -181,13 +205,23 @@ export default function Homework({ isAdmin = false }) {
       .update({ grade: gradeVal || null, feedback: feedbackVal || null })
       .eq('id', subId)
       .select('*, profiles!student_id(full_name, email)')
-      .single()
+      .maybeSingle()
     if (error) { toast.error(error.message); return }
     if (data) setSubs(s => s.map(x => x.id === subId ? data : x))
     toast.success('Saved')
   }
 
   if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+
+  if (!allowed) return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+        <Lock className="h-8 w-8 text-gray-400" />
+      </div>
+      <h2 className="font-bold text-xl text-gray-700">Permission Required</h2>
+      <p className="text-gray-500 mt-2 max-w-xs">Ask your admin to enable homework management.</p>
+    </div>
+  )
 
   return (
     <div className="space-y-5 pb-20 lg:pb-0">
@@ -280,11 +314,14 @@ export default function Homework({ isAdmin = false }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Batch <span className="text-red-500">*</span></label>
-                  <select value={form.batch_id} onChange={e => set('batch_id', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm">
-                    <option value="">Select batch…</option>
-                    {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={form.batch_id}
+                    onChange={val => set('batch_id', val)}
+                    options={[
+                      { value: '', label: 'Select batch…' },
+                      ...batches.map(b => ({ value: b.id, label: b.name }))
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Due Date (optional)</label>

@@ -270,13 +270,13 @@ export default function Attendance() {
     const dateStr = todayISO()
     const { data, error } = await supabase.from('attendance').insert({
       student_id: user.id, date: dateStr, status, marked_by: user.id,
-    }).select().single()
+    }).select().maybeSingle()
     if (error) {
       if (error.code === '23505') {
         // Bug fix: record already exists (admin may have marked it) — fetch and sync UI
         toast.error('Already marked today.')
         const { data: existing } = await supabase.from('attendance')
-          .select('*').eq('student_id', user.id).eq('date', dateStr).single()
+          .select('*').eq('student_id', user.id).eq('date', dateStr).maybeSingle()
         if (existing) {
           setTodayRecord(existing)
           setRecords(r => [existing, ...r.filter(x => x.date !== dateStr)])

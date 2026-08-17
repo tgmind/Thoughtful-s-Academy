@@ -71,8 +71,11 @@ export default function StudyCards({ isAdmin = false }) {
     if (!user) return
     const checks = isAdmin
       ? Promise.resolve(true)
-      : supabase.from('teacher_profiles').select('can_manage_study_cards').eq('id', user.id).maybeSingle()
-          .then(({ data }) => data?.can_manage_study_cards ?? false)
+      : Promise.all([
+          supabase.from('teacher_profiles').select('can_manage_study_cards').eq('id', user.id).maybeSingle(),
+          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
+        ]).then(([{ data: p }, { data: b }]) => (p?.can_manage_study_cards ?? false) || (b && b.length > 0))
+          .catch(() => false)
 
     checks.then(ok => {
       setAllowed(ok)
@@ -90,8 +93,9 @@ export default function StudyCards({ isAdmin = false }) {
 
   const toggleBatch = (batchId) => {
     setForm(f => {
-      const already = f.batch_ids.includes(batchId)
-      const next = already ? f.batch_ids.filter(id => id !== batchId) : [...f.batch_ids, batchId]
+      const current = Array.isArray(f.batch_ids) ? f.batch_ids : []
+      const already = current.includes(batchId)
+      const next = already ? current.filter(id => id !== batchId) : [...current, batchId]
       // clear subject if no batches selected and subject no longer in union
       const available = unionSubjects(batches, next)
       return { ...f, batch_ids: next, subject: available.includes(f.subject) ? f.subject : '' }
@@ -137,19 +141,24 @@ export default function StudyCards({ isAdmin = false }) {
     // Only set ownership/active on create — never reassign added_by when an
     // admin edits a card a teacher made (that would revoke the teacher's
     // RLS rights to manage their own card).
-    const { data, error } = editing
-      ? await supabase.from('study_cards').update(payload).eq('id', editing).select().single()
-      : await supabase.from('study_cards').insert({ ...payload, added_by: user.id, is_active: true }).select().single()
-    setSaving(false)
-    if (error) { toast.error(error.message); return }
-    if (editing) setCards(c => c.map(x => x.id === editing ? data : x))
-    else         setCards(c => [...c, data])
+    if (editing) {
+      const { data, error } = await supabase.from('study_cards').update(payload).eq('id', editing).select().maybeSingle()
+      setSaving(false)
+      if (error) { toast.error(error.message); return }
+      if (data) setCards(c => c.map(x => x.id === editing ? data : x))
+    } else {
+      const { data, error } = await supabase.from('study_cards').insert({ ...payload, added_by: user.id, is_active: true }).select().maybeSingle()
+      setSaving(false)
+      if (error) { toast.error(error.message); return }
+      if (data) setCards(c => [...c, data])
+    }
+
     setShowForm(false)
     toast.success(editing ? 'Card updated!' : 'Card added!')
   }
 
   const toggleActive = async (card) => {
-    const { data, error } = await supabase.from('study_cards').update({ is_active: !card.is_active }).eq('id', card.id).select().single()
+    const { data, error } = await supabase.from('study_cards').update({ is_active: !card.is_active }).eq('id', card.id).select().maybeSingle()
     if (error) { toast.error(error.message); return }
     if (data) setCards(c => c.map(x => x.id === card.id ? data : x))
   }
@@ -158,7 +167,7 @@ export default function StudyCards({ isAdmin = false }) {
     setDeleting(id)
     const { error } = await supabase.from('study_cards').delete().eq('id', id)
     setDeleting(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error('Failed to delete: ' + error.message); return }
     setCards(c => c.filter(x => x.id !== id))
     toast.success('Deleted')
   }

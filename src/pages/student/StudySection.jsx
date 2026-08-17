@@ -132,7 +132,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
             <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/30 rounded-full blur-2xl pointer-events-none" />
 
             {/* Clean Floating Study Notebook Sheet (Sized cleanly to avoid overlapping bookmark or subject tag) */}
-            <div className="relative z-0 bg-white rounded-xl shadow-md p-2.5 sm:p-3 border border-amber-200/80 w-[70%] h-[66%] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+            <div className="relative z-0 bg-white rounded-xl shadow-md p-2 sm:p-2.5 border border-amber-200/80 w-[82%] max-w-[220px] h-[78%] max-h-[120px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
               {/* Paper header */}
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
@@ -142,7 +142,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
               </div>
 
               {/* Document Title */}
-              <h4 className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight leading-snug line-clamp-2 my-0.5">
+              <h4 className="text-[10px] sm:text-xs font-black text-slate-900 tracking-tight leading-tight line-clamp-1 my-0.5">
                 {card.title}
               </h4>
 
@@ -399,18 +399,18 @@ export default function StudySection() {
 
     if (searchQuery.trim()) {
       // Searching -> fetch all accessible cards (public OR for student's batch)
-      if (batchId) query = query.or(`is_public.eq.true,batch_ids.cs.{${batchId}}`)
+      if (batchId) query = query.or(`is_public.eq.true,batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
       else         query = query.eq('is_public', true)
     } else if (tab === 'Featured') {
       query = query.eq('is_featured', true)
     } else if (tab === 'My Batch') {
       if (batchId) {
-        query = query.contains('batch_ids', [batchId])
+        query = query.or(`batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
       } else {
         query = query.or('is_public.eq.true,is_public.eq.false')
       }
     } else if (tab === 'All' || tab === 'Bookmarked') {
-      if (batchId) query = query.or(`is_public.eq.true,batch_ids.cs.{${batchId}}`)
+      if (batchId) query = query.or(`is_public.eq.true,batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
       else         query = query.eq('is_public', true)
     }
 
@@ -503,9 +503,9 @@ export default function StudySection() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       list = list.filter(c =>
-        c.title?.toLowerCase().includes(q) ||
-        c.description?.toLowerCase().includes(q) ||
-        c.subject?.toLowerCase().includes(q)
+        (c.title?.toLowerCase() || '').includes(q) ||
+        (c.description?.toLowerCase() || '').includes(q) ||
+        (c.subject?.toLowerCase() || '').includes(q)
       )
     }
     return list

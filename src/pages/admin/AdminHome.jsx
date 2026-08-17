@@ -41,6 +41,7 @@ export default function AdminHome() {
   const [fees,       setFees]       = useState([])
   const [msgs,       setMsgs]       = useState([])
   const [newStudents,setNewStudents] = useState([])   // registered in last 48 h
+  const [newTeachers,setNewTeachers] = useState([])   // registered in last 48 h
   const [trialExpired,setTrialExpired] = useState([]) // trial_ends_at < NOW
   const [loading,    setLoading]    = useState(true)
   const [verifying,  setVerifying]  = useState(null)
@@ -52,7 +53,7 @@ export default function AdminHome() {
       const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
       const now = new Date().toISOString()
 
-      const [s, t, pf, um, att, lc, recentFees, recentMsgs, newSt, expiredSt] = await Promise.all([
+      const [s, t, pf, um, att, lc, recentFees, recentMsgs, newSt, expiredSt, newTch] = await Promise.all([
         supabase.from('profiles').select('id', { count:'exact' }).eq('role','student'),
         supabase.from('profiles').select('id', { count:'exact' }).eq('role','teacher').eq('is_active',true),
         supabase.from('fee_records').select('id', { count:'exact' }).eq('status','pending'),
@@ -72,6 +73,12 @@ export default function AdminHome() {
           .not('trial_ends_at', 'is', null)
           .lt('trial_ends_at', now)
           .order('trial_ends_at', { ascending: false })
+          .limit(10),
+        supabase.from('profiles')
+          .select('id, full_name, email, created_at, teacher_profiles(subject)')
+          .eq('role','teacher')
+          .gte('created_at', fortyEightHoursAgo)
+          .order('created_at', { ascending: false })
           .limit(10),
       ])
 
@@ -93,6 +100,7 @@ export default function AdminHome() {
       setMsgs(recentMsgs.data ?? [])
       setNewStudents(newSt.data ?? [])
       setTrialExpired(expiredSt.data ?? [])
+      setNewTeachers(newTch.data ?? [])
       setLoading(false)
     }
 
@@ -198,8 +206,45 @@ export default function AdminHome() {
       )}
 
       {/* ══════════════════════════════════════════════════════
-          FREE TRIAL EXPIRED ALERT
+          NEW TEACHERS ALERT — last 48 hours
       ══════════════════════════════════════════════════════ */}
+      {newTeachers.length > 0 && (
+        <div className="bg-white rounded-xl border border-purple-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-purple-100 bg-purple-50/60">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <UserPlus className="h-4 w-4 text-purple-700" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+              </div>
+              <h3 className="font-semibold text-purple-900 text-sm">
+                New Teachers ({newTeachers.length})
+                <span className="ml-1.5 font-normal text-purple-600 text-xs">last 48 hrs</span>
+              </h3>
+            </div>
+            <Link to="/admin/teachers" className="text-xs text-purple-700 font-medium hover:underline">View all →</Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {newTeachers.slice(0, 5).map(t => {
+              const tp = (Array.isArray(t.teacher_profiles) ? t.teacher_profiles[0] : t.teacher_profiles) ?? {}
+              const subjectName = tp.subject || '—'
+              return (
+                <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                    {t.full_name?.[0]?.toUpperCase() ?? '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{t.full_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{subjectName} · {timeAgo(t.created_at)}</p>
+                  </div>
+                  <span className="px-2 py-0.5 text-[10px] font-black text-purple-700 bg-purple-100 rounded-full border border-purple-200 uppercase tracking-wider shrink-0 shadow-2xs">
+                    NEW TEACHER
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
       {trialExpired.length > 0 && (
         <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-amber-100 bg-amber-50/60">

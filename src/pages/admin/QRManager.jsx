@@ -54,7 +54,7 @@ export default function QRManager() {
       const { data, error } = await supabase.from('qr_settings').insert({
         qr_image_url, upi_id:form.upi_id, payee_name:form.payee_name,
         description:form.description, is_active:true, updated_by:user.id,
-      }).select().single()
+      }).select().maybeSingle()
       if (error) throw error
       setCurrent(data)
       setHistory(h => [data, ...h.map(x => ({ ...x, is_active:false }))])

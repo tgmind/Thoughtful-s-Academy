@@ -3,6 +3,7 @@ import { Plus, X, Trash2, Eye, EyeOff, Bell, Search, Pencil, Users } from 'lucid
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import CustomSelect from '../../components/ui/CustomSelect'
 
 const TYPES   = ['general', 'fee', 'announcement', 'homework', 'live_class']
 const TARGETS = [{ value: 'all', label: 'All' }, { value: 'student', label: 'Students Only' }, { value: 'teacher', label: 'Teachers Only' }]
@@ -120,14 +121,14 @@ export default function Announcements() {
 
     if (editTarget) {
       const { data, error } = await supabase
-        .from('notifications').update(payload).eq('id', editTarget.id).select().single()
+        .from('notifications').update(payload).eq('id', editTarget.id).select().maybeSingle()
       setSaving(false)
       if (error) { toast.error(error.message); return }
       setNotifs(list => list.map(x => x.id === editTarget.id ? data : x))
       toast.success('Notification updated!')
     } else {
       const { data, error } = await supabase
-        .from('notifications').insert({ ...payload, is_active: true, created_by: user.id }).select().single()
+        .from('notifications').insert({ ...payload, is_active: true, created_by: user.id }).select().maybeSingle()
       setSaving(false)
       if (error) { toast.error(error.message); return }
       setNotifs(n => [data, ...n])
@@ -137,7 +138,7 @@ export default function Announcements() {
   }
 
   const toggleActive = async (n) => {
-    const { data, error } = await supabase.from('notifications').update({ is_active: !n.is_active }).eq('id', n.id).select().single()
+    const { data, error } = await supabase.from('notifications').update({ is_active: !n.is_active }).eq('id', n.id).select().maybeSingle()
     if (error) { toast.error(error.message); return }
     if (data) setNotifs(list => list.map(x => x.id === n.id ? data : x))
   }
@@ -155,7 +156,9 @@ export default function Announcements() {
     if (statusTab !== 'all') list = list.filter(n => getStatus(n) === statusTab)
     if (search.trim()) {
       const q = search.toLowerCase()
-      list = list.filter(n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q))
+      if (q) {
+        list = list.filter(n => (n.title?.toLowerCase() || '').includes(q) || (n.body?.toLowerCase() || '').includes(q))
+      }
     }
     return list
   }, [notifs, statusTab, search])
@@ -324,26 +327,31 @@ export default function Announcements() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
-                  <select value={form.type} onChange={e => set('type', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm">
-                    {TYPES.map(t => <option key={t} value={t} className="capitalize">{t.replace('_', ' ')}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={form.type}
+                    onChange={val => set('type', val)}
+                    options={TYPES.map(t => ({ value: t, label: t.replace('_', ' ').toUpperCase() }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Target Role</label>
-                  <select value={form.target_role} onChange={e => set('target_role', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm">
-                    {TARGETS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={form.target_role}
+                    onChange={val => set('target_role', val)}
+                    options={TARGETS}
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Target Batch (optional)</label>
-                <select value={form.target_batch_id} onChange={e => set('target_batch_id', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm">
-                  <option value="">All Batches</option>
-                  {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <CustomSelect
+                  value={form.target_batch_id}
+                  onChange={val => set('target_batch_id', val)}
+                  options={[
+                    { value: '', label: 'All Batches' },
+                    ...batches.map(b => ({ value: b.id, label: b.name }))
+                  ]}
+                />
                 {form.target_role === 'all' && !form.target_batch_id
                   ? <p className="mt-1.5 text-xs text-green-700">This will appear on the public homepage (no login needed).</p>
                   : <p className="mt-1.5 text-xs text-blue-700">Only logged-in users matching the role/batch above will see this.</p>

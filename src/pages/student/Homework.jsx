@@ -96,7 +96,7 @@ export default function StudentHomework() {
     const { data, error } = await supabase.from('homework_submissions')
       .insert({ homework_id: hwId, student_id: user.id, drive_link: normalizeUrl(link) })
       .select('homework_id, drive_link, submitted_at, grade, feedback')
-      .single()
+      .maybeSingle()
     setSubmitting(null)
     if (error) {
       if (error.code === '23505') {

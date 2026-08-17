@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { Plus, Edit2, Trash2, X, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
-
-const EMPTY = { name:'', description:'', subjects:[], teacher_id:'', poster_url:'' }
-
+import CustomSelect from '../../components/ui/CustomSelect'
 import DriveImage from '../../components/shared/DriveImage'
+
+const EMPTY = { name: '', description: '', subjects: [], teacher_ids: [], poster_url: '' }
 
 // Tag input: lets admin type a subject name and press Enter or comma to add it
 function SubjectTagInput({ value, onChange }) {
@@ -54,27 +54,27 @@ function SubjectTagInput({ value, onChange }) {
 }
 
 export default function BatchManager() {
-  const [batches,   setBatches]   = useState([])
-  const [teachers,  setTeachers]  = useState([])
-  const [counts,    setCounts]    = useState({})
-  const [showForm,  setShowForm]  = useState(false)
-  const [editing,   setEditing]   = useState(null)
-  const [form,      setForm]      = useState(EMPTY)
-  const [saving,    setSaving]    = useState(false)
-  const [deleting,  setDeleting]  = useState(null)
-  const [loading,   setLoading]   = useState(true)
+  const [batches, setBatches] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [counts, setCounts] = useState({})
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(EMPTY)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     Promise.all([
       supabase.from('batches').select('*, profiles!teacher_id(full_name)').order('name'),
-      supabase.from('profiles').select('id, full_name').eq('role','teacher').order('full_name'),
+      supabase.from('profiles').select('id, full_name').eq('role', 'teacher').order('full_name'),
       supabase.from('student_profiles').select('batch_id'),
     ]).then(([b, t, sp]) => {
       if (cancelled) return
       setBatches(b.data ?? [])
       setTeachers(t.data ?? [])
-      const c = {}; (sp.data ?? []).forEach(s => { if (s.batch_id) c[s.batch_id] = (c[s.batch_id]||0)+1 })
+      const c = {}; (sp.data ?? []).forEach(s => { if (s.batch_id) c[s.batch_id] = (c[s.batch_id] || 0) + 1 })
       setCounts(c)
       setLoading(false)
     })
@@ -82,44 +82,76 @@ export default function BatchManager() {
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const openAdd  = () => { setEditing(null); setForm(EMPTY); setShowForm(true) }
-  const openEdit = (b) => { setEditing(b.id); setForm({ name:b.name, description:b.description||'', subjects:b.subjects||[], teacher_id:b.teacher_id||'', poster_url:b.poster_url||'' }); setShowForm(true) }
+
+  const openAdd = () => {
+    setEditing(null)
+    setForm(EMPTY)
+    setShowForm(true)
+  }
+
+  const openEdit = (b) => {
+    setEditing(b.id)
+    const ids = Array.isArray(b.teacher_ids) && b.teacher_ids.length > 0
+      ? b.teacher_ids
+      : (b.teacher_id ? [b.teacher_id] : [])
+    setForm({
+      name: b.name,
+      description: b.description || '',
+      subjects: b.subjects || [],
+      teacher_ids: ids,
+      poster_url: b.poster_url || ''
+    })
+    setShowForm(true)
+  }
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Batch name is required'); return }
     setSaving(true)
+    const tIds = Array.isArray(form.teacher_ids) ? form.teacher_ids : []
     const payload = {
       name: form.name.trim(),
       description: form.description || null,
       subjects: Array.isArray(form.subjects) ? form.subjects : [],
-      teacher_id: form.teacher_id || null,
+      teacher_ids: tIds,
+      teacher_id: tIds[0] || null,
       poster_url: (form.poster_url || '').trim() || null
     }
+
     const { data, error } = editing
-      ? await supabase.from('batches').update(payload).eq('id', editing).select('*, profiles!teacher_id(full_name)').single()
-      : await supabase.from('batches').insert({ ...payload, is_active:true }).select('*, profiles!teacher_id(full_name)').single()
+      ? await supabase.from('batches').update(payload).eq('id', editing).select('*, profiles!teacher_id(full_name)').maybeSingle()
+      : await supabase.from('batches').insert({ ...payload, is_active: true }).select('*, profiles!teacher_id(full_name)').maybeSingle()
+
     setSaving(false)
     if (error) { toast.error(error.message); return }
     if (editing) setBatches(b => b.map(x => x.id === editing ? data : x))
-    else         setBatches(b => [...b, data])
+    else setBatches(b => [...b, data])
     setShowForm(false)
     toast.success(editing ? 'Batch updated!' : 'Batch created!')
   }
 
   const toggleActive = async (b) => {
-    const { data, error } = await supabase.from('batches').update({ is_active: !b.is_active }).eq('id', b.id).select('*, profiles!teacher_id(full_name)').single()
+    const { data, error } = await supabase.from('batches').update({ is_active: !b.is_active }).eq('id', b.id).select('*, profiles!teacher_id(full_name)').maybeSingle()
     if (error) { toast.error(error.message); return }
     if (data) setBatches(list => list.map(x => x.id === b.id ? data : x))
   }
 
   const deleteBatch = async (id) => {
-    if ((counts[id]||0) > 0) { toast.error('Cannot delete — students are enrolled in this batch'); return }
+    if ((counts[id] || 0) > 0) { toast.error('Cannot delete — students are enrolled in this batch'); return }
     setDeleting(id)
     const { error } = await supabase.from('batches').delete().eq('id', id)
     setDeleting(null)
     if (error) { toast.error(error.message); return }
     setBatches(b => b.filter(x => x.id !== id))
     toast.success('Batch deleted')
+  }
+
+  const getTeacherNames = (b) => {
+    const tIds = Array.isArray(b.teacher_ids) && b.teacher_ids.length > 0
+      ? b.teacher_ids
+      : (b.teacher_id ? [b.teacher_id] : [])
+    if (tIds.length === 0) return b.profiles?.full_name || null
+    const names = teachers.filter(t => tIds.includes(t.id)).map(t => t.full_name)
+    return names.length > 0 ? names.join(', ') : (b.profiles?.full_name || null)
   }
 
   if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
@@ -139,38 +171,41 @@ export default function BatchManager() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {batches.map(b => (
-            <div key={b.id} className={`bg-white rounded-xl border ${b.is_active ? 'border-gray-100' : 'border-gray-200 opacity-60'} p-4`}>
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-bold text-gray-900">{b.name}</h3>
-                  {b.subjects?.length > 0 && (
-                    <p className="text-sm text-gray-500">{b.subjects.join(', ')}</p>
-                  )}
+          {batches.map(b => {
+            const teacherNames = getTeacherNames(b)
+            return (
+              <div key={b.id} className={`bg-white rounded-xl border ${b.is_active ? 'border-gray-100' : 'border-gray-200 opacity-60'} p-4`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900">{b.name}</h3>
+                    {b.subjects?.length > 0 && (
+                      <p className="text-sm text-gray-500">{b.subjects.join(', ')}</p>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {b.is_active ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {b.is_active ? 'Active' : 'Inactive'}
-                </span>
+                {b.description && <p className="text-xs text-gray-500 mb-3">{b.description}</p>}
+                <div className="flex items-center gap-3 text-sm text-gray-500 mb-4 flex-wrap">
+                  <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {counts[b.id] || 0} students</span>
+                  {teacherNames && <span>· {teacherNames}</span>}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => openEdit(b)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
+                    <Edit2 className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  <button onClick={() => toggleActive(b)} className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors ${b.is_active ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}>
+                    {b.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button onClick={() => deleteBatch(b.id)} disabled={deleting === b.id}
+                    className="p-1.5 text-gray-400 hover:text-red-600 transition-colors ml-auto">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-              {b.description && <p className="text-xs text-gray-500 mb-3">{b.description}</p>}
-              <div className="flex items-center gap-3 text-sm text-gray-500 mb-4">
-                <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {counts[b.id]||0} students</span>
-                {b.profiles?.full_name && <span>· {b.profiles.full_name}</span>}
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => openEdit(b)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
-                  <Edit2 className="h-3.5 w-3.5" /> Edit
-                </button>
-                <button onClick={() => toggleActive(b)} className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors ${b.is_active ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}>
-                  {b.is_active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button onClick={() => deleteBatch(b.id)} disabled={deleting===b.id}
-                  className="p-1.5 text-gray-400 hover:text-red-600 transition-colors ml-auto">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -199,12 +234,45 @@ export default function BatchManager() {
                   className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Assign Teacher</label>
-                <select value={form.teacher_id} onChange={e => set('teacher_id', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm">
-                  <option value="">No teacher assigned</option>
-                  {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Assign Teachers</label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5 min-h-[42px] p-2 bg-slate-50 border border-gray-300 rounded-lg items-center">
+                    {(form.teacher_ids || []).length === 0 ? (
+                      <span className="text-xs text-gray-400">No teachers assigned</span>
+                    ) : (
+                      (form.teacher_ids || []).map(id => {
+                        const t = teachers.find(x => x.id === id)
+                        return (
+                          <span key={id} className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                            {t?.full_name || 'Teacher'}
+                            <button
+                              type="button"
+                              onClick={() => set('teacher_ids', form.teacher_ids.filter(tId => tId !== id))}
+                              className="hover:text-blue-900 font-bold"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      })
+                    )}
+                  </div>
+                  <CustomSelect
+                    value=""
+                    onChange={val => {
+                      if (val && !(form.teacher_ids || []).includes(val)) {
+                        set('teacher_ids', [...(form.teacher_ids || []), val])
+                      }
+                    }}
+                    placeholder="+ Add teacher to batch…"
+                    options={[
+                      { value: '', label: '+ Add teacher to batch…' },
+                      ...teachers
+                        .filter(t => !(form.teacher_ids || []).includes(t.id))
+                        .map(t => ({ value: t.id, label: t.full_name }))
+                    ]}
+                  />
+                </div>
               </div>
               {/* ── Batch Poster ── */}
               <div>
@@ -236,15 +304,15 @@ export default function BatchManager() {
                     />
                   </div>
                 )}
-
-
               </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 border-2 border-gray-200 rounded-xl font-semibold text-sm">Cancel</button>
-                <button onClick={save} disabled={saving} className="flex-1 py-2.5 bg-blue-950 text-white font-bold rounded-xl hover:bg-blue-900 disabled:opacity-50 text-sm">
-                  {saving ? 'Saving…' : editing ? 'Update' : 'Create'}
-                </button>
-              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200 rounded-xl transition-colors">
+                Cancel
+              </button>
+              <button type="button" onClick={save} disabled={saving} className="px-5 py-2 text-xs font-bold text-white bg-blue-950 hover:bg-blue-900 rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50">
+                {saving ? 'Saving…' : (editing ? 'Save Changes' : 'Create Batch')}
+              </button>
             </div>
           </div>
         </div>
