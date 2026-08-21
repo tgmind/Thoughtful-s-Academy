@@ -633,6 +633,7 @@ export default function StudySection({ isAdmin = false }) {
   const navigate = useNavigate()
 
   const [hasAccess, setHasAccess] = useState(isAdmin)
+  const [canManageStudyCards, setCanManageStudyCards] = useState(isAdmin)
   const [loading, setLoading] = useState(true)
   const [batches, setBatches] = useState([])
   const [cards, setCards] = useState([])
@@ -662,11 +663,18 @@ export default function StudySection({ isAdmin = false }) {
       setLoading(true)
 
       let access = isAdmin
+      let canManagePerm = isAdmin
       if (!isAdmin && user) {
-        // All authenticated teachers can view the study section
         access = true
+        const { data: tp } = await supabase
+          .from('teacher_profiles')
+          .select('can_manage_study_cards')
+          .eq('id', user.id)
+          .maybeSingle()
+        canManagePerm = tp?.can_manage_study_cards ?? false
       }
       setHasAccess(access)
+      setCanManageStudyCards(canManagePerm)
 
       if (access) {
         const { data: bData } = await supabase
@@ -836,12 +844,14 @@ export default function StudySection({ isAdmin = false }) {
 
   const canManageBatch = (batch) => {
     if (isAdmin) return true
+    if (!canManageStudyCards) return false
     if (isBatchTeacher(batch, user?.id)) return true
     return false
   }
 
   const canManageCard = (card, batch) => {
     if (isAdmin) return true
+    if (!canManageStudyCards) return false
     if (isBatchTeacher(selectedBatch, user?.id)) return true
     if (isBatchTeacher(batch, user?.id)) return true
 
@@ -858,6 +868,10 @@ export default function StudySection({ isAdmin = false }) {
   }, [batches, isAdmin, user?.id])
 
   const openAddForm = (presetType = 'external_link') => {
+    if (!isAdmin && !canManageStudyCards) {
+      toast.error('Permission required to manage study cards')
+      return
+    }
     let type = presetType
     if (selectedFolder === 'video') type = 'youtube_video'
     else if (selectedFolder === 'drive') type = 'google_drive'
@@ -891,6 +905,10 @@ export default function StudySection({ isAdmin = false }) {
   }
 
   const save = async () => {
+    if (!isAdmin && !canManageStudyCards) {
+      toast.error('Permission required to manage study cards')
+      return
+    }
     if (!form.title.trim() || !form.url.trim()) { toast.error('Title and URL are required'); return }
     if (!form.is_public && form.batch_ids.length === 0) { toast.error('Select at least one target batch or public option'); return }
     if (form.batch_ids.length > 0 && !form.subject.trim()) { toast.error('Subject is required when a batch is selected'); return }

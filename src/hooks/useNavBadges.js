@@ -166,10 +166,10 @@ export function useNavBadges(role, userId) {
         ])
         if (cancelled) return
         seed({
-          '/student/messages': msg > 0,
-          '/student/notifications': notif > 0,
-          '/student/live-class': live,
-          '/student/homework': hw,
+          '/student/messages':       msg > 0,
+          '/student/notifications':  notif > 0,
+          '/student/live-class':     live,
+          '/student/homework':       hw,
         })
 
         channel = supabase

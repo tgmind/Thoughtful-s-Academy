@@ -6,7 +6,6 @@ import {
   Download,
   Search,
   MessageSquare,
-  AlertTriangle,
   Users,
   Calendar,
   Filter,
@@ -16,9 +15,7 @@ import {
   UserX,
   Clock,
   TrendingUp,
-  ChevronRight,
-  ExternalLink,
-  DollarSign
+  ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'

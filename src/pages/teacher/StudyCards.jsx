@@ -71,10 +71,8 @@ export default function StudyCards({ isAdmin = false }) {
     if (!user) return
     const checks = isAdmin
       ? Promise.resolve(true)
-      : Promise.all([
-          supabase.from('teacher_profiles').select('can_manage_study_cards').eq('id', user.id).maybeSingle(),
-          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
-        ]).then(([{ data: p }, { data: b }]) => (p?.can_manage_study_cards ?? false) || (b && b.length > 0))
+      : supabase.from('teacher_profiles').select('can_manage_study_cards').eq('id', user.id).maybeSingle()
+          .then(({ data: p }) => p?.can_manage_study_cards ?? false)
           .catch(() => false)
 
     checks.then(ok => {
