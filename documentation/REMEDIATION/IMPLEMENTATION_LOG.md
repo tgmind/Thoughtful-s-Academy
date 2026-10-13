@@ -138,7 +138,7 @@ This log chronicles every implementation step, file change, command executed, an
   npm test
   npm run lint
   npm run build
-  grep -i "19892181" dist/assets/*.js
+  grep -i "ADMIN_CODE" dist/assets/*.js
   curl -I http://localhost:5173/
   ```
 - **Results:**

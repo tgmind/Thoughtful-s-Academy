@@ -10,6 +10,7 @@ Coverage: 100% of discovered files, routes, tables, APIs, and findings
 
 - [README.md](./README.md) — Knowledge base introduction and fast navigation
 - [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) — Complete cross-referenced sitemap (this document)
+- [ZERO_COST_300_USER_ARCHITECTURE_RESEARCH.md](./ZERO_COST_300_USER_ARCHITECTURE_RESEARCH.md) — Comprehensive zero-monthly-cost architecture research, 300-user concurrency benchmarks, and hybrid invalidation plan
 - [EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md) — Comprehensive technical overview, health, and executive findings
 - [PLATFORM_BASELINE.md](./PLATFORM_BASELINE.md) — Authoritative baseline metrics, commit hashes, and status
 - [AUDIT_METHODOLOGY.md](./AUDIT_METHODOLOGY.md) — Forensic audit criteria, tools, execution logs, and approach

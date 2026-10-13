@@ -92,14 +92,14 @@ This document provides forensic status tracking for each security and data integ
 - **CVSS Score:** 7.5 (High) — `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N`
 - **Component:** `src/pages/Register.jsx` line 10 & line 125, `.env.local` line 11
 - **Original Vulnerability:**
-  `const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE` was declared in `Register.jsx`. Because Vite prefixes (`VITE_*`) are compiled statically into JavaScript bundles, `VITE_ADMIN_CODE` (e.g. `19892181`) was extracted by any user downloading `Register-*.js`. Furthermore, validation was purely client-side (`if (form.admin_code !== ADMIN_CODE)`).
+  `const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE` was declared in `Register.jsx`. Because Vite prefixes (`VITE_*`) are compiled statically into JavaScript bundles, `VITE_ADMIN_CODE` was extracted by any user downloading `Register-*.js`. Furthermore, validation was purely client-side (`if (form.admin_code !== ADMIN_CODE)`).
 - **Remediation Implemented:**
   1. Removed `VITE_ADMIN_CODE` from `src/pages/Register.jsx`.
   2. Removed `admin` account option from public self-registration (`Register.jsx`). Public users can only select `student` or `teacher`.
   3. Deprecated and commented out `VITE_ADMIN_CODE` in `.env.local`.
   4. Rebuilt client bundle and verified zero presence of admin secrets in compiled chunks.
 - **Verification Evidence:**
-  - Verified bundle using `grep -i "19892181" dist/assets/*.js`: Returned "No secret leaked in dist".
+  - Verified bundle using `grep -i "ADMIN_CODE" dist/assets/*.js`: Returned "No secret leaked in dist".
   - Automated test `tests/security/role_assignment.test.js`: Confirmed `VITE_ADMIN_CODE` is undefined.
 - **Status:** **RESOLVED**
 

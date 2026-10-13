@@ -19,7 +19,7 @@ npm run lint
 npm run build
 
 # 4. Verify no administrative secrets in generated chunks
-grep -i "19892181" dist/assets/*.js || echo "Clean"
+grep -i "ADMIN_CODE" dist/assets/*.js || echo "Clean"
 ```
 
 All four checks must exit with return code `0`.
