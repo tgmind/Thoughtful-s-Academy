@@ -17,10 +17,9 @@ export default function TeacherHome() {
     Promise.all([
       supabase.from('teacher_profiles').select('*').eq('id', user.id).maybeSingle(),
       supabase.from('study_cards').select('id', { count: 'exact' }).eq('added_by', user.id).eq('is_active', true),
-      supabase.from('messages').select('id', { count: 'exact' }).eq('receiver_id', user.id).eq('is_read', false),
-      supabase.from('messages').select('*, profiles!sender_id(full_name)').eq('receiver_id', user.id).eq('is_read', false).order('created_at', { ascending: false }).limit(3),
+      supabase.from('messages').select('*, profiles!sender_id(full_name)', { count: 'exact' }).eq('receiver_id', user.id).eq('is_read', false).order('created_at', { ascending: false }).limit(3),
       supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true),
-    ]).then(async ([p, c, m, recentMsgs, myBatches]) => {
+    ]).then(async ([p, c, msgRes, myBatches]) => {
       if (cancelled) return
       const assignedBatchIds = (myBatches.data ?? []).map(b => b.id)
       const hasAssignedBatch = assignedBatchIds.length > 0
@@ -39,8 +38,8 @@ export default function TeacherHome() {
         can_manage_homework: profilePerms.can_manage_homework || hasAssignedBatch,
         can_drop_live_class: profilePerms.can_drop_live_class || hasAssignedBatch,
       })
-      setStats({ cards: c.count ?? 0, unread: m.count ?? 0, live: (lc?.length ?? 0) > 0 })
-      setMsgs(recentMsgs.data ?? [])
+      setStats({ cards: c.count ?? 0, unread: msgRes.count ?? 0, live: (lc?.length ?? 0) > 0 })
+      setMsgs(msgRes.data ?? [])
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -53,11 +52,8 @@ export default function TeacherHome() {
     let cancelled = false
 
     const refreshMessages = async () => {
-      const { count } = await supabase.from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('receiver_id', uid).eq('is_read', false)
-      const { data } = await supabase.from('messages')
-        .select('*, profiles!sender_id(full_name)')
+      const { data, count } = await supabase.from('messages')
+        .select('*, profiles!sender_id(full_name)', { count: 'exact' })
         .eq('receiver_id', uid).eq('is_read', false)
         .order('created_at', { ascending: false }).limit(3)
       if (cancelled) return

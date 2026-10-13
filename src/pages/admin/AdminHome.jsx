@@ -53,15 +53,13 @@ export default function AdminHome() {
       const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
       const now = new Date().toISOString()
 
-      const [s, t, pf, um, att, lc, recentFees, recentMsgs, newSt, expiredSt, newTch] = await Promise.all([
+      const [s, t, att, lc, recentFees, recentMsgs, newSt, expiredSt, newTch] = await Promise.all([
         supabase.from('profiles').select('id', { count:'exact' }).eq('role','student'),
         supabase.from('profiles').select('id', { count:'exact' }).eq('role','teacher').eq('is_active',true),
-        supabase.from('fee_records').select('id', { count:'exact' }).eq('status','pending'),
-        supabase.from('messages').select('id', { count:'exact' }).eq('receiver_id', user.id).eq('is_read', false),
         supabase.from('attendance').select('status').eq('date', todayISO()),
         supabase.from('live_classes').select('id', { count:'exact' }).eq('is_active', true),
-        supabase.from('fee_records').select('*, profiles!student_id(full_name)').eq('status','pending').order('paid_at').limit(5),
-        supabase.from('messages').select('*, profiles!sender_id(full_name, role)').eq('receiver_id', user.id).eq('is_read', false).order('created_at', { ascending:false }).limit(5),
+        supabase.from('fee_records').select('*, profiles!student_id(full_name)', { count:'exact' }).eq('status','pending').order('paid_at').limit(5),
+        supabase.from('messages').select('*, profiles!sender_id(full_name, role)', { count:'exact' }).eq('receiver_id', user.id).eq('is_read', false).order('created_at', { ascending:false }).limit(5),
         supabase.from('profiles')
           .select('id, full_name, email, created_at, student_profiles(batch_id, trial_ends_at, batches(name))')
           .eq('role','student')
@@ -91,8 +89,8 @@ export default function AdminHome() {
       setStats({
         students:       s.count  ?? 0,
         teachers:       t.count  ?? 0,
-        pending_fees:   pf.count ?? 0,
-        unread:         um.count ?? 0,
+        pending_fees:   recentFees.count ?? 0,
+        unread:         recentMsgs.count ?? 0,
         attendance_pct: total > 0 ? Math.round(((present + late * 0.5) / total) * 100) : 0,
         live:           lc.count ?? 0,
       })
@@ -105,8 +103,25 @@ export default function AdminHome() {
     }
 
     run()
-    const id = setInterval(run, 30000)
-    return () => { cancelled = true; clearInterval(id) }
+    // Poll only when browser tab is visible to eliminate background query storm
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        run()
+      }
+    }, 30000)
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !cancelled) {
+        run()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [user])
 
   const verifyFee = async (id, status) => {

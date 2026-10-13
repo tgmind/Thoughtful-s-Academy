@@ -270,12 +270,11 @@ export default function StudentDashboard() {
     try {
       const today = todayISO()
 
-      // Primary phase: fetch student profile and direct records in parallel
-      const [attRes, feeRes, msgRes, todayRes, spRes] = await Promise.allSettled([
-        supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }),
+      // Primary phase: fetch student profile and direct records in parallel (optimized: derive today's attendance from attRes, limit attendance history to 60 days)
+      const [attRes, feeRes, msgRes, spRes] = await Promise.allSettled([
+        supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }).limit(60),
         supabase.from('fee_records').select('id, amount, status').eq('student_id', uid).eq('status', 'pending'),
         supabase.from('messages').select('id', { count: 'exact', head: true }).eq('receiver_id', uid).eq('is_read', false),
-        supabase.from('attendance').select('id, status').eq('student_id', uid).eq('date', today).maybeSingle(),
         supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(name)').eq('id', uid).maybeSingle(),
       ])
 
@@ -330,7 +329,11 @@ export default function StudentDashboard() {
         ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${currentBatchId}},batch_id.eq.${currentBatchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
         : supabase.from('study_cards').select('id, title, subject, type, created_at').eq('is_public', true).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
 
-      const readsQ = supabase.from('notification_reads').select('notification_id').eq('user_id', uid)
+      const readsQ = supabase.from('notification_reads')
+        .select('notification_id')
+        .eq('user_id', uid)
+        .order('read_at', { ascending: false })
+        .limit(50)
 
       const [notifRes, readRes, liveRes, hwRes, studyRes] = await Promise.allSettled([
         notifQ,
@@ -351,8 +354,8 @@ export default function StudentDashboard() {
       const attendancePct = totalCount > 0 ? Math.round(((presentCount + lateCount * 0.5) / totalCount) * 100) : 0
       const currentStreak = calculateStreak(attData)
 
-      // Today's attendance status
-      const todayRow = (todayRes.status === 'fulfilled' && todayRes.value?.data) ? todayRes.value.data : null
+      // Today's attendance status derived directly from attData (eliminating redundant HTTP query)
+      const todayRow = attData.find(a => a.date === today) || null
       const todayStatus = todayRow ? todayRow.status : null
       setTodayAttendance(todayStatus)
 
@@ -513,21 +516,18 @@ export default function StudentDashboard() {
 
     const syncAttendance = () => debounce('att', async () => {
       const today = todayISO()
-      const [attRes, todayRes] = await Promise.allSettled([
-        supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }),
-        supabase.from('attendance').select('id, status').eq('student_id', uid).eq('date', today).maybeSingle()
-      ])
-      if (isSubscribed) {
-        if (todayRes.status === 'fulfilled') {
-          setTodayAttendance(todayRes.value.data?.status ?? null)
-        }
-        if (attRes.status === 'fulfilled' && attRes.value.data) {
-          const list = attRes.value.data
-          const total = list.length
-          const present = list.filter(a => a.status === 'present' || a.status === 'late').length
-          const pct = total > 0 ? Math.round((present / total) * 100) : 100
-          setStats(s => ({ ...s, attendance: pct }))
-        }
+      const { data } = await supabase.from('attendance')
+        .select('id, date, status')
+        .eq('student_id', uid)
+        .order('date', { ascending: false })
+        .limit(60)
+      if (isSubscribed && data) {
+        const todayRow = data.find(a => a.date === today)
+        setTodayAttendance(todayRow?.status ?? null)
+        const total = data.length
+        const present = data.filter(a => a.status === 'present' || a.status === 'late').length
+        const pct = total > 0 ? Math.round((present / total) * 100) : 100
+        setStats(s => ({ ...s, attendance: pct }))
       }
     })
 

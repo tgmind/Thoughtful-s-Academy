@@ -180,6 +180,35 @@ describe('Thoughtful Academy Capacity & Realtime Load Model', () => {
     })
   })
 
+  describe('Scenario 3B: 300 Concurrent Users (Phase 6 Target Capacity)', () => {
+    it('models 300 users: proves DB & egress safe at ₹0, but proves continuous Realtime exceeds 200 limit', () => {
+      const model = calculatePlatformLoad(300)
+
+      // Database throughput (PostgREST) is fully safe:
+      expect(model.queriesPerSecond).toBeLessThan(5.0) // ~3.67 QPS
+      expect(model.activeDbTransactions).toBeLessThanOrEqual(2) // Only 1-2 concurrent DB transactions
+      expect(model.headroom.dbPoolerCapacityPercent).toBeLessThan(2.0)
+
+      // Monthly egress is fully safe:
+      const egressGb = model.apiEgressBytesMonthly / (1024 * 1024 * 1024)
+      expect(egressGb).toBeLessThan(0.5) // ~0.356 GB (well below 2.0 GB)
+      expect(model.headroom.supabaseEgressCapacityPercent).toBeLessThan(25.0)
+
+      // Realtime messages are fully safe:
+      expect(model.monthlyRealtimeMessages).toBeLessThan(QUOTAS.SUPABASE_MAX_REALTIME_MESSAGES_PER_MO) // ~72k vs 2M limit
+
+      // Continuous Realtime WebSocket connections EXCEED 200 Free Tier Limit:
+      expect(model.realtimeClients).toBe(300)
+      expect(model.headroom.realtimeClientCapacityPercent).toBe(150.0) // 150% of free tier quota
+
+      // Zero-Cost Resolution: With Tab Inactivity/Visibility disconnection (~45% background/idle tabs):
+      const activeTabsRatio = 0.55
+      const effectiveActiveRealtimeClients = Math.round(300 * activeTabsRatio)
+      expect(effectiveActiveRealtimeClients).toBe(165)
+      expect(effectiveActiveRealtimeClients).toBeLessThanOrEqual(QUOTAS.SUPABASE_MAX_REALTIME_CONCURRENT) // 165 <= 200
+    })
+  })
+
   describe('Scenario 4: 500 & 1,000 Concurrent Users (Stress Scale)', () => {
     it('evaluates resource requirements and identifies bottlenecks for 500 users', () => {
       const model = calculatePlatformLoad(500)

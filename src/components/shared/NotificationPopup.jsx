@@ -160,7 +160,11 @@ export default function NotificationPopup() {
       }
 
       const { data: reads } = await supabase
-        .from('notification_reads').select('notification_id').eq('user_id', user.id)
+        .from('notification_reads')
+        .select('notification_id')
+        .eq('user_id', user.id)
+        .order('read_at', { ascending: false })
+        .limit(50)
       const readSet = new Set((reads ?? []).map(r => r.notification_id))
 
       let q = supabase.from('notifications')
@@ -193,6 +197,7 @@ export default function NotificationPopup() {
     if (!user || !profile) return
     const role = profile.role
 
+    const senderNameCache = new Map()
     let channel = supabase.channel(`popup_channel_${user.id}`)
 
     // 1. Incoming messages (all roles)
@@ -201,13 +206,18 @@ export default function NotificationPopup() {
       filter: `receiver_id=eq.${user.id}`,
     }, async (payload) => {
       const msg = payload.new
-      const { data: sender } = await supabase
-        .from('profiles').select('full_name').eq('id', msg.sender_id).maybeSingle()
+      let senderName = senderNameCache.get(msg.sender_id)
+      if (!senderName) {
+        const { data: sender } = await supabase
+          .from('profiles').select('full_name').eq('id', msg.sender_id).maybeSingle()
+        senderName = sender?.full_name || 'Someone'
+        senderNameCache.set(msg.sender_id, senderName)
+      }
       enqueue([{
         id:         `msg_rt_${msg.id}`,
         itemType:   'message',
         senderId:   msg.sender_id,
-        senderName: sender?.full_name || 'Someone',
+        senderName,
         content:    msg.content,
         count:      1,
       }])

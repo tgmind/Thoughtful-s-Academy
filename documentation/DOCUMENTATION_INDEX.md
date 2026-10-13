@@ -32,6 +32,7 @@ Coverage: 100% of discovered files, routes, tables, APIs, and findings
 
 ## 2.1. High-Capacity, Staging Validation & Realtime Optimization (`CAPACITY/`)
 
+- [PHASE_6_FAST_RELEASE_READINESS_REPORT.md](./CAPACITY/PHASE_6_FAST_RELEASE_READINESS_REPORT.md) — Fast, zero-cost release readiness report for 300 concurrent users, verified fixes, and minimal manual checklist
 - [PHASE_5_FINAL_VERIFICATION_AND_STAGING_READINESS.md](./CAPACITY/PHASE_5_FINAL_VERIFICATION_AND_STAGING_READINESS.md) — Comprehensive technical verification, 8-column object mapping, security regression audit, and staging readiness gate
 - [STAGING_SETUP_AND_SAFETY.md](./CAPACITY/STAGING_SETUP_AND_SAFETY.md) — Staging isolation setup, production safety boundaries, and synthetic test cleanup
 - [MIGRATION_027_VALIDATION.md](./CAPACITY/MIGRATION_027_VALIDATION.md) — Line-by-line index validation, schema integrity checks, and redundancy resolution

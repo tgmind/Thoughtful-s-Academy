@@ -32,7 +32,11 @@ async function studentNotifUnread(userId, batchId) {
 
   const [{ data: notifs }, { data: reads }] = await Promise.all([
     q,
-    supabase.from('notification_reads').select('notification_id').eq('user_id', userId),
+    supabase.from('notification_reads')
+      .select('notification_id')
+      .eq('user_id', userId)
+      .order('read_at', { ascending: false })
+      .limit(50),
   ])
   const readSet = new Set((reads ?? []).map(r => r.notification_id))
   return (notifs ?? []).filter(n => !readSet.has(n.id)).length
@@ -52,7 +56,11 @@ async function teacherNotifUnread(userId) {
 
   const [{ data: notifs }, { data: reads }] = await Promise.all([
     q,
-    supabase.from('notification_reads').select('notification_id').eq('user_id', userId),
+    supabase.from('notification_reads')
+      .select('notification_id')
+      .eq('user_id', userId)
+      .order('read_at', { ascending: false })
+      .limit(50),
   ])
   const readSet = new Set((reads ?? []).map(r => r.notification_id))
   return (notifs ?? []).filter(n => !readSet.has(n.id)).length
