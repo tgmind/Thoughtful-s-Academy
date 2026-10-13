@@ -44,6 +44,8 @@ export default function WatchLecture() {
   const location = useLocation()
   const { user, profile } = useAuth()
   const rolePrefix = profile?.role === 'admin' ? '/admin' : profile?.role === 'teacher' ? '/teacher' : '/student'
+  const isTeacherOrAdmin = profile?.role === 'teacher' || profile?.role === 'admin'
+  const isPublicRoute = location.pathname.startsWith('/watch') && !location.pathname.startsWith('/student/watch') && !location.pathname.startsWith('/teacher/watch') && !location.pathname.startsWith('/admin/watch')
   const [studentProfile, setStudentProfile] = useState(null)
 
   const cinemaStageRef = useRef(null)
@@ -63,13 +65,15 @@ export default function WatchLecture() {
   const [playbackTime, setPlaybackTime] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
 
-  // Active Classroom Tab: 'curriculum' | 'notes' | 'doubts' | 'shortcuts'
-  const [activeTab, setActiveTab] = useState('curriculum')
+  // Active Classroom Tab: 'curriculum' | 'notes' | 'doubts'
+  const [activeTab, setActiveTab] = useState(() => (initialSeekSeconds > 0 ? 'doubts' : 'notes'))
 
   // Doubt submission states
   const [doubtText, setDoubtText] = useState('')
   const [doubtSending, setDoubtSending] = useState(false)
   const [recentDoubts, setRecentDoubts] = useState([])
+  const [educatorLectureDoubts, setEducatorLectureDoubts] = useState([])
+  const [educatorDoubtsLoading, setEducatorDoubtsLoading] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
 
   // Playlist State
@@ -79,6 +83,35 @@ export default function WatchLecture() {
   const [playlistSearch, setPlaylistSearch] = useState('')
   const [dynamicTitle, setDynamicTitle] = useState('')
   const [discoveredListId, setDiscoveredListId] = useState(null)
+
+  // Context-based doubt and single-video detection
+  const isDemoOrPublicVideo = Boolean(
+    card?.is_public ||
+    card?.is_demo ||
+    isPublicRoute ||
+    (card?.title && /demo\s+lecture/i.test(card.title))
+  )
+  const canAskDoubt = Boolean(user && profile?.role === 'student' && !isTeacherOrAdmin && !isDemoOrPublicVideo)
+
+  const effectivePlaylistId = card?.url ? (getYTPlaylistId(card.url) || discoveredListId) : discoveredListId
+  const hasMultipleLectures = Boolean(
+    (card?.type === 'youtube_playlist' || !!effectivePlaylistId) &&
+    playlistItems &&
+    playlistItems.length > 1
+  )
+
+  // Default tab synchronization: On single video, 'curriculum' vanishes, so default to notes/doubts.
+  useEffect(() => {
+    if (!hasMultipleLectures && activeTab === 'curriculum') {
+      setActiveTab(initialSeekSeconds > 0 ? 'doubts' : 'notes')
+    }
+  }, [hasMultipleLectures, activeTab, initialSeekSeconds])
+
+  useEffect(() => {
+    if (hasMultipleLectures && activeTab === 'notes' && !initialSeekSeconds) {
+      setActiveTab('curriculum')
+    }
+  }, [hasMultipleLectures, initialSeekSeconds])
 
   // Fetch card details if not passed in matching navigation state
   useEffect(() => {
@@ -163,9 +196,9 @@ export default function WatchLecture() {
       })
   }, [user?.id])
 
-  // Fetch recent doubts for this lecture & student via doubtService
+  // Fetch recent doubts for this lecture & student via doubtService (only for enrolled students)
   useEffect(() => {
-    if (!user?.id || !card?.id) return
+    if (!user?.id || !card?.id || !canAskDoubt) return
     fetchStudentDoubtsForLecture(user.id, card.id)
       .then((data) => {
         setRecentDoubts(data ?? [])
@@ -173,7 +206,49 @@ export default function WatchLecture() {
       .catch(() => {
         setRecentDoubts([])
       })
-  }, [user?.id, card?.id])
+  }, [user?.id, card?.id, canAskDoubt])
+
+  // Fetch educator doubts for this lecture (for teachers and admins)
+  useEffect(() => {
+    if (!user?.id || !card?.id || !isTeacherOrAdmin) return
+    let active = true
+    setEducatorDoubtsLoading(true)
+
+    supabase
+      .from('doubts')
+      .select('*')
+      .eq('study_card_id', card.id)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (active) {
+          if (!error && data) {
+            setEducatorLectureDoubts(data)
+          } else {
+            setEducatorLectureDoubts([])
+          }
+          setEducatorDoubtsLoading(false)
+        }
+      })
+      .catch(() => {
+        if (active) setEducatorDoubtsLoading(false)
+      })
+
+    return () => { active = false }
+  }, [user?.id, card?.id, isTeacherOrAdmin])
+
+  // Educator resolve doubt handler
+  const handleEducatorMarkAddressed = async (doubtId) => {
+    try {
+      const { markDoubtAddressed } = await import('../../services/doubtService')
+      await markDoubtAddressed(doubtId, user.id, profile?.full_name || 'Educator')
+      setEducatorLectureDoubts((prev) =>
+        prev.map((d) => (d.id === doubtId ? { ...d, status: 'addressed', addressed_by_name: profile?.full_name || 'Educator' } : d))
+      )
+      toast.success('Doubt marked as addressed in class!')
+    } catch (err) {
+      toast.error(err.message || 'Failed to update doubt')
+    }
+  }
 
   // Synchronize full playlist if discovered directly by in-app player instance
   const handlePlaylistSync = useCallback((discoveredVideoIds) => {
@@ -333,8 +408,8 @@ export default function WatchLecture() {
   // Submit Doubt to Doubt Resolution Hub
   const handleSendDoubt = async (e) => {
     e.preventDefault()
-    if (!user) {
-      toast.error('Please log in to submit doubts to your teacher.')
+    if (!canAskDoubt) {
+      toast.error('Doubt submission is exclusively available for enrolled students.')
       return
     }
     if (!doubtText.trim()) {
@@ -486,12 +561,10 @@ export default function WatchLecture() {
     )
   }
 
-  const effectivePlaylistId = getYTPlaylistId(card.url) || discoveredListId
-  const hasMultipleLectures = (card.type === 'youtube_playlist' || !!effectivePlaylistId) && playlistItems.length > 1
   const isPlaylist = hasMultipleLectures
   const listId = hasMultipleLectures ? effectivePlaylistId : null
-  const singleVideoId = getYTVideoId(card.url)
-  const isDriveDoc = card.type === 'drive' || card.type === 'google_drive' || card.url?.includes('drive.google.com')
+  const singleVideoId = card?.url ? getYTVideoId(card.url) : null
+  const isDriveDoc = card?.type === 'drive' || card?.type === 'google_drive' || card?.url?.includes('drive.google.com')
 
   // Resolve active video ID
   let currentVideoId = singleVideoId
@@ -610,33 +683,87 @@ export default function WatchLecture() {
             )}
           </div>
 
-          {/* CONTROLS STRIP (Full Screen + Quick Doubt Launcher) */}
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-            <button
-              onClick={handleFullscreen}
-              className="py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 hover:from-blue-900 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-md border border-indigo-900/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-            >
-              {isFullscreen ? (
-                <>
-                  <Minimize2 className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span>Exit Full Screen</span>
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span>Landscape Cinema</span>
-                </>
-              )}
-            </button>
+          {/* CONTROLS STRIP (Full Screen + Context-Aware Actions) */}
+          {isTeacherOrAdmin ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={handleFullscreen}
+                className="py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 hover:from-blue-900 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-md border border-indigo-900/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Exit Full Screen</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Landscape Cinema</span>
+                  </>
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab('doubts')}
-              className="py-2.5 sm:py-3 px-4 bg-white hover:bg-amber-50 text-amber-900 font-extrabold text-xs sm:text-sm rounded-2xl shadow-sm border border-amber-200 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-            >
-              <HelpCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>Ask Doubt at {formatSeconds(playbackTime)}</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => navigate(profile?.role === 'admin' ? '/admin/doubts' : '/teacher/doubts')}
+                className="py-2.5 sm:py-3 px-4 bg-white hover:bg-indigo-50 text-indigo-950 font-extrabold text-xs sm:text-sm rounded-2xl shadow-sm border border-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                <HelpCircle className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span>Manage Doubts Hub</span>
+              </button>
+            </div>
+          ) : canAskDoubt ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={handleFullscreen}
+                className="py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 hover:from-blue-900 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-md border border-indigo-900/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Exit Full Screen</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Landscape Cinema</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('doubts')}
+                className="py-2.5 sm:py-3 px-4 bg-white hover:bg-amber-50 text-amber-900 font-extrabold text-xs sm:text-sm rounded-2xl shadow-sm border border-amber-200 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                <HelpCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                <span>Ask Doubt at {formatSeconds(playbackTime)}</span>
+              </button>
+            </div>
+          ) : (
+            /* Public / Demo viewer: full-width cinema with no doubt-asking button */
+            <div className="flex w-full">
+              <button
+                type="button"
+                onClick={handleFullscreen}
+                className="w-full py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 hover:from-blue-900 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-md border border-indigo-900/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Exit Full Screen</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Landscape Cinema</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* LECTURE DETAILS & OVERVIEW CARD */}
           <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm space-y-3">
@@ -688,19 +815,23 @@ export default function WatchLecture() {
 
           {/* ACADEMIC TAB SWITCHER */}
           <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('curriculum')}
-              className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'curriculum'
-                  ? 'bg-blue-950 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <ListVideo className="h-3.5 w-3.5" />
-              <span>Lectures</span>
-            </button>
+            {hasMultipleLectures && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('curriculum')}
+                className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === 'curriculum'
+                    ? 'bg-blue-950 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <ListVideo className="h-3.5 w-3.5" />
+                <span>Lectures</span>
+              </button>
+            )}
 
             <button
+              type="button"
               onClick={() => setActiveTab('notes')}
               className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'notes'
@@ -713,6 +844,7 @@ export default function WatchLecture() {
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('doubts')}
               className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'doubts'
@@ -725,231 +857,124 @@ export default function WatchLecture() {
             </button>
           </div>
 
-          {/* TAB 1: CURRICULUM QUEUE (ONLY FOR PLAYLISTS) OR LECTURE GUIDE (FOR SINGLE VIDEOS) */}
-          {activeTab === 'curriculum' && (
-            hasMultipleLectures ? (
-              <div className="bg-slate-950 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[520px]">
-                {/* Header */}
-                <div className="p-4 border-b border-slate-800/90 bg-slate-900/60 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-amber-400/15 text-amber-400 border border-amber-400/30">
-                        <ListVideo className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                          Course Curriculum
-                        </h3>
-                        <p className="text-[10px] text-slate-400 font-semibold">
-                          {playlistItems.length} lectures in syllabus
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
-                      {activeVideoIndex + 1} / {playlistItems.length}
-                    </span>
-                  </div>
-
-                  {/* Search */}
-                  {playlistItems.length > 3 && (
-                    <div className="relative pt-1">
-                      <Search className="h-3.5 w-3.5 absolute left-2.5 top-[calc(50%+2px)] -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        value={playlistSearch}
-                        onChange={(e) => setPlaylistSearch(e.target.value)}
-                        placeholder="Search lecture name or topic..."
-                        className="w-full bg-slate-900 text-xs text-white placeholder-slate-500 pl-7 pr-2.5 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Lecture List */}
-                <div ref={queueScrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
-                  {playlistLoading ? (
-                    <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                      <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-[11px] font-semibold">Loading lectures…</p>
-                    </div>
-                  ) : filteredPlaylistItems.length > 0 ? (
-                    filteredPlaylistItems.map((item) => {
-                      const isActive = item.index === activeVideoIndex
-                      const progress = item.videoId ? getLectureProgress(item.videoId) : null
-                      const isCompleted = progress?.completed
-                      return (
-                        <button
-                          key={item.index}
-                          data-queue-index={item.index}
-                          onClick={() => setActiveVideoIndex(item.index)}
-                          className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-center gap-3 group cursor-pointer border ${
-                            isActive
-                              ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-amber-400 shadow-xl ring-2 ring-amber-400/30 scale-[1.01]'
-                              : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800/80 hover:border-slate-700'
-                          }`}
-                        >
-                          {/* Thumbnail */}
-                          <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-700">
-                            {item.thumb ? (
-                              <img src={item.thumb} alt={item.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-[10px] font-black">
-                                #{item.index + 1}
-                              </div>
-                            )}
-                            <span
-                              className={`absolute bottom-0.5 left-0.5 text-[8px] font-black px-1 rounded ${
-                                isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-950/90 text-white'
-                              }`}
-                            >
-                              #{item.index + 1}
-                            </span>
-                            {isActive && (
-                              <div className="absolute inset-0 bg-amber-400/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
-                                <Radio className="h-3.5 w-3.5 animate-pulse text-amber-400" />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Details */}
-                          <div className="min-w-0 flex-1">
-                            <h4
-                              className={`text-xs font-bold line-clamp-2 transition-colors ${
-                                isActive ? 'text-amber-300 font-extrabold' : 'text-slate-200 group-hover:text-amber-300'
-                              }`}
-                            >
-                              {item.title}
-                            </h4>
-                            {isActive ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-400 mt-0.5 bg-amber-400/10 px-1.5 py-0.2 rounded">
-                                <Radio className="h-2 w-2 animate-spin" /> Playing Now
-                              </span>
-                            ) : isCompleted ? (
-                              <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                                <CheckCircle2 className="h-2.5 w-2.5" /> Completed
-                              </span>
-                            ) : (
-                              <span className="text-[9px] text-slate-400 mt-0.5 block">
-                                {progress?.time ? `Resume at ${Math.floor(progress.time / 60)}m` : 'Tap to watch'}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })
-                  ) : (
-                    <div className="p-8 text-center text-xs text-slate-400 space-y-1">
-                      <p>No lectures match &quot;{playlistSearch}&quot;</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* Clean Academic Lecture Guide & Overview (When Single Video / External Link) */
-              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 flex flex-col h-[520px] overflow-y-auto custom-scrollbar space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          {/* TAB 1: CURRICULUM QUEUE (ONLY RENDERED FOR MULTI-VIDEO PLAYLISTS) */}
+          {activeTab === 'curriculum' && hasMultipleLectures && (
+            <div className="bg-slate-950 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[520px]">
+              {/* Header */}
+              <div className="p-4 border-b border-slate-800/90 bg-slate-900/60 space-y-2.5">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
-                      <BookOpen className="h-4 w-4" />
+                    <div className="p-1.5 rounded-lg bg-amber-400/15 text-amber-400 border border-amber-400/30">
+                      <ListVideo className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                        Lecture Guide & Overview
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                        Course Curriculum
                       </h3>
-                      <p className="text-[10px] text-slate-500 font-semibold">
-                        {card.subject ? `${card.subject} • Single Topic Masterclass` : 'Comprehensive Topic Lecture'}
+                      <p className="text-[10px] text-slate-400 font-semibold">
+                        {playlistItems.length} lectures in syllabus
                       </p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200/70 px-2 py-0.5 rounded-full">
-                    Active Study
+                  <span className="text-[10px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
+                    {activeVideoIndex + 1} / {playlistItems.length}
                   </span>
                 </div>
 
-                {/* Topic Outline / Brief */}
-                {card.description && (
-                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Class Brief & Objectives</span>
-                    <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-sans">
-                      {card.description}
-                    </p>
+                {/* Search */}
+                {playlistItems.length > 3 && (
+                  <div className="relative pt-1">
+                    <Search className="h-3.5 w-3.5 absolute left-2.5 top-[calc(50%+2px)] -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={playlistSearch}
+                      onChange={(e) => setPlaylistSearch(e.target.value)}
+                      placeholder="Search lecture name or topic..."
+                      className="w-full bg-slate-900 text-xs text-white placeholder-slate-500 pl-7 pr-2.5 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-400"
+                    />
                   </div>
                 )}
-
-                {/* Quick Academic Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  <button
-                    onClick={() => setActiveTab('notes')}
-                    className="p-3 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-950 rounded-2xl border border-emerald-200/70 transition-all text-left space-y-0.5 cursor-pointer group shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">Study Notes</span>
-                      <FileText className="h-3.5 w-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <p className="text-xs font-bold text-emerald-900">View Chapter Notes</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('doubts')}
-                    className="p-3 bg-amber-50/70 hover:bg-amber-100/80 text-amber-950 rounded-2xl border border-amber-200/70 transition-all text-left space-y-0.5 cursor-pointer group shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider">Doubts Hub</span>
-                      <HelpCircle className="h-3.5 w-3.5 text-amber-600 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <p className="text-xs font-bold text-amber-900">Ask Doubt ({formatSeconds(playbackTime)})</p>
-                  </button>
-                </div>
-
-                {/* More in this Subject */}
-                {relatedCards.length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                        More in {card.subject} ({relatedCards.length})
-                      </span>
-                      <Link
-                        to={`${rolePrefix}/study?subject=${encodeURIComponent(card.subject || '')}&category=video`}
-                        className="text-[10px] text-indigo-700 hover:underline flex items-center gap-0.5 font-bold"
-                      >
-                        All <ChevronRight className="h-3 w-3" />
-                      </Link>
-                    </div>
-                    <div className="space-y-1.5">
-                      {relatedCards.slice(0, 4).map((rc) => (
-                        <button
-                          key={rc.id}
-                          onClick={() => {
-                            setCard(rc)
-                            navigate(`${rolePrefix}/watch/${rc.id}`, { state: { card: rc }, replace: true })
-                          }}
-                          className="w-full p-2.5 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/70 hover:border-indigo-200 transition-all rounded-xl text-left flex items-center justify-between gap-2.5 group cursor-pointer"
-                        >
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600">
-                              {rc.title}
-                            </h4>
-                            <span className="text-[9.5px] text-slate-400 capitalize">{rc.subject || 'Lecture'}</span>
-                          </div>
-                          <PlayCircle className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Smart Interactive Tips */}
-                <div className="mt-auto p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-[10.5px] text-indigo-950 space-y-1">
-                  <span className="font-extrabold text-[9.5px] uppercase tracking-wider text-indigo-700 flex items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-indigo-600" /> Interactive Player Controls
-                  </span>
-                  <p className="text-indigo-800 text-[10px] leading-tight">
-                    Tap video center to Play/Pause • Tap left/right edges for 10s skip • Spacebar to pause • F for cinema.
-                  </p>
-                </div>
               </div>
-            )
+
+              {/* Lecture List */}
+              <div ref={queueScrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
+                {playlistLoading ? (
+                  <div className="p-8 text-center text-xs text-slate-400 space-y-2">
+                    <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-[11px] font-semibold">Loading lectures…</p>
+                  </div>
+                ) : filteredPlaylistItems.length > 0 ? (
+                  filteredPlaylistItems.map((item) => {
+                    const isActive = item.index === activeVideoIndex
+                    const progress = item.videoId ? getLectureProgress(item.videoId) : null
+                    const isCompleted = progress?.completed
+                    return (
+                      <button
+                        key={item.index}
+                        data-queue-index={item.index}
+                        onClick={() => setActiveVideoIndex(item.index)}
+                        className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-center gap-3 group cursor-pointer border ${
+                          isActive
+                            ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-amber-400 shadow-xl ring-2 ring-amber-400/30 scale-[1.01]'
+                            : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800/80 hover:border-slate-700'
+                        }`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-700">
+                          {item.thumb ? (
+                            <img src={item.thumb} alt={item.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-[10px] font-black">
+                              #{item.index + 1}
+                            </div>
+                          )}
+                          <span
+                            className={`absolute bottom-0.5 left-0.5 text-[8px] font-black px-1 rounded ${
+                              isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-950/90 text-white'
+                            }`}
+                          >
+                            #{item.index + 1}
+                          </span>
+                          {isActive && (
+                            <div className="absolute inset-0 bg-amber-400/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
+                              <Radio className="h-3.5 w-3.5 animate-pulse text-amber-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="min-w-0 flex-1">
+                          <h4
+                            className={`text-xs font-bold line-clamp-2 transition-colors ${
+                              isActive ? 'text-amber-300 font-extrabold' : 'text-slate-200 group-hover:text-amber-300'
+                            }`}
+                          >
+                            {item.title}
+                          </h4>
+                          {isActive ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-400 mt-0.5 bg-amber-400/10 px-1.5 py-0.2 rounded">
+                              <Radio className="h-2 w-2 animate-spin" /> Playing Now
+                            </span>
+                          ) : isCompleted ? (
+                            <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5 mt-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Completed
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-400 mt-0.5 block">
+                              {progress?.time ? `Resume at ${Math.floor(progress.time / 60)}m` : 'Tap to watch'}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <div className="p-8 text-center text-xs text-slate-400 space-y-1">
+                    <p>No lectures match &quot;{playlistSearch}&quot;</p>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* TAB 2: CLASS NOTES & FORMULAS (PW STYLE) */}
@@ -969,15 +994,6 @@ export default function WatchLecture() {
                 </div>
               </div>
 
-              {/* Lecture Description / Notes */}
-              {card.description ? (
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Class Brief</span>
-                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-sans">
-                    {card.description}
-                  </p>
-                </div>
-              ) : null}
 
               {/* Downloadable / Cloud Drive Notes in this Subject */}
               <div className="space-y-2 pt-1">
@@ -1016,109 +1032,284 @@ export default function WatchLecture() {
             </div>
           )}
 
-          {/* TAB 3: TIMESTAMPED DOUBT ASKING (PHYSICS WALLAH BENCHMARK) */}
+          {/* TAB 3: DOUBT RESOLUTION HUB (ROLE & CONTEXT SPECIFIC) */}
           {activeTab === 'doubts' && (
-            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
-                    <HelpCircle className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                      Doubt Resolution Hub
-                    </h3>
-                    <p className="text-[10px] text-slate-500">
-                      Ask your educator directly at this exact lecture timestamp
-                    </p>
-                  </div>
-                </div>
-
-                {/* Current Timestamp Indicator */}
-                <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-600" />
-                    <span className="text-xs font-extrabold text-amber-900">Current Playback Time:</span>
-                  </div>
-                  <span className="px-2.5 py-0.5 bg-amber-400 text-blue-950 font-black text-xs rounded-full shadow-2xs">
-                    {formatSeconds(playbackTime)}{videoDuration > 0 ? ` / ${formatSeconds(videoDuration)}` : ''}
-                  </span>
-                </div>
-
-                {/* Doubt Form */}
-                <form onSubmit={handleSendDoubt} className="space-y-2.5">
-                  <label htmlFor="doubt-textarea" className="block text-[11px] font-extrabold text-slate-700">
-                    Your Question / Doubt:
-                  </label>
-                  <textarea
-                    id="doubt-textarea"
-                    rows={4}
-                    value={doubtText}
-                    onChange={(e) => setDoubtText(e.target.value)}
-                    placeholder={`e.g., At ${formatSeconds(playbackTime)}, why did we take this formula step? Please explain...`}
-                    className="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all placeholder-slate-400 resize-none font-sans"
-                  />
-                  <button
-                    type="submit"
-                    disabled={doubtSending || !doubtText.trim()}
-                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-blue-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
-                  >
-                    {doubtSending ? (
-                      <span>Sending to Educator…</span>
-                    ) : (
-                      <>
-                        <Send className="h-3.5 w-3.5" />
-                        <span>Send Doubt at {formatSeconds(playbackTime)}</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                {/* Recent Doubts List */}
-                {recentDoubts.length > 0 && (
-                  <div className="pt-2 space-y-2 border-t border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                        Your Doubts for this Lecture ({recentDoubts.length})
-                      </span>
-                      <Link
-                        to="/student/doubts"
-                        className="text-[10px] font-bold text-amber-700 hover:text-amber-800 underline flex items-center gap-0.5"
-                      >
-                        All Doubts →
-                      </Link>
+            isTeacherOrAdmin ? (
+              /* A. EDUCATOR VIEW (TEACHER & ADMIN REVIEW QUEUE) */
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                        <HelpCircle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Lecture Doubts Queue
+                        </h3>
+                        <p className="text-[10px] text-slate-500 font-semibold">
+                          Student questions submitted for this specific lecture
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
-                      {recentDoubts.map((d) => (
-                        <div key={d.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs space-y-1.5">
-                          <p className="font-semibold text-slate-800 line-clamp-2 leading-relaxed">
-                            {d.question || d.content}
+                    <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2.5 py-0.5 rounded-full">
+                      Educator Review
+                    </span>
+                  </div>
+
+                  {/* Link to Full Educator Doubts Section */}
+                  <div className="p-3 bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white rounded-2xl flex items-center justify-between gap-2 shadow-xs">
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold truncate">Doubt Resolution Hub</p>
+                      <p className="text-[10px] text-slate-300">View and manage all doubts across your assigned batches</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(profile?.role === 'admin' ? '/admin/doubts' : '/teacher/doubts')}
+                      className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-blue-950 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer"
+                    >
+                      Open Hub →
+                    </button>
+                  </div>
+
+                  {/* List of doubts on this lecture */}
+                  {educatorDoubtsLoading ? (
+                    <div className="py-10 text-center text-xs text-slate-400 space-y-2">
+                      <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-[11px] font-semibold">Loading student doubts…</p>
+                    </div>
+                  ) : educatorLectureDoubts.length > 0 ? (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-0.5">
+                      {educatorLectureDoubts.map((d) => (
+                        <div key={d.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                          <div className="flex items-center justify-between text-[11px] gap-2">
+                            <span className="font-extrabold text-slate-900 truncate">
+                              {d.student_name} {d.roll_number ? `• Roll #${d.roll_number}` : ''}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                              d.status === 'addressed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {d.status === 'addressed' ? 'Addressed' : 'Pending'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-800 leading-relaxed font-normal bg-white p-2.5 rounded-xl border border-slate-200/60 whitespace-pre-wrap break-words">
+                            {d.question}
                           </p>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
-                            <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
-                              ▶ {formatSeconds(d.timestamp_seconds || 0)}
+                          <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 pt-0.5">
+                            <span className="font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
+                              ▶ At {formatSeconds(d.timestamp_seconds || 0)}
                             </span>
                             <div className="flex items-center gap-1.5">
-                              <span className={d.status === 'addressed' || d.is_read ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                                {d.status === 'addressed' || d.is_read ? '✓ Addressed' : 'Pending'}
-                              </span>
                               <button
                                 type="button"
-                                onClick={() => handleDeleteRecentDoubt(d.id)}
-                                className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 cursor-pointer"
-                                title="Clear doubt (resolved by self-study)"
+                                onClick={() => {
+                                  const msgPath = profile?.role === 'admin' ? '/admin/messages' : '/teacher/messages'
+                                  navigate(`${msgPath}?student=${d.student_id}`)
+                                }}
+                                className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg font-bold transition-all cursor-pointer"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                Message
                               </button>
+                              {d.status !== 'addressed' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEducatorMarkAddressed(d.id)}
+                                  className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all cursor-pointer"
+                                >
+                                  Mark Addressed
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-1.5">
+                      <CheckCircle2 className="h-7 w-7 text-emerald-500 mx-auto" />
+                      <p className="text-xs font-bold text-slate-700">No Student Doubts for this Lecture</p>
+                      <p className="text-[10px] text-slate-400">Questions submitted by enrolled students will automatically appear here.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : canAskDoubt ? (
+              /* B. ENROLLED STUDENT VIEW (SUBMISSION FORM + RECENT DOUBTS) */
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+                      <HelpCircle className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        Doubt Resolution Hub
+                      </h3>
+                      <p className="text-[10px] text-slate-500">
+                        Ask your educator directly at this exact lecture timestamp
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Current Timestamp Indicator */}
+                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-amber-600" />
+                      <span className="text-xs font-extrabold text-amber-900">Current Playback Time:</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 bg-amber-400 text-blue-950 font-black text-xs rounded-full shadow-2xs">
+                      {formatSeconds(playbackTime)}{videoDuration > 0 ? ` / ${formatSeconds(videoDuration)}` : ''}
+                    </span>
+                  </div>
+
+                  {/* Doubt Form */}
+                  <form onSubmit={handleSendDoubt} className="space-y-2.5">
+                    <label htmlFor="doubt-textarea" className="block text-[11px] font-extrabold text-slate-700">
+                      Your Question / Doubt:
+                    </label>
+                    <textarea
+                      id="doubt-textarea"
+                      rows={4}
+                      value={doubtText}
+                      onChange={(e) => setDoubtText(e.target.value)}
+                      placeholder={`e.g., At ${formatSeconds(playbackTime)}, why did we take this formula step? Please explain...`}
+                      className="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all placeholder-slate-400 resize-none font-sans"
+                    />
+                    <button
+                      type="submit"
+                      disabled={doubtSending || !doubtText.trim()}
+                      className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-blue-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
+                    >
+                      {doubtSending ? (
+                        <span>Sending to Educator…</span>
+                      ) : (
+                        <>
+                          <Send className="h-3.5 w-3.5" />
+                          <span>Send Doubt at {formatSeconds(playbackTime)}</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Recent Doubts List */}
+                  {recentDoubts.length > 0 && (
+                    <div className="pt-2 space-y-2 border-t border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Your Doubts for this Lecture ({recentDoubts.length})
+                        </span>
+                        <Link
+                          to="/student/doubts"
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-800 underline flex items-center gap-0.5"
+                        >
+                          All Doubts →
+                        </Link>
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                        {recentDoubts.map((d) => (
+                          <div key={d.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs space-y-1.5">
+                            <p className="font-semibold text-slate-800 line-clamp-2 leading-relaxed">
+                              {d.question || d.content}
+                            </p>
+                            <div className="flex items-center justify-between text-[10px] text-slate-400">
+                              <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
+                                ▶ {formatSeconds(d.timestamp_seconds || 0)}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={d.status === 'addressed' || d.is_read ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
+                                  {d.status === 'addressed' || d.is_read ? '✓ Addressed' : 'Pending'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRecentDoubt(d.id)}
+                                  className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 cursor-pointer"
+                                  title="Clear doubt (resolved by self-study)"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* C. PUBLIC & DEMO VISITOR VIEW (ENROLLED SHOWCASE WITH NO DOUBT ASKING FORM) */
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+                        <HelpCircle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Doubt Resolution Hub
+                        </h3>
+                        <p className="text-[10px] text-slate-500">
+                          Interactive Timestamped Q&amp;A with Educators
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
+                      Enrolled Feature
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl border border-slate-800 shadow-md space-y-3">
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="text-xs font-extrabold uppercase tracking-wide">Reserved for Enrolled Students</span>
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                      Direct doubt clearance with expert faculty at exact video timestamps is exclusively available for enrolled students in Thoughtful&apos;s Academy batches.
+                    </p>
+                    <ul className="text-[11px] text-slate-300 space-y-1.5 pt-1">
+                      <li className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                        <span>Ask questions at any exact second of video playback</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                        <span>Dedicated teacher review and classroom explanation</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                        <span>Direct 1-on-1 messaging with your assigned subject faculty</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/70 text-center space-y-2">
+                    <p className="text-xs font-extrabold text-amber-950">
+                      Want personalized doubt solving?
+                    </p>
+                    <p className="text-[10px] text-amber-800 leading-tight">
+                      Join an enrolled batch or sign in to your student account to activate doubt submission.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/register')}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-xs transition-all cursor-pointer"
+                      >
+                        Enroll in Batch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)}
+                        className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-black rounded-xl transition-all cursor-pointer"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
           {/* MORE LECTURES IN SAME SUBJECT */}
