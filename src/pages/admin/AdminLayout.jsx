@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, BookUser, CreditCard, Layers, QrCode, DollarSign, Bell, MessageCircle, BookOpen, ClipboardList, Video, BarChart2, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, BookUser, CreditCard, Layers, QrCode, DollarSign, Bell, MessageCircle, BookOpen, ClipboardList, Video, BarChart2, Settings, HelpCircle } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 
 const NAV = [
@@ -9,6 +9,7 @@ const NAV = [
   { label:'Batches',       path:'/admin/batches',       icon:<Layers className="h-4 w-4"/>          },
   { label:'Batch Details', path:'/admin/batch-details', icon:<BookOpen className="h-4 w-4"/>       },
   { label:'Study Cards', path:'/admin/study',         icon:<BookOpen className="h-4 w-4"/>        },
+  { label:'Doubts',      path:'/admin/doubts',        icon:<HelpCircle className="h-4 w-4"/>      },
   { label:'Homework',    path:'/admin/homework',      icon:<ClipboardList className="h-4 w-4"/>   },
   { label:'Live Class',  path:'/admin/live-class',    icon:<Video className="h-4 w-4"/>           },
   { label:'QR Code',     path:'/admin/qr',            icon:<QrCode className="h-4 w-4"/>          },

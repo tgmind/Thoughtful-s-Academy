@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { countPendingDoubts } from '../services/doubtService'
 
 // ─── Pure count helpers (no React state) ─────────────────────────────────────
 
@@ -226,14 +227,16 @@ export function useNavBadges(role, userId) {
           .subscribe()
 
       } else if (role === 'teacher') {
-        const [msg, notif] = await Promise.all([
+        const [msg, notif, doubtsCount] = await Promise.all([
           countUnreadMessages(userId),
           teacherNotifUnread(userId),
+          countPendingDoubts('teacher', userId),
         ])
         if (cancelled) return
         seed({
           '/teacher/messages': msg > 0,
           '/teacher/notifications': notif > 0,
+          '/teacher/doubts': doubtsCount > 0,
         })
 
         channel = supabase
@@ -244,17 +247,21 @@ export function useNavBadges(role, userId) {
             () => refresh('/teacher/notifications', () => teacherNotifUnread(userId)))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${userId}` },
             () => refresh('/teacher/notifications', () => teacherNotifUnread(userId)))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'doubts' },
+            () => refresh('/teacher/doubts', () => countPendingDoubts('teacher', userId)))
           .subscribe()
 
       } else if (role === 'admin') {
-        const [msg, fees] = await Promise.all([
+        const [msg, fees, doubtsCount] = await Promise.all([
           countUnreadMessages(userId),
           adminPendingFees(),
+          countPendingDoubts('admin', userId),
         ])
         if (cancelled) return
         seed({
           '/admin/messages': msg > 0,
           '/admin/fees': fees > 0,
+          '/admin/doubts': doubtsCount > 0,
         })
 
         channel = supabase
@@ -263,6 +270,8 @@ export function useNavBadges(role, userId) {
             () => raise('/admin/messages'))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records' },
             () => refresh('/admin/fees', () => adminPendingFees()))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'doubts' },
+            () => refresh('/admin/doubts', () => countPendingDoubts('admin', userId)))
           .subscribe()
       }
     }

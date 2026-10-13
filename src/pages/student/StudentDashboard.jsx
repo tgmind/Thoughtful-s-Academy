@@ -21,6 +21,7 @@ import {
   Flame,
   ChevronRight,
   ShieldCheck,
+  HelpCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -723,12 +724,21 @@ export default function StudentDashboard() {
       isLive: stats.live,
     },
     {
+      label: 'Doubts Hub',
+      path: '/student/doubts',
+      icon: <HelpCircle className="h-5 w-5" />,
+      accentBg: 'from-amber-500/10 to-orange-500/10 border-amber-500/20 text-amber-700',
+      iconBg: 'bg-amber-500/10 text-amber-700 group-hover:bg-amber-600 group-hover:text-white',
+      desc: 'Track & Manage Doubts',
+      badge: null,
+    },
+    {
       label: 'Messages',
       path: '/student/messages',
       icon: <MessageCircle className="h-5 w-5" />,
       accentBg: 'from-purple-500/10 to-fuchsia-500/10 border-purple-500/20 text-purple-600',
       iconBg: 'bg-purple-500/10 text-purple-600 group-hover:bg-purple-600 group-hover:text-white',
-      desc: 'Ask Doubts & Chat',
+      desc: 'Batch & Teacher Chat',
       badge: stats.unread > 0 ? `${stats.unread} Unread` : null,
     },
     {

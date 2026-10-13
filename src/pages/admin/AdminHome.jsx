@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Users, BookUser, CreditCard, MessageCircle, Activity, Video,
   CheckCircle, XCircle, Bell, QrCode, Layers, DollarSign,
-  UserPlus, AlertTriangle, Clock,
+  UserPlus, AlertTriangle, Clock, HelpCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -143,6 +143,7 @@ export default function AdminHome() {
   ]
 
   const quickActions = [
+    { label:'Doubt Hub',        icon:<HelpCircle className="h-4 w-4" />,  path:'/admin/doubts',        color:'bg-amber-600 text-white'  },
     { label:'Add Notification', icon:<Bell className="h-4 w-4" />,       path:'/admin/announcements', color:'bg-blue-950 text-white'   },
     { label:'Update QR',        icon:<QrCode className="h-4 w-4" />,     path:'/admin/qr',            color:'bg-amber-500 text-white'  },
     { label:'Add Batch',        icon:<Layers className="h-4 w-4" />,     path:'/admin/batches',       color:'bg-green-600 text-white'  },

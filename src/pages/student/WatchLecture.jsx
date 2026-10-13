@@ -5,7 +5,7 @@ import {
   ListVideo, Sparkles, PlayCircle, ExternalLink,
   ChevronRight, Layers, Clock, Search, Radio,
   ShieldCheck, CheckCircle2, Send, HelpCircle,
-  FileText, Keyboard, X, LogIn
+  FileText, Keyboard, X, LogIn, Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -19,6 +19,7 @@ import {
   getLectureProgress
 } from '../../utils/youtube'
 import ProtectedVideoPlayer from '../../components/shared/ProtectedVideoPlayer'
+import { createDoubt, fetchStudentDoubtsForLecture, deleteDoubt } from '../../services/doubtService'
 
 function formatSeconds(seconds) {
   if (!seconds || isNaN(seconds) || seconds < 0) return '0:00'
@@ -36,17 +37,22 @@ export default function WatchLecture() {
   const { cardId: paramCardId } = useParams()
   const [searchParams] = useSearchParams()
   const cardId = paramCardId || searchParams.get('cardId') || searchParams.get('id')
+  const timestampParam = parseInt(searchParams.get('t') || searchParams.get('timestamp') || '0', 10)
+  const initialSeekSeconds = !isNaN(timestampParam) && timestampParam > 0 ? timestampParam : 0
 
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile } = useAuth()
   const rolePrefix = profile?.role === 'admin' ? '/admin' : profile?.role === 'teacher' ? '/teacher' : '/student'
+  const [studentProfile, setStudentProfile] = useState(null)
 
   const cinemaStageRef = useRef(null)
   const queueScrollRef = useRef(null)
 
-  const [card, setCard] = useState(location.state?.card || null)
-  const [loading, setLoading] = useState(!location.state?.card)
+  const stateCard = location.state?.card
+  const isMatchingCard = stateCard && (!cardId || stateCard.id === cardId)
+  const [card, setCard] = useState(isMatchingCard ? stateCard : null)
+  const [loading, setLoading] = useState(!isMatchingCard && !!cardId)
   const [relatedCards, setRelatedCards] = useState([])
   const [notesResources, setNotesResources] = useState([])
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -74,9 +80,14 @@ export default function WatchLecture() {
   const [dynamicTitle, setDynamicTitle] = useState('')
   const [discoveredListId, setDiscoveredListId] = useState(null)
 
-  // Fetch card details if not passed in navigation state
+  // Fetch card details if not passed in matching navigation state
   useEffect(() => {
-    if (!cardId || location.state?.card) return
+    if (!cardId) return
+    if (location.state?.card && location.state.card.id === cardId) {
+      setCard(location.state.card)
+      setLoading(false)
+      return
+    }
     let active = true
 
     setLoading(true)
@@ -90,6 +101,9 @@ export default function WatchLecture() {
           setCard(data ?? null)
           setLoading(false)
         }
+      })
+      .catch(() => {
+        if (active) setLoading(false)
       })
 
     return () => { active = false }
@@ -136,20 +150,30 @@ export default function WatchLecture() {
       })
   }, [card?.subject])
 
-  // Fetch recent doubts sent by this student
+  // Fetch student profile for authoritative batch and roll number
   useEffect(() => {
     if (!user?.id) return
     supabase
-      .from('messages')
-      .select('id, content, created_at, is_read, receiver_id, profiles!receiver_id(full_name)')
-      .eq('sender_id', user.id)
-      .ilike('content', '%[Doubt%')
-      .order('created_at', { ascending: false })
-      .limit(5)
+      .from('student_profiles')
+      .select('roll_number, batch_id, batches(name)')
+      .eq('id', user.id)
+      .maybeSingle()
       .then(({ data }) => {
-        setRecentDoubts(data ?? [])
+        if (data) setStudentProfile(data)
       })
   }, [user?.id])
+
+  // Fetch recent doubts for this lecture & student via doubtService
+  useEffect(() => {
+    if (!user?.id || !card?.id) return
+    fetchStudentDoubtsForLecture(user.id, card.id)
+      .then((data) => {
+        setRecentDoubts(data ?? [])
+      })
+      .catch(() => {
+        setRecentDoubts([])
+      })
+  }, [user?.id, card?.id])
 
   // Synchronize full playlist if discovered directly by in-app player instance
   const handlePlaylistSync = useCallback((discoveredVideoIds) => {
@@ -306,7 +330,7 @@ export default function WatchLecture() {
     setBookmarkLoading(false)
   }
 
-  // Submit Doubt to Educator
+  // Submit Doubt to Doubt Resolution Hub
   const handleSendDoubt = async (e) => {
     e.preventDefault()
     if (!user) {
@@ -320,46 +344,42 @@ export default function WatchLecture() {
 
     setDoubtSending(true)
     try {
-      // Find the teacher: either card added_by, or first teacher/admin in profiles
-      let recipientId = card.added_by
-      if (!recipientId) {
-        const { data: teachers } = await supabase
-          .from('profiles')
-          .select('id')
-          .in('role', ['teacher', 'admin'])
-          .eq('is_active', true)
-          .limit(1)
-        recipientId = teachers?.[0]?.id
-      }
-
-      if (!recipientId) {
-        toast.error('Could not find an educator to assign this doubt.')
-        setDoubtSending(false)
-        return
-      }
-
       const timestampTag = formatSeconds(playbackTime)
-      const lectureTitle = dynamicTitle || card.title
-      const formattedContent = `❓ [Doubt at ${timestampTag} in "${lectureTitle}"]: ${doubtText.trim()}`
+      const lectureTitle = dynamicTitle || card?.title || 'Lecture'
+      const newDoubt = await createDoubt({
+        student_id: user.id,
+        student_name: profile?.full_name || 'Student',
+        roll_number: studentProfile?.roll_number || null,
+        batch_id: studentProfile?.batch_id || card?.batch_id || (card?.batch_ids?.[0] ?? null),
+        batch_name: studentProfile?.batches?.name || null,
+        subject: card?.subject || 'General',
+        study_card_id: card?.id || null,
+        lecture_title: lectureTitle,
+        video_url: currentVideoId ? `https://www.youtube.com/watch?v=${currentVideoId}` : (card?.url || null),
+        timestamp_seconds: Math.floor(playbackTime),
+        question: doubtText.trim(),
+      })
 
-      const { data, error } = await supabase.from('messages').insert({
-        sender_id: user.id,
-        receiver_id: recipientId,
-        content: formattedContent,
-        is_read: false,
-      }).select('id, content, created_at, is_read, receiver_id').single()
-
-      if (error) throw error
-
-      toast.success(`Doubt sent to educator at ${timestampTag}!`)
+      toast.success(`Doubt recorded at ${timestampTag}! Visible in Doubt Resolution Hub.`)
       setDoubtText('')
-      if (data) {
-        setRecentDoubts(prev => [data, ...prev])
+      if (newDoubt) {
+        setRecentDoubts((prev) => [newDoubt, ...prev])
       }
     } catch (err) {
-      toast.error(err.message || 'Failed to send doubt.')
+      toast.error(err.message || 'Failed to submit doubt.')
     } finally {
       setDoubtSending(false)
+    }
+  }
+
+  // Handle student deleting a recent doubt (self-study resolution)
+  const handleDeleteRecentDoubt = async (doubtId) => {
+    try {
+      await deleteDoubt(doubtId, user.id, false)
+      setRecentDoubts((prev) => prev.filter((d) => d.id !== doubtId))
+      toast.success('Doubt cleared! Great job solving it on your own.')
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete doubt.')
     }
   }
 
@@ -467,14 +487,15 @@ export default function WatchLecture() {
   }
 
   const effectivePlaylistId = getYTPlaylistId(card.url) || discoveredListId
-  const isPlaylist = card.type === 'youtube_playlist' || !!effectivePlaylistId || playlistItems.length > 1
-  const listId = effectivePlaylistId
+  const hasMultipleLectures = (card.type === 'youtube_playlist' || !!effectivePlaylistId) && playlistItems.length > 1
+  const isPlaylist = hasMultipleLectures
+  const listId = hasMultipleLectures ? effectivePlaylistId : null
   const singleVideoId = getYTVideoId(card.url)
   const isDriveDoc = card.type === 'drive' || card.type === 'google_drive' || card.url?.includes('drive.google.com')
 
   // Resolve active video ID
   let currentVideoId = singleVideoId
-  if (isPlaylist && playlistItems.length > 0 && playlistItems[activeVideoIndex]?.videoId) {
+  if (hasMultipleLectures && playlistItems.length > 0 && playlistItems[activeVideoIndex]?.videoId) {
     currentVideoId = playlistItems[activeVideoIndex].videoId
   }
 
@@ -570,12 +591,12 @@ export default function WatchLecture() {
               <ProtectedVideoPlayer
                 key={card.id}
                 videoId={currentVideoId || (playlistItems[activeVideoIndex]?.videoId ?? '')}
-                playlistId={listId}
+                playlistId={hasMultipleLectures ? listId : null}
                 title={dynamicTitle || currentTitle}
                 subject={card.subject}
-                isPlaylist={isPlaylist}
-                playlistItems={playlistItems}
-                activeVideoIndex={activeVideoIndex}
+                isPlaylist={hasMultipleLectures}
+                playlistItems={hasMultipleLectures ? playlistItems : []}
+                activeVideoIndex={hasMultipleLectures ? activeVideoIndex : 0}
                 onPrevVideo={() => setActiveVideoIndex((prev) => Math.max(0, prev - 1))}
                 onNextVideo={() => setActiveVideoIndex((prev) => Math.min(Math.max(0, playlistItems.length - 1), prev + 1))}
                 onPlaylistSync={handlePlaylistSync}
@@ -584,6 +605,7 @@ export default function WatchLecture() {
                 onTimeUpdate={handleTimeUpdate}
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={handleFullscreen}
+                initialSeekSeconds={initialSeekSeconds}
               />
             )}
           </div>
@@ -703,126 +725,231 @@ export default function WatchLecture() {
             </button>
           </div>
 
-          {/* TAB 1: CURRICULUM / PLAYLIST QUEUE */}
+          {/* TAB 1: CURRICULUM QUEUE (ONLY FOR PLAYLISTS) OR LECTURE GUIDE (FOR SINGLE VIDEOS) */}
           {activeTab === 'curriculum' && (
-            <div className="bg-slate-950 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[520px]">
-              {/* Header */}
-              <div className="p-4 border-b border-slate-800/90 bg-slate-900/60 space-y-2.5">
-                <div className="flex items-center justify-between">
+            hasMultipleLectures ? (
+              <div className="bg-slate-950 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[520px]">
+                {/* Header */}
+                <div className="p-4 border-b border-slate-800/90 bg-slate-900/60 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-400/15 text-amber-400 border border-amber-400/30">
+                        <ListVideo className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                          Course Curriculum
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-semibold">
+                          {playlistItems.length} lectures in syllabus
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
+                      {activeVideoIndex + 1} / {playlistItems.length}
+                    </span>
+                  </div>
+
+                  {/* Search */}
+                  {playlistItems.length > 3 && (
+                    <div className="relative pt-1">
+                      <Search className="h-3.5 w-3.5 absolute left-2.5 top-[calc(50%+2px)] -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={playlistSearch}
+                        onChange={(e) => setPlaylistSearch(e.target.value)}
+                        placeholder="Search lecture name or topic..."
+                        className="w-full bg-slate-900 text-xs text-white placeholder-slate-500 pl-7 pr-2.5 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Lecture List */}
+                <div ref={queueScrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
+                  {playlistLoading ? (
+                    <div className="p-8 text-center text-xs text-slate-400 space-y-2">
+                      <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-[11px] font-semibold">Loading lectures…</p>
+                    </div>
+                  ) : filteredPlaylistItems.length > 0 ? (
+                    filteredPlaylistItems.map((item) => {
+                      const isActive = item.index === activeVideoIndex
+                      const progress = item.videoId ? getLectureProgress(item.videoId) : null
+                      const isCompleted = progress?.completed
+                      return (
+                        <button
+                          key={item.index}
+                          data-queue-index={item.index}
+                          onClick={() => setActiveVideoIndex(item.index)}
+                          className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-center gap-3 group cursor-pointer border ${
+                            isActive
+                              ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-amber-400 shadow-xl ring-2 ring-amber-400/30 scale-[1.01]'
+                              : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800/80 hover:border-slate-700'
+                          }`}
+                        >
+                          {/* Thumbnail */}
+                          <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-700">
+                            {item.thumb ? (
+                              <img src={item.thumb} alt={item.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-[10px] font-black">
+                                #{item.index + 1}
+                              </div>
+                            )}
+                            <span
+                              className={`absolute bottom-0.5 left-0.5 text-[8px] font-black px-1 rounded ${
+                                isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-950/90 text-white'
+                              }`}
+                            >
+                              #{item.index + 1}
+                            </span>
+                            {isActive && (
+                              <div className="absolute inset-0 bg-amber-400/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
+                                <Radio className="h-3.5 w-3.5 animate-pulse text-amber-400" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Details */}
+                          <div className="min-w-0 flex-1">
+                            <h4
+                              className={`text-xs font-bold line-clamp-2 transition-colors ${
+                                isActive ? 'text-amber-300 font-extrabold' : 'text-slate-200 group-hover:text-amber-300'
+                              }`}
+                            >
+                              {item.title}
+                            </h4>
+                            {isActive ? (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-400 mt-0.5 bg-amber-400/10 px-1.5 py-0.2 rounded">
+                                <Radio className="h-2 w-2 animate-spin" /> Playing Now
+                              </span>
+                            ) : isCompleted ? (
+                              <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5 mt-0.5">
+                                <CheckCircle2 className="h-2.5 w-2.5" /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-slate-400 mt-0.5 block">
+                                {progress?.time ? `Resume at ${Math.floor(progress.time / 60)}m` : 'Tap to watch'}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <div className="p-8 text-center text-xs text-slate-400 space-y-1">
+                      <p>No lectures match &quot;{playlistSearch}&quot;</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Clean Academic Lecture Guide & Overview (When Single Video / External Link) */
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 flex flex-col h-[520px] overflow-y-auto custom-scrollbar space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-amber-400/15 text-amber-400 border border-amber-400/30">
-                      <ListVideo className="h-4 w-4" />
+                    <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                      <BookOpen className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                        Course Curriculum
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        Lecture Guide & Overview
                       </h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">
-                        {playlistItems.length > 0 ? `${playlistItems.length} lectures in syllabus` : 'Single Topic Lecture'}
+                      <p className="text-[10px] text-slate-500 font-semibold">
+                        {card.subject ? `${card.subject} • Single Topic Masterclass` : 'Comprehensive Topic Lecture'}
                       </p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
-                    {activeVideoIndex + 1} / {playlistItems.length || 1}
+                  <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200/70 px-2 py-0.5 rounded-full">
+                    Active Study
                   </span>
                 </div>
 
-                {/* Search */}
-                {playlistItems.length > 3 && (
-                  <div className="relative pt-1">
-                    <Search className="h-3.5 w-3.5 absolute left-2.5 top-[calc(50%+2px)] -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={playlistSearch}
-                      onChange={(e) => setPlaylistSearch(e.target.value)}
-                      placeholder="Search lecture name or topic..."
-                      className="w-full bg-slate-900 text-xs text-white placeholder-slate-500 pl-7 pr-2.5 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-400"
-                    />
+                {/* Topic Outline / Brief */}
+                {card.description && (
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Class Brief & Objectives</span>
+                    <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-sans">
+                      {card.description}
+                    </p>
                   </div>
                 )}
-              </div>
 
-              {/* Lecture List */}
-              <div ref={queueScrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
-                {playlistLoading ? (
-                  <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                    <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="text-[11px] font-semibold">Loading lectures…</p>
-                  </div>
-                ) : filteredPlaylistItems.length > 0 ? (
-                  filteredPlaylistItems.map((item) => {
-                    const isActive = item.index === activeVideoIndex
-                    const progress = item.videoId ? getLectureProgress(item.videoId) : null
-                    const isCompleted = progress?.completed
-                    return (
-                      <button
-                        key={item.index}
-                        data-queue-index={item.index}
-                        onClick={() => setActiveVideoIndex(item.index)}
-                        className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-center gap-3 group cursor-pointer border ${
-                          isActive
-                            ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-amber-400 shadow-xl ring-2 ring-amber-400/30 scale-[1.01]'
-                            : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800/80 hover:border-slate-700'
-                        }`}
+                {/* Quick Academic Actions */}
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    onClick={() => setActiveTab('notes')}
+                    className="p-3 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-950 rounded-2xl border border-emerald-200/70 transition-all text-left space-y-0.5 cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">Study Notes</span>
+                      <FileText className="h-3.5 w-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <p className="text-xs font-bold text-emerald-900">View Chapter Notes</p>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('doubts')}
+                    className="p-3 bg-amber-50/70 hover:bg-amber-100/80 text-amber-950 rounded-2xl border border-amber-200/70 transition-all text-left space-y-0.5 cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider">Doubts Hub</span>
+                      <HelpCircle className="h-3.5 w-3.5 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <p className="text-xs font-bold text-amber-900">Ask Doubt ({formatSeconds(playbackTime)})</p>
+                  </button>
+                </div>
+
+                {/* More in this Subject */}
+                {relatedCards.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                        More in {card.subject} ({relatedCards.length})
+                      </span>
+                      <Link
+                        to={`${rolePrefix}/study?subject=${encodeURIComponent(card.subject || '')}&category=video`}
+                        className="text-[10px] text-indigo-700 hover:underline flex items-center gap-0.5 font-bold"
                       >
-                        {/* Thumbnail */}
-                        <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-700">
-                          {item.thumb ? (
-                            <img src={item.thumb} alt={item.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-[10px] font-black">
-                              #{item.index + 1}
-                            </div>
-                          )}
-                          <span
-                            className={`absolute bottom-0.5 left-0.5 text-[8px] font-black px-1 rounded ${
-                              isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-950/90 text-white'
-                            }`}
-                          >
-                            #{item.index + 1}
-                          </span>
-                          {isActive && (
-                            <div className="absolute inset-0 bg-amber-400/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
-                              <Radio className="h-3.5 w-3.5 animate-pulse text-amber-400" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Details */}
-                        <div className="min-w-0 flex-1">
-                          <h4
-                            className={`text-xs font-bold line-clamp-2 transition-colors ${
-                              isActive ? 'text-amber-300 font-extrabold' : 'text-slate-200 group-hover:text-amber-300'
-                            }`}
-                          >
-                            {item.title}
-                          </h4>
-                          {isActive ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-400 mt-0.5 bg-amber-400/10 px-1.5 py-0.2 rounded">
-                              <Radio className="h-2 w-2 animate-spin" /> Playing Now
-                            </span>
-                          ) : isCompleted ? (
-                            <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                              <CheckCircle2 className="h-2.5 w-2.5" /> Completed
-                            </span>
-                          ) : (
-                            <span className="text-[9px] text-slate-400 mt-0.5 block">
-                              {progress?.time ? `Resume at ${Math.floor(progress.time / 60)}m` : 'Tap to watch'}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })
-                ) : (
-                  <div className="p-6 text-center text-xs text-slate-400 space-y-2">
-                    <PlayCircle className="h-8 w-8 text-slate-600 mx-auto" />
-                    <p className="font-semibold text-slate-300">{card.title}</p>
-                    <p className="text-[11px] text-slate-500">Standalone Lecture. All controls and notes are active.</p>
+                        All <ChevronRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <div className="space-y-1.5">
+                      {relatedCards.slice(0, 4).map((rc) => (
+                        <button
+                          key={rc.id}
+                          onClick={() => {
+                            setCard(rc)
+                            navigate(`${rolePrefix}/watch/${rc.id}`, { state: { card: rc }, replace: true })
+                          }}
+                          className="w-full p-2.5 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/70 hover:border-indigo-200 transition-all rounded-xl text-left flex items-center justify-between gap-2.5 group cursor-pointer"
+                        >
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600">
+                              {rc.title}
+                            </h4>
+                            <span className="text-[9.5px] text-slate-400 capitalize">{rc.subject || 'Lecture'}</span>
+                          </div>
+                          <PlayCircle className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
+
+                {/* Smart Interactive Tips */}
+                <div className="mt-auto p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-[10.5px] text-indigo-950 space-y-1">
+                  <span className="font-extrabold text-[9.5px] uppercase tracking-wider text-indigo-700 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-indigo-600" /> Interactive Player Controls
+                  </span>
+                  <p className="text-indigo-800 text-[10px] leading-tight">
+                    Tap video center to Play/Pause • Tap left/right edges for 10s skip • Spacebar to pause • F for cinema.
+                  </p>
+                </div>
               </div>
-            </div>
+            )
           )}
 
           {/* TAB 2: CLASS NOTES & FORMULAS (PW STYLE) */}
@@ -949,19 +1076,41 @@ export default function WatchLecture() {
 
                 {/* Recent Doubts List */}
                 {recentDoubts.length > 0 && (
-                  <div className="pt-2 space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                      Your Recent Doubts ({recentDoubts.length})
-                    </span>
-                    <div className="space-y-1.5">
-                      {recentDoubts.map(d => (
-                        <div key={d.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
-                          <p className="font-semibold text-slate-800 line-clamp-2">{d.content}</p>
-                          <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
-                            <span>{new Date(d.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                            <span className={d.is_read ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                              {d.is_read ? '✓ Answered' : 'Pending Review'}
+                  <div className="pt-2 space-y-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                        Your Doubts for this Lecture ({recentDoubts.length})
+                      </span>
+                      <Link
+                        to="/student/doubts"
+                        className="text-[10px] font-bold text-amber-700 hover:text-amber-800 underline flex items-center gap-0.5"
+                      >
+                        All Doubts →
+                      </Link>
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                      {recentDoubts.map((d) => (
+                        <div key={d.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs space-y-1.5">
+                          <p className="font-semibold text-slate-800 line-clamp-2 leading-relaxed">
+                            {d.question || d.content}
+                          </p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
+                              ▶ {formatSeconds(d.timestamp_seconds || 0)}
                             </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={d.status === 'addressed' || d.is_read ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
+                                {d.status === 'addressed' || d.is_read ? '✓ Addressed' : 'Pending'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRecentDoubt(d.id)}
+                                className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 cursor-pointer"
+                                title="Clear doubt (resolved by self-study)"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}

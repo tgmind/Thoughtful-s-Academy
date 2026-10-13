@@ -48,6 +48,7 @@ export default function ProtectedVideoPlayer({
   isFullscreen = false,
   onToggleFullscreen,
   onTimeUpdate,
+  initialSeekSeconds = 0,
   className = '',
 }) {
   const containerRef = useRef(null)
@@ -103,6 +104,9 @@ export default function ProtectedVideoPlayer({
   // Cumulative Multi-Tap Seek Ripple state: { type: 'rewind'|'forward', count: number, id: number }
   const [ripple, setRipple] = useState(null)
 
+  // Center Play/Pause pulse feedback state: { type: 'play'|'pause', id: number }
+  const [centerFeedback, setCenterFeedback] = useState(null)
+
   // Swipe-to-Seek HUD state: { deltaSeconds: number, targetTime: number }
   const [swipeSeekHud, setSwipeSeekHud] = useState(null)
 
@@ -121,6 +125,7 @@ export default function ProtectedVideoPlayer({
   const progressIntervalRef = useRef(null)
   const singleTapTimerRef = useRef(null)
   const lastTapRef = useRef({ time: 0, x: 0, y: 0, count: 0, zone: null })
+  const lastTouchTimeRef = useRef(0)
   const longPressTimerRef = useRef(null)
   const isHoldingRef = useRef(false)
   const savedRateBeforeHoldRef = useRef(1)
@@ -132,6 +137,7 @@ export default function ProtectedVideoPlayer({
   // Live state refs
   const isPlayingRef = useRef(isPlaying)
   const isScrubbingRef = useRef(isScrubbing)
+  const lastSoughtTimestampRef = useRef(null)
   const showSpeedMenuRef = useRef(showSpeedMenu)
   const showQualityMenuRef = useRef(showQualityMenu)
   const isScreenLockedRef = useRef(isScreenLocked)
@@ -317,6 +323,9 @@ export default function ProtectedVideoPlayer({
             try {
               const dur = event.target.getDuration() || 0
               if (dur > 0) setDuration(dur)
+              if (initialSeekSeconds && initialSeekSeconds > 0) {
+                event.target.seekTo(initialSeekSeconds, true)
+              }
               const iframe = event.target.getIframe?.()
               if (iframe) {
                 iframe.style.pointerEvents = 'none'
@@ -447,6 +456,20 @@ export default function ProtectedVideoPlayer({
       }
     }
   }, [initializePlayer])
+
+  // Handle seeking if initialSeekSeconds is supplied or updated (with loop prevention & bounds check)
+  useEffect(() => {
+    if (isReady && playerRef.current && typeof playerRef.current.seekTo === 'function' && initialSeekSeconds > 0) {
+      if (lastSoughtTimestampRef.current !== initialSeekSeconds) {
+        lastSoughtTimestampRef.current = initialSeekSeconds
+        try {
+          const dur = typeof playerRef.current.getDuration === 'function' ? playerRef.current.getDuration() : 0
+          const target = dur > 0 ? Math.min(Math.max(0, initialSeekSeconds), dur) : Math.max(0, initialSeekSeconds)
+          playerRef.current.seekTo(target, true)
+        } catch { /* Ignore */ }
+      }
+    }
+  }, [isReady, initialSeekSeconds])
 
   // Instant lecture transitions: playVideoAt or loadVideoById WITHOUT iframe teardown
   useEffect(() => {
@@ -793,10 +816,11 @@ export default function ProtectedVideoPlayer({
 
     if (deltaX > 14 || deltaY > 14) return
 
+    lastTouchTimeRef.current = Date.now()
     handleShieldTap(touch.clientX, touch.clientY)
   }
 
-  // Cumulative Tap Gesture (±10s, ±20s, ±30s) + Clean Screen Toggle on Pause
+  // Smart Interactive Zones: Left/Right Corner 10s Seek + Center Play/Pause Toggle
   const handleShieldTap = (clientX, clientY) => {
     if (isScreenLockedRef.current) {
       setShowLockToast(true)
@@ -820,56 +844,34 @@ export default function ProtectedVideoPlayer({
 
     const relX = clientX - rect.left
     const width = rect.width
-    const zone = relX < width * 0.4 ? 'rewind' : relX > width * 0.6 ? 'forward' : 'center'
+    const isRewind = relX < width * 0.32
+    const isForward = relX > width * 0.68
 
-    const isRapidRepeat = (now - last.time < 420) && (last.zone === zone) && (zone !== 'center')
-
-    if (isRapidRepeat) {
-      if (singleTapTimerRef.current) {
-        clearTimeout(singleTapTimerRef.current)
-        singleTapTimerRef.current = null
-      }
-
-      const nextCount = (last.count || 1) + 1
-      lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone }
-
-      const deltaSec = zone === 'rewind' ? -10 : 10
-      seekRelative(deltaSec)
-
-      setRipple({ type: zone, count: nextCount * 10, id: now })
-      setTimeout(() => setRipple(null), 850)
-    } else if (zone !== 'center' && (now - last.time < 300) && (Math.abs(clientX - last.x) < 45)) {
-      if (singleTapTimerRef.current) {
-        clearTimeout(singleTapTimerRef.current)
-        singleTapTimerRef.current = null
-      }
-
-      lastTapRef.current = { time: now, x: clientX, y: clientY, count: 1, zone }
-      const deltaSec = zone === 'rewind' ? -10 : 10
-      seekRelative(deltaSec)
-
-      setRipple({ type: zone, count: 10, id: now })
-      setTimeout(() => setRipple(null), 850)
+    if (isRewind) {
+      // Left corner tap: Fast Backward 10s
+      const isRepeat = (now - last.time < 500) && (last.zone === 'rewind')
+      const nextCount = isRepeat ? (last.count || 1) + 1 : 1
+      lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone: 'rewind' }
+      seekRelative(-10)
+      setRipple({ type: 'rewind', count: nextCount * 10, id: now })
+      setTimeout(() => setRipple(null), 750)
+      showControlsTemporarily(3500)
+    } else if (isForward) {
+      // Right corner tap: Fast Forward 10s
+      const isRepeat = (now - last.time < 500) && (last.zone === 'forward')
+      const nextCount = isRepeat ? (last.count || 1) + 1 : 1
+      lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone: 'forward' }
+      seekRelative(10)
+      setRipple({ type: 'forward', count: nextCount * 10, id: now })
+      setTimeout(() => setRipple(null), 750)
+      showControlsTemporarily(3500)
     } else {
-      // Single tap toggle
-      lastTapRef.current = { time: now, x: clientX, y: clientY, count: 0, zone }
-      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current)
-
-      singleTapTimerRef.current = setTimeout(() => {
-        singleTapTimerRef.current = null
-
-        if (cleanViewRef.current) {
-          setCleanView(false)
-          setShowCleanToast(false)
-          setControlsVisible(true)
-          showControlsTemporarily(3500)
-        } else if (!controlsVisible) {
-          showControlsTemporarily(3500)
-        } else {
-          // Hide controls cleanly (whether paused or playing) so student can view 100% of blackboard
-          setControlsVisible(false)
-        }
-      }, 260)
+      // Center tap: Toggle Play / Pause instantly
+      lastTapRef.current = { time: now, x: clientX, y: clientY, count: 0, zone: 'center' }
+      togglePlayPause()
+      setCenterFeedback({ type: isPlayingRef.current ? 'pause' : 'play', id: now })
+      setTimeout(() => setCenterFeedback(null), 500)
+      showControlsTemporarily(3500)
     }
   }
 
@@ -1019,31 +1021,29 @@ export default function ProtectedVideoPlayer({
       aria-label="Lecture Video Player"
     >
 
-      {/* ─── 16:9 VIDEO CANVAS: FULL-BLEED, ZERO PERMANENT BLACK BARS ───────── */}
+      {/* ─── 16:9 VIDEO CANVAS: FULL-BLEED, TRUE NATURAL 16:9 RATIO ─────────── */}
       <div
         ref={videoCanvasRef}
-        className="relative w-full h-full aspect-video max-w-full max-h-full flex items-center justify-center overflow-hidden bg-black shadow-2xl"
+        className="relative w-full aspect-video max-w-full max-h-full flex items-center justify-center overflow-hidden bg-black shadow-2xl"
+        style={{ aspectRatio: '16 / 9' }}
       >
 
-        {/* ─── LAYER 0: UNDERLYING YOUTUBE IFRAME WITH SMART MICRO-OVERSCAN ───── */}
-        {/* Scale 1.12 + translateY(-2%) gently pushes YouTube's top title bar and */}
-        {/* bottom logo outside the visible clipping area, leaving 100% of the     */}
-        {/* blackboard video completely visible with ZERO solid black slabs!       */}
+        {/* ─── LAYER 0: UNDERLYING YOUTUBE IFRAME (1:1 UNSTRETCHED & UNCROPPED) ── */}
         <div
           ref={iframeContainerRef}
           aria-hidden="true"
           className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-hidden bg-black flex items-center justify-center"
-          style={{
-            transform: 'scale(1.12) translateY(-2%)',
-            transformOrigin: 'center center'
-          }}
+          style={{ transform: 'none' }}
         />
 
         {/* ─── LAYER 1: TRANSPARENT TOUCH-BLOCKING SHIELD (z-20) ──────────────── */}
         <div
           aria-hidden="true"
           className="absolute inset-0 z-20 w-full h-full pointer-events-auto cursor-pointer"
-          onClick={(e) => handleShieldTap(e.clientX, e.clientY)}
+          onClick={(e) => {
+            if (Date.now() - (lastTouchTimeRef.current || 0) < 500) return
+            handleShieldTap(e.clientX, e.clientY)
+          }}
           onMouseDown={() => {
             if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
             longPressTimerRef.current = setTimeout(startLongPress2x, 350)
@@ -1058,6 +1058,19 @@ export default function ProtectedVideoPlayer({
           onContextMenu={(e) => e.preventDefault()}
           onAuxClick={(e) => e.preventDefault()}
         />
+
+        {/* ─── CENTER PLAY/PAUSE TAP PULSE HUD ─────────────────────────────────── */}
+        {centerFeedback && (
+          <div className="absolute inset-0 z-28 pointer-events-none flex items-center justify-center animate-fade-in">
+            <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white border border-white/20 shadow-2xl">
+              {centerFeedback.type === 'play' ? (
+                <Play className="h-6 w-6 sm:h-7 sm:w-7 text-white fill-current ml-0.5" />
+              ) : (
+                <Pause className="h-6 w-6 sm:h-7 sm:w-7 text-white fill-current" />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ─── SUBTLE BOTTOM-RIGHT THOUGHTFUL'S ACADEMY BRAND EMBLEM (z-22) ────── */}
         {/* Unobtrusive, delicate TV-network watermark bug at bottom right corner  */}
@@ -1137,27 +1150,6 @@ export default function ProtectedVideoPlayer({
           </div>
         )}
 
-        {/* ─── INITIAL PLAY SPLASH (CONCEALS RAW YOUTUBE THUMBNAIL) ────────────── */}
-        {!isPlaying && currentTime === 0 && !hasError && (
-          <div className="absolute inset-0 z-27 bg-black/70 backdrop-blur-2xs flex flex-col items-center justify-center p-4 text-center space-y-2.5 pointer-events-auto">
-            <div className="space-y-0.5 max-w-sm">
-              {subject && (
-                <span className="text-[9px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 rounded-md inline-block">
-                  {subject}
-                </span>
-              )}
-              <h3 className="text-xs sm:text-sm font-bold text-white leading-tight truncate px-2">
-                {title}
-              </h3>
-            </div>
-            <button
-              onClick={togglePlayPause}
-              className="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-2xl cursor-pointer border-2 border-indigo-300/40 transition-transform group"
-            >
-              <Play className="h-6 w-6 sm:h-7 sm:w-7 text-white fill-current ml-0.5 group-hover:scale-110 transition-transform" />
-            </button>
-          </div>
-        )}
 
         {/* ─── ERROR STATE ────────────────────────────────────────────────────── */}
         {hasError && (
@@ -1270,88 +1262,39 @@ export default function ProtectedVideoPlayer({
           }`}
         >
 
-          {/* 1. TOP FLOATING GRADIENT HEADER (COMPACT, TRANSLUCENT) ───────────── */}
-          <div className={`h-10 sm:h-12 bg-gradient-to-b from-black/85 via-black/40 to-transparent px-3 sm:px-4 flex items-center justify-between gap-2 ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-            <div className="flex items-center gap-2 min-w-0 flex-1">
+          {/* 1. TOP FLOATING BAR (CLEAN, ZERO TITLE OVERLAP, SHIELD BADGE ONLY) ── */}
+          <div className={`h-9 sm:h-10 px-2.5 sm:px-3.5 flex items-center justify-between gap-2 pointer-events-none`}>
+            <div className="flex items-center gap-2 min-w-0">
               {isFullscreen && (
                 <button
                   onClick={onToggleFullscreen}
                   aria-label="Exit Fullscreen"
-                  className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+                  className="p-1 sm:p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white transition-all cursor-pointer pointer-events-auto backdrop-blur-xs border border-white/15 shadow-sm"
                   title="Exit Fullscreen (Esc)"
                 >
                   <Minimize2 className="h-3.5 w-3.5" />
                 </button>
               )}
-
-              {subject && (
-                <span className="text-[9px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/20 border border-amber-400/30 px-1.5 py-0.5 rounded shrink-0">
-                  {subject}
-                </span>
-              )}
-
-              <h2 className="text-xs sm:text-sm font-semibold text-white/95 truncate drop-shadow-sm">
-                {title}
-              </h2>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> Protected
-              </span>
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto pointer-events-auto">
+              <div
+                className="p-1 sm:p-1.5 rounded-full bg-black/50 border border-emerald-500/30 text-emerald-400 backdrop-blur-xs shadow-xs"
+                title="Protected Lecture Stream"
+                aria-label="Protected Video Stream"
+              >
+                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400" />
+              </div>
             </div>
           </div>
 
-          {/* 2. CENTER STAGE CONTROLS (COMPACT FROSTED GLASS) ─────────────────── */}
-          <div className={`flex items-center justify-center gap-4 sm:gap-6 my-auto ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-            {/* Skip -10s */}
-            <button
-              onClick={(e) => { e.stopPropagation(); seekRelative(-10) }}
-              aria-label="Seek backward 10 seconds"
-              className="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white/90 hover:text-white transition-all active:scale-90 border border-white/15 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer group shadow-lg"
-            >
-              <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5 group-hover:-rotate-12 transition-transform" />
-              <span className="text-[7.5px] sm:text-[8px] font-black tracking-tighter mt-0.5">10s</span>
-            </button>
-
-            {/* Play / Pause */}
-            {isBuffering ? (
-              <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-black/50 border-2 border-indigo-400 border-t-transparent animate-spin flex items-center justify-center backdrop-blur-md" />
-            ) : isEnded ? (
-              <button
-                onClick={(e) => { e.stopPropagation(); togglePlayPause() }}
-                aria-label="Replay lecture"
-                className="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-amber-300/40"
-              >
-                <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              </button>
-            ) : (
-              <button
-                onClick={(e) => { e.stopPropagation(); togglePlayPause() }}
-                aria-label={isPlaying ? 'Pause lecture' : 'Play lecture'}
-                className="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-black/50 hover:bg-indigo-600 text-white flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/25 backdrop-blur-md"
-              >
-                {isPlaying ? (
-                  <Pause className="h-5 w-5 sm:h-6 sm:w-6 text-white fill-current" />
-                ) : (
-                  <Play className="h-5 w-5 sm:h-6 sm:w-6 text-white fill-current ml-0.5" />
-                )}
-              </button>
-            )}
-
-            {/* Skip +10s */}
-            <button
-              onClick={(e) => { e.stopPropagation(); seekRelative(10) }}
-              aria-label="Seek forward 10 seconds"
-              className="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white/90 hover:text-white transition-all active:scale-90 border border-white/15 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer group shadow-lg"
-            >
-              <RotateCw className="h-4 w-4 sm:h-5 sm:w-5 group-hover:rotate-12 transition-transform" />
-              <span className="text-[7.5px] sm:text-[8px] font-black tracking-tighter mt-0.5">10s</span>
-            </button>
-          </div>
+          {/* 2. BUFFERING SPINNER (WHEN LOADING) ─────────────────────────────────── */}
+          {isBuffering && (
+            <div className="my-auto self-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin flex items-center justify-center backdrop-blur-xs pointer-events-none" />
+          )}
 
           {/* 3. BOTTOM FLOATING BAR (TRANSLUCENT GRADIENT OVERLAY) ────────────── */}
-          <div className={`pt-4 pb-2.5 px-3.5 sm:px-4.5 pr-4 sm:pr-5 bg-gradient-to-t from-black/90 via-black/40 to-transparent space-y-1 ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+          <div className={`pt-3 pb-2 px-2 sm:px-3 bg-gradient-to-t from-black/90 via-black/40 to-transparent space-y-1 ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}>
 
             {/* Progress Bar */}
             <div
@@ -1401,10 +1344,10 @@ export default function ProtectedVideoPlayer({
                   aria-label={isPlaying ? 'Pause' : 'Play'}
                   className="p-1 rounded text-white hover:bg-white/20 transition-all cursor-pointer"
                 >
-                  {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+                  {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current ml-0.5" />}
                 </button>
 
-                <div className="text-[10px] font-mono text-slate-200 select-none tracking-tight shrink-0">
+                <div className="text-[9px] sm:text-[10px] font-mono text-slate-200 select-none tracking-tight shrink-0">
                   <span>{formatTime(currentTime)}</span>
                   <span className="text-slate-400 mx-0.5">/</span>
                   <span className="text-slate-400">{formatTime(duration)}</span>
@@ -1438,12 +1381,12 @@ export default function ProtectedVideoPlayer({
               </div>
 
               {/* Right Controls */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
 
                 {/* View Board Mode (Single click to hide all controls and inspect blackboard) */}
                 <button
                   onClick={handleToggleCleanView}
-                  className={`p-1 rounded transition-all cursor-pointer ${
+                  className={`p-0.5 sm:p-1 rounded transition-all cursor-pointer ${
                     cleanView ? 'text-indigo-400 bg-white/20' : 'text-slate-300 hover:text-white hover:bg-white/15'
                   }`}
                   title={cleanView ? 'Exit Clean Board View' : 'View clean board (Hide controls for notes & screenshots)'}
@@ -1455,7 +1398,7 @@ export default function ProtectedVideoPlayer({
                 {/* Screen Lock */}
                 <button
                   onClick={handleLockScreen}
-                  className="p-1 rounded text-slate-300 hover:text-white hover:bg-white/15 transition-all cursor-pointer"
+                  className="p-0.5 sm:p-1 rounded text-slate-300 hover:text-white hover:bg-white/15 transition-all cursor-pointer"
                   title="Lock controls against accidental touches"
                   aria-label="Lock controls"
                 >
@@ -1464,11 +1407,11 @@ export default function ProtectedVideoPlayer({
 
                 {/* Playlist Prev / Next */}
                 {isPlaylist && (
-                  <div className="flex items-center gap-0.5 border-r border-white/20 pr-1">
+                  <div className="flex items-center gap-0.5 border-r border-white/20 pr-0.5 sm:pr-1">
                     <button
                       disabled={activeVideoIndex === 0}
                       onClick={handleSafePrev}
-                      className="p-1 rounded text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      className="p-0.5 sm:p-1 rounded text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       title="Previous Lecture"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
@@ -1476,7 +1419,7 @@ export default function ProtectedVideoPlayer({
                     <button
                       disabled={playlistItems.length > 0 && activeVideoIndex >= playlistItems.length - 1}
                       onClick={handleSafeNext}
-                      className="p-1 rounded text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      className="p-0.5 sm:p-1 rounded text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       title="Next Lecture"
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
@@ -1492,7 +1435,7 @@ export default function ProtectedVideoPlayer({
                       setShowSpeedMenu(prev => !prev)
                       setShowQualityMenu(false)
                     }}
-                    className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[10px] font-mono font-bold border border-white/10 cursor-pointer"
+                    className="px-1 sm:px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] sm:text-[10px] font-mono font-bold border border-white/10 cursor-pointer"
                   >
                     {playbackRate}x
                   </button>
@@ -1528,13 +1471,14 @@ export default function ProtectedVideoPlayer({
                       setShowQualityMenu(prev => !prev)
                       setShowSpeedMenu(false)
                     }}
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border cursor-pointer ${
+                    className={`px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold border cursor-pointer ${
                       selectedQuality === '480p'
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                         : 'bg-white/10 hover:bg-white/20 text-slate-200 border-white/10'
                     }`}
                   >
-                    {currentQualityObj.badge}
+                    <span className="sm:hidden">{currentQualityObj.short}</span>
+                    <span className="hidden sm:inline">{currentQualityObj.badge}</span>
                   </button>
 
                   {showQualityMenu && (
@@ -1568,7 +1512,7 @@ export default function ProtectedVideoPlayer({
                   <button
                     onClick={(e) => { e.stopPropagation(); onToggleFullscreen() }}
                     aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                    className="p-1 sm:p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer shrink-0 ml-0.5 mr-1 sm:mr-1.5 shadow-xs border border-white/10"
+                    className="p-1 sm:p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer shrink-0 ml-0.5 shadow-xs border border-white/10"
                     title={isFullscreen ? 'Exit Fullscreen' : 'Cinema Fullscreen'}
                   >
                     {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-amber-400" /> : <Maximize2 className="h-3.5 w-3.5" />}

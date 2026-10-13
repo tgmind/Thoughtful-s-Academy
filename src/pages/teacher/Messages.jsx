@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Send, ArrowLeft, MessageCircle, Search, Check, CheckCheck, X, Megaphone, Users, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -52,6 +53,7 @@ function groupBroadcastMessages(msgs) {
 
 export default function TeacherMessages() {
   const { user } = useAuth()
+  const location = useLocation()
 
   // Mode toggle
   const [mode, setMode] = useState('direct') // 'direct' | 'broadcast'
@@ -100,6 +102,21 @@ export default function TeacherMessages() {
         setLoading(false)
       })
   }, [user])
+
+  // Auto-select contact if query param ?student= or ?contact= is passed in URL
+  useEffect(() => {
+    if (contacts.length === 0) return
+    const params = new URLSearchParams(location.search)
+    const targetId = params.get('student') || params.get('contact')
+    if (targetId) {
+      const found = contacts.find((c) => c.id === targetId)
+      if (found) {
+        setMode('direct')
+        setSelected(found)
+        setShowList(false)
+      }
+    }
+  }, [contacts, location.search])
 
   // Load teacher's own batches for broadcast
   useEffect(() => {

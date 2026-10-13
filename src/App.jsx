@@ -29,6 +29,7 @@ const PayFee               = lazy(() => import('./pages/student/PayFee'))
 const StudentNotifications = lazy(() => import('./pages/student/Notifications'))
 const StudentLiveClass     = lazy(() => import('./pages/student/LiveClass'))
 const StudentHomework      = lazy(() => import('./pages/student/Homework'))
+const StudentDoubts        = lazy(() => import('./pages/student/StudentDoubts'))
 
 // Lazy-loaded Teacher Pages & Layout
 const TeacherLayout        = lazy(() => import('./pages/teacher/TeacherLayout'))
@@ -40,6 +41,7 @@ const SalaryStatus          = lazy(() => import('./pages/teacher/SalaryStatus'))
 const TeacherNotifications  = lazy(() => import('./pages/teacher/Notifications'))
 const TeacherFeeRecords     = lazy(() => import('./pages/teacher/FeeRecords'))
 const TeacherHomework       = lazy(() => import('./pages/teacher/Homework'))
+const TeacherDoubts         = lazy(() => import('./pages/teacher/TeacherDoubts'))
 
 // Lazy-loaded Admin Pages & Layout
 const AdminLayout       = lazy(() => import('./pages/admin/AdminLayout'))
@@ -55,6 +57,7 @@ const Announcements     = lazy(() => import('./pages/admin/Announcements'))
 const AdminMessages     = lazy(() => import('./pages/admin/AdminMessages'))
 const Analytics         = lazy(() => import('./pages/admin/Analytics'))
 const AdminSettings     = lazy(() => import('./pages/admin/AdminSettings'))
+const AdminDoubts       = lazy(() => import('./pages/admin/AdminDoubts'))
 
 
 export default function App() {
@@ -103,6 +106,7 @@ export default function App() {
               <Route path="dashboard"     element={<StudentDashboard />}     />
               <Route path="attendance"    element={<Attendance />}           />
               <Route path="study"         element={<StudySection />}         />
+              <Route path="doubts"        element={<StudentDoubts />}        />
               <Route path="homework"      element={<StudentHomework />}       />
               <Route path="messages"      element={<StudentMessages />}      />
               <Route path="pay-fee"       element={<PayFee />}               />
@@ -118,6 +122,7 @@ export default function App() {
               <Route path="dashboard"     element={<TeacherHome />}            />
               <Route path="study"         element={<TeacherStudySection />}    />
               <Route path="study-cards"   element={<TeacherStudySection />}    />
+              <Route path="doubts"        element={<TeacherDoubts />}          />
               <Route path="homework"      element={<TeacherHomework />}         />
               <Route path="live-class"    element={<TeacherLiveClass />}        />
               <Route path="messages"      element={<TeacherMessages />}         />
@@ -139,6 +144,7 @@ export default function App() {
               <Route path="batch-details" element={<AdminBatchDetails />}               />
               <Route path="study"         element={<TeacherStudySection isAdmin={true} />} />
               <Route path="study-cards"   element={<TeacherStudySection isAdmin={true} />} />
+              <Route path="doubts"        element={<AdminDoubts />}                     />
               <Route path="homework"      element={<TeacherHomework  isAdmin={true} />}  />
               <Route path="live-class"    element={<TeacherLiveClass isAdmin={true} />}  />
               <Route path="qr"            element={<QRManager />}                       />
