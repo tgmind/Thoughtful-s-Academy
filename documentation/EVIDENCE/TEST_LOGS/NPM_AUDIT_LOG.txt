@@ -1,0 +1,79 @@
+================================================================================
+AUDIT EXECUTION LOG: NPM SECURITY AUDIT
+Command: npm audit
+Environment: npm v10+, Node.js Linux x86_64
+Timestamp: 2026-10-13T14:20:27Z
+Exit Code: 1
+Status: VULNERABILITIES DETECTED (19 total: 6 Moderate, 13 High)
+================================================================================
+
+# npm audit report
+
+brace-expansion  <=2.0.1
+Severity: high
+brace-expansion: DoS via unbounded expansion length causing process crash - https://github.com/advisories/GHSA-mh99-v99m-4gvg
+brace-expansion: DoS via unbounded intermediate arrays - https://github.com/advisories/GHSA-rgw5-rvv9-x895
+brace-expansion: Quadratic-time expansion causes CPU denial of service - https://github.com/advisories/GHSA-q2hr-2g5m-vwhr
+brace-expansion: DoS via uncontrolled recursion on nested brace groups - https://github.com/advisories/GHSA-qhr7-859c-m2p7
+node_modules/brace-expansion
+
+braces  <=3.0.2
+Severity: high
+braces vulnerable to stack-exhaustion denial of service - https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+node_modules/braces
+  chokidar  2.0.0 - 3.6.0
+  node_modules/chokidar
+    tailwindcss  <=3.4.19
+    node_modules/tailwindcss
+
+browserslist  <=4.28.6
+Severity: high
+Browserslist: Unbounded memory growth via distinct query results - https://github.com/advisories/GHSA-c83g-rgw3-j3cx
+node_modules/browserslist
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send requests to dev server - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+node_modules/esbuild
+  vite  <=6.4.2
+  node_modules/vite
+
+fast-uri  3.0.0 - 3.1.7
+Severity: high
+fast-uri vulnerable to host confusion and SSRF - https://github.com/advisories/GHSA-v2hh-gcrm-f6hx
+node_modules/fast-uri
+
+js-yaml  4.0.0 - 4.3.1
+Severity: high
+js-yaml: YAML merge-key chains force quadratic CPU consumption - https://github.com/advisories/GHSA-52cp-r559-cp3m
+node_modules/js-yaml
+
+nanoid  <=3.3.17
+Severity: high
+nanoid: non-secure generators can loop indefinitely - https://github.com/advisories/GHSA-28wg-ghj8-5hjv
+node_modules/nanoid
+
+postcss  <=8.5.22
+Severity: high
+PostCSS: Path Traversal in sourceMappingURL leads to Arbitrary .map File Disclosure - https://github.com/advisories/GHSA-r28c-9q8g-f849
+node_modules/postcss
+
+postcss-selector-parser  <7.1.6
+Severity: moderate
+PostCSS: Quadratic complexity in flat selector parsing - https://github.com/advisories/GHSA-rj75-hqrm-r3gf
+node_modules/postcss-selector-parser
+
+react-router  6.0.0 - 7.17.0
+Severity: moderate
+React Router: Open redirect via backslash in <Link> and useNavigate - https://github.com/advisories/GHSA-wrjc-x8rr-h8h6
+React Router: Arbitrary Constructor Injection via deserializeErrors() - https://github.com/advisories/GHSA-337j-9hxr-rhxg
+node_modules/react-router
+  react-router-dom  6.0.0-alpha.0 - 7.17.0
+  node_modules/react-router-dom
+
+source-map-js  1.0.0 - 1.2.1
+Severity: high
+source-map-js allows event-loop denial of service - https://github.com/advisories/GHSA-68fv-2mgg-jv7q
+node_modules/source-map-js
+
+19 vulnerabilities (6 moderate, 13 high)

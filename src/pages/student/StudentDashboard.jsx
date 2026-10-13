@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen,
   ClipboardList,
@@ -15,6 +16,11 @@ import {
   Video,
   ArrowRight,
   AlertCircle,
+  Sparkles,
+  GraduationCap,
+  Flame,
+  ChevronRight,
+  ShieldCheck,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -25,208 +31,630 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function getTimeGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+const CACHE_KEY_PREFIX = 'student_dash_cache_v2_'
+
+function getDashboardCache(userId) {
+  if (!userId) return null
+  try {
+    const raw = localStorage.getItem(`${CACHE_KEY_PREFIX}${userId}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    // Cache valid for 24 hours
+    if (Date.now() - (parsed.timestamp || 0) < 1000 * 60 * 60 * 24) {
+      return parsed.data
+    }
+    return null
+  } catch (err) {
+    console.debug('Dashboard cache read error:', err)
+    return null
+  }
+}
+
+function setDashboardCache(userId, data) {
+  if (!userId) return
+  try {
+    localStorage.setItem(
+      `${CACHE_KEY_PREFIX}${userId}`,
+      JSON.stringify({ data, timestamp: Date.now() })
+    )
+  } catch (err) {
+    console.debug('Dashboard cache write error:', err)
+  }
+}
+
+function updateDashboardLiveCache(userId, liveClassData) {
+  if (!userId) return
+  try {
+    const raw = localStorage.getItem(`${CACHE_KEY_PREFIX}${userId}`)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.data) {
+        parsed.data.liveClassData = liveClassData
+        if (parsed.data.stats) {
+          parsed.data.stats.live = !!(liveClassData && liveClassData.is_active !== false)
+        }
+        parsed.timestamp = Date.now()
+        localStorage.setItem(`${CACHE_KEY_PREFIX}${userId}`, JSON.stringify(parsed))
+      }
+    }
+  } catch (err) {
+    console.debug('Dashboard cache live update error:', err)
+  }
+}
+
+function calculateStreak(attendanceRecords) {
+  if (!attendanceRecords || attendanceRecords.length === 0) return 0
+  const statusMap = {}
+  attendanceRecords.forEach(r => {
+    if (r.date && r.status) statusMap[r.date] = r.status
+  })
+  const today = todayISO()
+  let streak = 0
+  const [cy, cm, cd] = today.split('-').map(Number)
+  const check = new Date(cy, cm - 1, cd)
+  // If today isn't marked yet, test starting from yesterday so streak doesn't falsely reset before student marks today
+  if (!statusMap[today]) {
+    check.setDate(check.getDate() - 1)
+  }
+  while (true) {
+    const ds = `${check.getFullYear()}-${String(check.getMonth() + 1).padStart(2, '0')}-${String(check.getDate()).padStart(2, '0')}`
+    if (statusMap[ds] === 'present' || statusMap[ds] === 'late') {
+      streak++
+      check.setDate(check.getDate() - 1)
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
+// Circular SVG Attendance Progress Gauge
+function AttendanceGauge({ percentage, size = 96, strokeWidth = 8 }) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const clampedPct = Math.min(100, Math.max(0, percentage || 0))
+  const strokeDashoffset = circumference - (clampedPct / 100) * circumference
+
+  let strokeColor = '#10b981' // emerald >= 75%
+  if (clampedPct < 50) {
+    strokeColor = '#f43f5e' // rose < 50%
+  } else if (clampedPct < 75) {
+    strokeColor = '#f59e0b' // amber < 75%
+  }
+
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg className="w-full h-full -rotate-90 transform" viewBox={`0 0 ${size} ${size}`}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="transparent"
+          stroke="rgba(255, 255, 255, 0.12)"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="transparent"
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-xl sm:text-2xl font-black font-display leading-none tracking-tight text-white">
+          {clampedPct}<span className="text-xs font-semibold">%</span>
+        </span>
+        <span className="text-[10px] uppercase font-bold tracking-wider text-blue-200/80 mt-0.5">Rate</span>
+      </div>
+    </div>
+  )
+}
+
 export default function StudentDashboard() {
   const { profile, user } = useAuth()
-  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, pending_fees: 0, unread: 0, live: false })
-  const [notifications, setNotifications] = useState([])
-  const [recentHomework, setRecentHomework] = useState([])
-  const [recentStudyCards, setRecentStudyCards] = useState([])
-  const [liveClassData, setLiveClassData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [showPopup, setShowPopup]   = useState(false)
-  const [confirm,   setConfirm]     = useState(null)
-  const [marking,   setMarking]     = useState(null)
-  const [clearing,  setClearing]    = useState(false)
-  const [liveDismissed, setLiveDismissed] = useState(false)
-  const [trialEndsAt, setTrialEndsAt] = useState(null)
-  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false)
-  const batchIdRef = useRef(null)
-  const cancelledRef = useRef(false)
 
-  useEffect(() => {
-    if (!user) return
-    const load = async () => {
-      try {
-        const [attRes, feeRes, msgRes, todayRes, spRes] = await Promise.all([
-          supabase.from('attendance').select('status').eq('student_id', user.id),
-          supabase.from('fee_records').select('id, amount').eq('student_id', user.id).eq('status', 'pending'),
-          supabase.from('messages').select('id').eq('receiver_id', user.id).eq('is_read', false),
-          supabase.from('attendance').select('id').eq('student_id', user.id).eq('date', todayISO()).maybeSingle(),
-          supabase.from('student_profiles').select('batch_id, trial_ends_at').eq('id', user.id).maybeSingle(),
-        ])
-        if (cancelledRef.current) return
-        const batchId = spRes.data?.batch_id ?? null
-        batchIdRef.current = batchId
-        setTrialEndsAt(spRes.data?.trial_ends_at ?? null)
+  // SWR: Synchronously read cached data if available for 0ms initial render
+  const initialCache = useMemo(() => getDashboardCache(user?.id), [user?.id])
 
-        let notifQ = supabase.from('notifications').select('id, title, body, type, created_at')
-          .eq('is_active', true).or('target_role.eq.student,target_role.eq.all')
-          .order('created_at', { ascending: false }).limit(5)
-        if (batchId) notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${batchId}`)
-        else         notifQ = notifQ.is('target_batch_id', null)
+  const initialLiveActive = !!(initialCache?.liveClassData && initialCache.liveClassData.is_active !== false)
 
-        let liveQ = supabase.from('live_classes').select('id, title').eq('is_active', true).order('created_at', { ascending: false }).limit(1)
-        if (batchId) liveQ = liveQ.or(`batch_id.is.null,batch_id.eq.${batchId}`)
-        else         liveQ = liveQ.is('batch_id', null)
-
-        let hwQ = batchId
-          ? supabase.from('homework').select('id, title, due_date, created_at').eq('batch_id', batchId).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
-          : Promise.resolve({ data: [] })
-
-        let studyQ = batchId
-          ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${batchId}},batch_id.eq.${batchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
-          : Promise.resolve({ data: [] })
-
-        const [notifRes, readRes, liveRes, hwRes, studyRes] = await Promise.all([
-          notifQ,
-          supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
-          liveQ,
-          hwQ,
-          studyQ,
-        ])
-        if (cancelledRef.current) return
-
-        const readSet = new Set((readRes.data ?? []).map(r => r.notification_id))
-        const att = attRes.data ?? []
-        const activeLive = liveRes.data?.[0] ?? null
-        setLiveClassData(activeLive)
-
-        setStats({
-          present: att.filter(a => a.status === 'present').length,
-          late:    att.filter(a => a.status === 'late').length,
-          absent:  att.filter(a => a.status === 'absent').length,
-          pending_fees: feeRes.data?.length ?? 0,
-          unread:  msgRes.data?.length ?? 0,
-          live:    !!activeLive,
-        })
-
-        setNotifications((notifRes.data ?? []).filter(n => !readSet.has(n.id)))
-        setRecentHomework(hwRes.data ?? [])
-        setRecentStudyCards(studyRes.data ?? [])
-
-        if (!todayRes.error && !todayRes.data) setShowPopup(true)
-      } catch (err) {
-        console.error('Failed to load student dashboard:', err)
-      } finally {
-        if (!cancelledRef.current) setLoading(false)
-      }
+  const [stats, setStats] = useState(() => {
+    const base = initialCache?.stats ?? {
+      present: 0,
+      absent: 0,
+      late: 0,
+      pending_fees: 0,
+      unread: 0,
+      live: false,
+      streak: 0,
+      pct: 0,
     }
-    load()
-    return () => { cancelledRef.current = true }
-  }, [user])
+    return {
+      ...base,
+      live: initialLiveActive,
+    }
+  })
+  const [batchId, setBatchId] = useState(() => initialCache?.batchId ?? null)
+  const [batchName, setBatchName] = useState(() => initialCache?.batchName ?? null)
+  const [trialEndsAt, setTrialEndsAt] = useState(() => initialCache?.trialEndsAt ?? null)
+  const [notifications, setNotifications] = useState(() => initialCache?.notifications ?? [])
+  const [recentHomework, setRecentHomework] = useState(() => initialCache?.recentHomework ?? [])
+  const [recentStudyCards, setRecentStudyCards] = useState(() => initialCache?.recentStudyCards ?? [])
+  const [liveClassData, setLiveClassData] = useState(() => initialLiveActive ? initialCache.liveClassData : null)
+  const [todayAttendance, setTodayAttendance] = useState(() => initialCache?.todayAttendance ?? null)
 
-  // Realtime + Fast 4s Polling Fallback: keep dashboard 100% updated instantly without page refresh
+  // Only start in loading state if there is no cache
+  const [loading, setLoading] = useState(() => !initialCache)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Interactive UI states
+  const [showPopup, setShowPopup] = useState(false)
+  const [confirm, setConfirm] = useState(null)
+  const [marking, setMarking] = useState(null)
+  const [clearing, setClearing] = useState(false)
+  const [liveDismissed, setLiveDismissed] = useState(false)
+  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false)
+
+  const requestIdRef = useRef(0)
+  const batchIdRef = useRef(batchId)
+
+  // Keep batchIdRef synchronized
   useEffect(() => {
+    batchIdRef.current = batchId
+  }, [batchId])
+
+  // Dedicated, fast ~30ms direct live class query for instant synchronization
+  const fetchLiveClassDirect = useCallback(async (explicitBatchId) => {
+    if (!user?.id) return null
+    const bId = explicitBatchId !== undefined ? explicitBatchId : batchIdRef.current
+    try {
+      let liveQ = supabase.from('live_classes')
+        .select('id, title, platform, join_url, password, scheduled_at, is_active, batch_id, teacher_id, profiles!teacher_id(full_name)')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (bId) {
+        liveQ = liveQ.or(`batch_id.is.null,batch_id.eq.${bId}`)
+      } else {
+        liveQ = liveQ.is('batch_id', null)
+      }
+
+      const { data, error } = await liveQ
+      if (error) {
+        console.warn('Error checking live class directly:', error)
+        return null
+      }
+
+      const active = (data && data.length > 0 && data[0].is_active !== false) ? data[0] : null
+      setLiveClassData(active)
+      setStats(prev => (prev.live === !!active ? prev : { ...prev, live: !!active }))
+      if (active) {
+        setLiveDismissed(false)
+      }
+      updateDashboardLiveCache(user.id, active)
+      return active
+    } catch (err) {
+      console.warn('Failed direct live class check:', err)
+      return null
+    }
+  }, [user?.id])
+
+  // ============================================================
+  // Parallel Non-Blocking Data Loader with Cancellation Token
+  // ============================================================
+  const loadDashboardData = useCallback(async (isSilent = false) => {
     if (!user) return
     const uid = user.id
+    const currentReqId = ++requestIdRef.current
 
-    const fetchAllDynamicData = async () => {
-      let bId = batchIdRef.current
-      if (!bId && uid) {
-        const { data: spData } = await supabase.from('student_profiles').select('batch_id').eq('id', uid).maybeSingle()
-        bId = spData?.batch_id ?? null
-        batchIdRef.current = bId
-      }
-      let liveQ = supabase.from('live_classes').select('id, title').eq('is_active', true).order('created_at', { ascending: false }).limit(1)
-      if (bId) liveQ = liveQ.or(`batch_id.is.null,batch_id.eq.${bId}`)
-      else     liveQ = liveQ.is('batch_id', null)
-
-      let hwQ = bId
-        ? supabase.from('homework').select('id, title, due_date, created_at').eq('batch_id', bId).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
-        : Promise.resolve({ data: [] })
-
-      let studyQ = bId
-        ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${bId}},batch_id.eq.${bId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(3)
-        : Promise.resolve({ data: [] })
-
-      const [liveRes, hwRes, studyRes] = await Promise.all([liveQ, hwQ, studyQ])
-
-      const curLive = liveRes.data?.[0] ?? null
-      setLiveClassData(curLive)
-      setStats(s => ({ ...s, live: !!curLive }))
-      if (!curLive) setLiveDismissed(false)
-
-      setRecentHomework(hwRes.data ?? [])
-      setRecentStudyCards(studyRes.data ?? [])
+    if (!isSilent && !initialCache) {
+      setLoading(true)
+    } else {
+      setIsRefreshing(true)
     }
 
-    const refreshUnread = async () => {
+    try {
+      const today = todayISO()
+
+      // Primary phase: fetch student profile and direct records in parallel
+      const [attRes, feeRes, msgRes, todayRes, spRes] = await Promise.allSettled([
+        supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }),
+        supabase.from('fee_records').select('id, amount, status').eq('student_id', uid).eq('status', 'pending'),
+        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('receiver_id', uid).eq('is_read', false),
+        supabase.from('attendance').select('id, status').eq('student_id', uid).eq('date', today).maybeSingle(),
+        supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(name)').eq('id', uid).maybeSingle(),
+      ])
+
+      // Check if this request was superseded by another render or unmounted
+      if (requestIdRef.current !== currentReqId) return
+
+      let currentBatchId = batchIdRef.current
+      let currentBatchName = batchName
+      let currentTrialEnds = trialEndsAt
+
+      if (spRes.status === 'fulfilled' && spRes.value?.data) {
+        const spData = spRes.value.data
+        currentBatchId = spData.batch_id ?? null
+        currentBatchName = spData.batches?.name ?? null
+        currentTrialEnds = spData.trial_ends_at ?? null
+
+        batchIdRef.current = currentBatchId
+        setBatchId(currentBatchId)
+        setBatchName(currentBatchName)
+        setTrialEndsAt(currentTrialEnds)
+      }
+
+      // Secondary phase: Batch-targeted notifications, live classes, homework & study materials
+      let notifQ = supabase.from('notifications')
+        .select('id, title, body, type, created_at')
+        .eq('is_active', true)
+        .or('target_role.eq.student,target_role.eq.all')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (currentBatchId) {
+        notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${currentBatchId}`)
+      } else {
+        notifQ = notifQ.is('target_batch_id', null)
+      }
+
+      let liveQ = supabase.from('live_classes')
+        .select('id, title, platform, join_url, password, scheduled_at, teacher_id, profiles!teacher_id(full_name)')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+      if (currentBatchId) {
+        liveQ = liveQ.or(`batch_id.is.null,batch_id.eq.${currentBatchId}`)
+      } else {
+        liveQ = liveQ.is('batch_id', null)
+      }
+
+      const hwQ = currentBatchId
+        ? supabase.from('homework').select('id, title, due_date, created_at, description').eq('batch_id', currentBatchId).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
+        : Promise.resolve({ data: [] })
+
+      const studyQ = currentBatchId
+        ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${currentBatchId}},batch_id.eq.${currentBatchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
+        : supabase.from('study_cards').select('id, title, subject, type, created_at').eq('is_public', true).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
+
+      const readsQ = supabase.from('notification_reads').select('notification_id').eq('user_id', uid)
+
+      const [notifRes, readRes, liveRes, hwRes, studyRes] = await Promise.allSettled([
+        notifQ,
+        readsQ,
+        liveQ,
+        hwQ,
+        studyQ,
+      ])
+
+      if (requestIdRef.current !== currentReqId) return
+
+      // Extract & calculate attendance stats
+      const attData = (attRes.status === 'fulfilled' && attRes.value?.data) ? attRes.value.data : []
+      const presentCount = attData.filter(a => a.status === 'present').length
+      const lateCount = attData.filter(a => a.status === 'late').length
+      const absentCount = attData.filter(a => a.status === 'absent').length
+      const totalCount = presentCount + lateCount + absentCount
+      const attendancePct = totalCount > 0 ? Math.round(((presentCount + lateCount * 0.5) / totalCount) * 100) : 0
+      const currentStreak = calculateStreak(attData)
+
+      // Today's attendance status
+      const todayRow = (todayRes.status === 'fulfilled' && todayRes.value?.data) ? todayRes.value.data : null
+      const todayStatus = todayRow ? todayRow.status : null
+      setTodayAttendance(todayStatus)
+
+      // Fee records count
+      const feeData = (feeRes.status === 'fulfilled' && feeRes.value?.data) ? feeRes.value.data : []
+      const pendingFeesCount = feeData.length
+
+      // Unread messages count
+      const unreadCount = (msgRes.status === 'fulfilled' && typeof msgRes.value?.count === 'number') ? msgRes.value.count : 0
+
+      // Active live class
+      let activeLive = null
+      if (liveRes.status === 'fulfilled' && liveRes.value?.data?.[0]) {
+        activeLive = liveRes.value.data[0]
+      }
+      setLiveClassData(activeLive)
+      if (activeLive) {
+        setLiveDismissed(false)
+      }
+
+      // Notifications filtering
+      const readSet = new Set(
+        (readRes.status === 'fulfilled' && readRes.value?.data) ? readRes.value.data.map(r => r.notification_id) : []
+      )
+      const rawNotifs = (notifRes.status === 'fulfilled' && notifRes.value?.data) ? notifRes.value.data : []
+      const unreadNotifs = rawNotifs.filter(n => !readSet.has(n.id))
+      setNotifications(unreadNotifs)
+
+      // Homework & Study materials
+      const hwData = (hwRes.status === 'fulfilled' && hwRes.value?.data) ? hwRes.value.data : []
+      const studyData = (studyRes.status === 'fulfilled' && studyRes.value?.data) ? studyRes.value.data : []
+      setRecentHomework(hwData)
+      setRecentStudyCards(studyData)
+
+      const updatedStats = {
+        present: presentCount,
+        late: lateCount,
+        absent: absentCount,
+        pending_fees: pendingFeesCount,
+        unread: unreadCount,
+        live: !!activeLive,
+        streak: currentStreak,
+        pct: attendancePct,
+      }
+      setStats(updatedStats)
+
+      // Save to localStorage cache for 0ms paint on future visits
+      setDashboardCache(uid, {
+        stats: updatedStats,
+        batchId: currentBatchId,
+        batchName: currentBatchName,
+        trialEndsAt: currentTrialEnds,
+        notifications: unreadNotifs,
+        recentHomework: hwData,
+        recentStudyCards: studyData,
+        liveClassData: activeLive,
+        todayAttendance: todayStatus,
+      })
+
+      // If today's attendance has not been marked, trigger the attendance prompt modal
+      if (!todayRow && !todayStatus) {
+        setShowPopup(true)
+      }
+    } catch (err) {
+      console.error('Failed to load student dashboard:', err)
+    } finally {
+      if (requestIdRef.current === currentReqId) {
+        setLoading(false)
+        setIsRefreshing(false)
+      }
+    }
+  }, [user, initialCache, batchName, trialEndsAt])
+
+  // Lifecycle effect: safely runs on mount/auth update with no persistent cancelledRef trap
+  useEffect(() => {
+    loadDashboardData()
+  }, [user?.id, loadDashboardData])
+
+  // ============================================================
+  // Realtime synchronization via Supabase channels
+  // ============================================================
+  useEffect(() => {
+    if (!user?.id) return
+    const uid = user.id
+    let isSubscribed = true
+
+    // Targeted, isolated refetches to avoid 11-query thundering herd on every single table event
+    const debounceTimers = {}
+    const debounce = (key, fn, delay = 250) => {
+      clearTimeout(debounceTimers[key])
+      debounceTimers[key] = setTimeout(() => {
+        if (isSubscribed) fn()
+      }, delay)
+    }
+
+    const syncNotifications = () => debounce('notif', async () => {
+      const curBatch = batchIdRef.current
+      let notifQ = supabase.from('notifications')
+        .select('id, title, body, type, created_at')
+        .eq('is_active', true)
+        .or('target_role.eq.student,target_role.eq.all')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (curBatch) {
+        notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${curBatch}`)
+      } else {
+        notifQ = notifQ.is('target_batch_id', null)
+      }
+      const { data } = await notifQ
+      if (isSubscribed && data) setNotifications(data)
+    })
+
+    const syncHomework = () => debounce('hw', async () => {
+      const curBatch = batchIdRef.current
+      if (!curBatch) return
+      const { data } = await supabase.from('homework')
+        .select('id, title, due_date, created_at, description')
+        .eq('batch_id', curBatch)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(4)
+      if (isSubscribed && data) setRecentHomework(data)
+    })
+
+    const syncStudyCards = () => debounce('study', async () => {
+      const curBatch = batchIdRef.current
+      if (!curBatch) return
+      const { data } = await supabase.from('study_cards')
+        .select('id, title, subject, type, created_at')
+        .or(`batch_ids.cs.{${curBatch}},batch_id.eq.${curBatch}`)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(4)
+      if (isSubscribed && data) setRecentStudyCards(data)
+    })
+
+    const syncMessages = () => debounce('msg', async () => {
       const { count } = await supabase.from('messages')
         .select('id', { count: 'exact', head: true })
-        .eq('receiver_id', uid).eq('is_read', false)
-      setStats(s => ({ ...s, unread: count ?? 0 }))
-    }
+        .eq('receiver_id', uid)
+        .eq('is_read', false)
+      if (isSubscribed && count !== null && count !== undefined) {
+        setStats(s => ({ ...s, unreadMsg: count }))
+      }
+    })
 
-    const refreshFees = async () => {
-      const { count } = await supabase.from('fee_records')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', uid).eq('status', 'pending')
-      setStats(s => ({ ...s, pending_fees: count ?? 0 }))
+    const syncFees = () => debounce('fees', async () => {
+      const { data } = await supabase.from('fee_records')
+        .select('id, amount, status')
+        .eq('student_id', uid)
+        .eq('status', 'pending')
+      if (isSubscribed && data) {
+        const isPending = data.length > 0
+        const pendingAmount = data.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+        setStats(s => ({ ...s, feesPaid: !isPending, pendingFeeAmount: pendingAmount }))
+      }
+    })
+
+    const syncAttendance = () => debounce('att', async () => {
+      const today = todayISO()
+      const [attRes, todayRes] = await Promise.allSettled([
+        supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }),
+        supabase.from('attendance').select('id, status').eq('student_id', uid).eq('date', today).maybeSingle()
+      ])
+      if (isSubscribed) {
+        if (todayRes.status === 'fulfilled') {
+          setTodayAttendance(todayRes.value.data?.status ?? null)
+        }
+        if (attRes.status === 'fulfilled' && attRes.value.data) {
+          const list = attRes.value.data
+          const total = list.length
+          const present = list.filter(a => a.status === 'present' || a.status === 'late').length
+          const pct = total > 0 ? Math.round((present / total) * 100) : 100
+          setStats(s => ({ ...s, attendance: pct }))
+        }
+      }
+    })
+
+    // Light 60s fallback heartbeat (WebSockets handle instant push updates)
+    const liveHeartbeat = setInterval(() => {
+      if (isSubscribed && document.visibilityState === 'visible') {
+        fetchLiveClassDirect()
+      }
+    }, 60000)
+
+    // Immediate sync on tab resume or window focus
+    const onFocusSync = () => {
+      if (document.visibilityState === 'visible' && isSubscribed) {
+        fetchLiveClassDirect()
+      }
     }
+    document.addEventListener('visibilitychange', onFocusSync)
+    window.addEventListener('focus', onFocusSync)
 
     const channel = supabase
       .channel(`student_dash_sync_${uid}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' }, fetchAllDynamicData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'homework' }, fetchAllDynamicData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_cards' }, fetchAllDynamicData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${uid}` }, refreshUnread)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${uid}` }, refreshFees)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, async () => {
-        const bId = batchIdRef.current
-        let notifQ = supabase.from('notifications').select('id, title, body, type, created_at')
-          .eq('is_active', true).or('target_role.eq.student,target_role.eq.all')
-          .order('created_at', { ascending: false }).limit(5)
-        if (bId) notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${bId}`)
-        else     notifQ = notifQ.is('target_batch_id', null)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' }, (payload) => {
+        if (!isSubscribed) return
+        const { eventType, new: newRow } = payload || {}
 
-        const [notifRes, readRes] = await Promise.all([
-          notifQ,
-          supabase.from('notification_reads').select('notification_id').eq('user_id', uid)
-        ])
-        const readSet = new Set((readRes.data ?? []).map(r => r.notification_id))
-        setNotifications((notifRes.data ?? []).filter(n => !readSet.has(n.id)))
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          fetchAllDynamicData()
+        // Instant 0ms clear on class ended or deleted
+        if (eventType === 'DELETE' || (newRow && newRow.is_active === false)) {
+          setLiveClassData(null)
+          setStats(s => ({ ...s, live: false }))
+          updateDashboardLiveCache(uid, null)
+          return
         }
-      })
 
-    // Remove the aggressive 4-second polling — realtime handles all updates
-    // If realtime subscription fails, a single fetchAllDynamicData() fires on SUBSCRIBED status above
+        // Instant 0ms optimistic activate on class start
+        if (newRow && newRow.is_active) {
+          const curBatch = batchIdRef.current
+          if (!newRow.batch_id || !curBatch || newRow.batch_id === curBatch) {
+            setLiveDismissed(false)
+            setStats(s => ({ ...s, live: true }))
+            setLiveClassData(prev => ({ ...(prev || {}), ...newRow }))
+            updateDashboardLiveCache(uid, newRow)
+          }
+        }
+
+        // Follow up with direct lightweight query for complete relations (teacher full_name)
+        fetchLiveClassDirect()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'homework' }, syncHomework)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_cards' }, syncStudyCards)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${uid}` }, syncMessages)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${uid}` }, syncFees)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${uid}` }, syncAttendance)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, syncNotifications)
+      .subscribe()
 
     return () => {
-      cancelledRef.current = true
+      isSubscribed = false
+      Object.values(debounceTimers).forEach(clearTimeout)
+      clearInterval(liveHeartbeat)
+      document.removeEventListener('visibilitychange', onFocusSync)
+      window.removeEventListener('focus', onFocusSync)
       supabase.removeChannel(channel)
     }
-  }, [user])
+  }, [user?.id, loadDashboardData, fetchLiveClassDirect])
 
+  // ============================================================
+  // Attendance Marking Handler
+  // ============================================================
   const markAttendance = async (status) => {
     setMarking(status)
+    const today = todayISO()
     const { data, error } = await supabase.from('attendance').insert({
-      student_id: user.id, date: todayISO(), status, marked_by: user.id,
+      student_id: user.id,
+      date: today,
+      status,
+      marked_by: user.id,
     }).select().maybeSingle()
+
     if (error) {
       if (error.code === '23505') {
         toast.error('Attendance already marked for today.')
+        setTodayAttendance(status)
       } else {
         toast.error(error.message)
       }
     } else {
       toast.success(`Marked as ${data.status}!`)
-      setStats(s => ({
-        ...s,
-        present: s.present + (data.status === 'present' ? 1 : 0),
-        late:    (s.late || 0) + (data.status === 'late' ? 1 : 0),
-        absent:  s.absent + (data.status === 'absent' ? 1 : 0)
-      }))
+      setTodayAttendance(data.status)
+      setStats(prev => {
+        const newPresent = prev.present + (data.status === 'present' ? 1 : 0)
+        const newLate = (prev.late || 0) + (data.status === 'late' ? 1 : 0)
+        const newAbsent = prev.absent + (data.status === 'absent' ? 1 : 0)
+        const total = newPresent + newLate + newAbsent
+        const newPct = total > 0 ? Math.round(((newPresent + newLate * 0.5) / total) * 100) : 0
+        const newStreak = (data.status === 'present' || data.status === 'late') ? (prev.streak || 0) + 1 : prev.streak
+
+        const updated = {
+          ...prev,
+          present: newPresent,
+          late: newLate,
+          absent: newAbsent,
+          pct: newPct,
+          streak: newStreak,
+        }
+        setDashboardCache(user.id, {
+          stats: updated,
+          batchId,
+          batchName,
+          trialEndsAt,
+          notifications,
+          recentHomework,
+          recentStudyCards,
+          liveClassData,
+          todayAttendance: data.status,
+        })
+        return updated
+      })
     }
-    // Always close the popup, even on duplicate error
+
     setShowPopup(false)
     setConfirm(null)
     setMarking(null)
   }
 
+  // ============================================================
+  // Clear Notifications
+  // ============================================================
   const clearNotifications = async () => {
     if (!notifications.length) return
     setClearing(true)
@@ -241,28 +669,96 @@ export default function StudentDashboard() {
     }
     setNotifications([])
     setClearing(false)
-    toast.success('Notifications cleared')
+    toast.success('Announcements cleared')
   }
 
-  const totalClasses = stats.present + (stats.late || 0) + stats.absent
-  const pct = totalClasses > 0 ? Math.round(((stats.present + (stats.late || 0) * 0.5) / totalClasses) * 100) : 0
+  const dateLabel = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 
+  // 7 core quick navigation command hubs
   const quickLinks = [
-    { label: 'Attendance',    path: '/student/attendance',    icon: <CalendarCheck className="h-6 w-6" />, color: 'bg-green-50 text-green-700',  desc: loading ? '…' : totalClasses > 0 ? `${pct}% this year` : 'No records yet' },
-    { label: 'Study',         path: '/student/study',         icon: <BookOpen className="h-6 w-6" />,      color: 'bg-blue-50 text-blue-700',    desc: 'Lectures & notes' },
-    { label: 'Homework',      path: '/student/homework',      icon: <ClipboardList className="h-6 w-6" />,  color: 'bg-indigo-50 text-indigo-700', desc: 'Assignments & grades' },
-    { label: 'Live Class',    path: '/student/live-class',    icon: <Video className="h-6 w-6" />,          color: 'bg-red-50 text-red-700',      desc: loading ? '…' : stats.live ? '🔴 Class in progress' : 'No class right now' },
-    { label: 'Messages',      path: '/student/messages',      icon: <MessageCircle className="h-6 w-6" />, color: 'bg-purple-50 text-purple-700', desc: loading ? '…' : stats.unread > 0 ? `${stats.unread} unread` : 'All caught up' },
-    { label: 'Pay Fee',       path: '/student/pay-fee',       icon: <CreditCard className="h-6 w-6" />,    color: 'bg-amber-50 text-amber-700',  desc: loading ? '…' : stats.pending_fees > 0 ? `${stats.pending_fees} pending` : 'All clear' },
-    { label: 'Notifications', path: '/student/notifications', icon: <Bell className="h-6 w-6" />,          color: 'bg-red-50 text-red-700',      desc: 'Announcements' },
+    {
+      label: 'Attendance',
+      path: '/student/attendance',
+      icon: <CalendarCheck className="h-5 w-5" />,
+      accentBg: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-600',
+      iconBg: 'bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white',
+      desc: loading ? 'Loading…' : `${stats.pct}% Attendance Rate`,
+      badge: stats.streak > 0 ? `🔥 ${stats.streak}d Streak` : `${stats.present} Present`,
+    },
+    {
+      label: 'Study Section',
+      path: '/student/study',
+      icon: <BookOpen className="h-5 w-5" />,
+      accentBg: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20 text-blue-600',
+      iconBg: 'bg-blue-500/10 text-blue-600 group-hover:bg-blue-600 group-hover:text-white',
+      desc: 'Lectures, Notes & Docs',
+      badge: recentStudyCards.length > 0 ? `${recentStudyCards.length} New` : null,
+    },
+    {
+      label: 'Homework',
+      path: '/student/homework',
+      icon: <ClipboardList className="h-5 w-5" />,
+      accentBg: 'from-indigo-500/10 to-violet-500/10 border-indigo-500/20 text-indigo-600',
+      iconBg: 'bg-indigo-500/10 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white',
+      desc: 'Assignments & Tasks',
+      badge: recentHomework.length > 0 ? `${recentHomework.length} Active` : 'Up to date',
+    },
+    {
+      label: 'Live Class',
+      path: '/student/live-class',
+      icon: <Video className="h-5 w-5" />,
+      accentBg: stats.live
+        ? 'from-red-500/20 to-rose-500/20 border-red-500/40 text-red-600 ring-2 ring-red-500/20'
+        : 'from-rose-500/10 to-pink-500/10 border-rose-500/20 text-rose-600',
+      iconBg: stats.live
+        ? 'bg-red-600 text-white shadow-lg shadow-red-500/30 animate-pulse'
+        : 'bg-rose-500/10 text-rose-600 group-hover:bg-rose-600 group-hover:text-white',
+      desc: loading ? 'Checking…' : stats.live ? 'Class in session' : 'Schedule & Link',
+      badge: stats.live ? '🔴 LIVE NOW' : null,
+      isLive: stats.live,
+    },
+    {
+      label: 'Messages',
+      path: '/student/messages',
+      icon: <MessageCircle className="h-5 w-5" />,
+      accentBg: 'from-purple-500/10 to-fuchsia-500/10 border-purple-500/20 text-purple-600',
+      iconBg: 'bg-purple-500/10 text-purple-600 group-hover:bg-purple-600 group-hover:text-white',
+      desc: 'Ask Doubts & Chat',
+      badge: stats.unread > 0 ? `${stats.unread} Unread` : null,
+    },
+    {
+      label: 'Pay Fee',
+      path: '/student/pay-fee',
+      icon: <CreditCard className="h-5 w-5" />,
+      accentBg: stats.pending_fees > 0
+        ? 'from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-700'
+        : 'from-amber-500/10 to-yellow-500/10 border-amber-500/20 text-amber-600',
+      iconBg: stats.pending_fees > 0
+        ? 'bg-amber-500 text-white shadow-sm'
+        : 'bg-amber-500/10 text-amber-600 group-hover:bg-amber-600 group-hover:text-white',
+      desc: stats.pending_fees > 0 ? `${stats.pending_fees} Pending record` : 'Instant UPI receipt',
+      badge: stats.pending_fees > 0 ? 'DUE' : 'Clear',
+    },
+    {
+      label: 'Notifications',
+      path: '/student/notifications',
+      icon: <Bell className="h-5 w-5" />,
+      accentBg: 'from-teal-500/10 to-emerald-500/10 border-teal-500/20 text-teal-600',
+      iconBg: 'bg-teal-500/10 text-teal-600 group-hover:bg-teal-600 group-hover:text-white',
+      desc: 'Notices & Circulars',
+      badge: notifications.length > 0 ? `${notifications.length} New` : null,
+    },
   ]
 
-  const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
+    <div className="space-y-5 sm:space-y-6 pb-24 lg:pb-8 max-w-7xl mx-auto w-full">
 
-      {/* ── Free Trial Banner ── */}
+      {/* ── 1. Free Trial Banner (if active or expired) ── */}
       {(() => {
         if (!trialEndsAt) return null
         const msLeft = new Date(trialEndsAt) - Date.now()
@@ -270,384 +766,715 @@ export default function StudentDashboard() {
 
         if (expired) {
           return (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl bg-gradient-to-r from-red-600/90 to-rose-700/90 text-white px-4 py-3.5 shadow-lg border border-red-500/40 flex items-start sm:items-center gap-3 backdrop-blur-md"
+            >
+              <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                <AlertCircle className="h-5 w-5 text-white" />
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-red-800 text-sm">Your free trial has ended</p>
-                <p className="text-xs text-red-700 mt-0.5">
-                  Your 2-day access has expired. Please contact your admin to continue accessing batch content.
+                <p className="font-bold text-sm leading-snug">Your free trial has ended</p>
+                <p className="text-xs text-red-100 mt-0.5 leading-relaxed">
+                  Your batch preview access has expired. Please contact institute administration to unlock full semester access.
                 </p>
               </div>
-            </div>
+            </motion.div>
           )
         }
 
         if (trialBannerDismissed) return null
 
         const hoursLeft = Math.floor(msLeft / 3600000)
-        const timeLabel = hoursLeft < 24 ? `${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}` : `${Math.floor(hoursLeft / 24)} day${Math.floor(hoursLeft / 24) !== 1 ? 's' : ''}`
+        const timeLabel = hoursLeft < 24
+          ? `${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`
+          : `${Math.floor(hoursLeft / 24)} day${Math.floor(hoursLeft / 24) !== 1 ? 's' : ''}`
 
         return (
-          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
-            <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-amber-900 text-sm">Free trial active — {timeLabel} remaining</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Enjoy full access to your batch for now. Contact your admin to continue after your trial ends.
-              </p>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl bg-gradient-to-r from-amber-500/95 to-orange-500/95 text-white px-4 py-3.5 shadow-md border border-amber-400/30 flex items-start sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                <Clock className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-sm leading-snug">Free Trial Active — {timeLabel} remaining</p>
+                <p className="text-xs text-amber-100 mt-0.5 leading-tight">
+                  Enjoy full access to your lectures, homework, and live batches.
+                </p>
+              </div>
             </div>
-            <button onClick={() => setTrialBannerDismissed(true)} className="text-amber-500 hover:text-amber-700 flex-shrink-0">
+            <button
+              onClick={() => setTrialBannerDismissed(true)}
+              className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-black/10 transition-colors shrink-0"
+              title="Dismiss"
+            >
               <X className="h-4 w-4" />
             </button>
-          </div>
+          </motion.div>
         )
       })()}
 
-      {/* ── Attendance popup ── */}
-      {showPopup && !loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[50%] min-w-[320px] p-8">
-
-            {/* close */}
-            <button
-              onClick={() => setShowPopup(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            {/* header */}
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
-                <CalendarCheck className="h-6 w-6 text-blue-950" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Mark Today&apos;s Attendance</h2>
-                <p className="text-sm text-gray-500">{dateLabel}</p>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              {confirm ? (
-                <div className="bg-gray-50 rounded-xl p-5 text-center">
-                  <p className="font-medium text-gray-900 mb-4">
-                    Mark yourself as <span className="capitalize font-bold">{confirm}</span> today?
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={() => markAttendance(confirm)}
-                      disabled={!!marking}
-                      className="px-8 py-2.5 bg-blue-950 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50 transition-colors"
-                    >
-                      {marking ? 'Saving…' : 'Confirm'}
-                    </button>
-                    <button
-                      onClick={() => setConfirm(null)}
-                      className="px-8 py-2.5 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      Back
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  <button
-                    onClick={() => setConfirm('present')}
-                    className="flex flex-col items-center gap-2 p-5 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl font-semibold transition-colors border-2 border-transparent hover:border-green-300"
-                  >
-                    <CheckCircle className="h-8 w-8" />
-                    <span>Present</span>
-                  </button>
-                  <button
-                    onClick={() => setConfirm('late')}
-                    className="flex flex-col items-center gap-2 p-5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl font-semibold transition-colors border-2 border-transparent hover:border-amber-300"
-                  >
-                    <Clock className="h-8 w-8" />
-                    <span>Late</span>
-                  </button>
-                  <button
-                    onClick={() => setConfirm('absent')}
-                    className="flex flex-col items-center gap-2 p-5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-semibold transition-colors border-2 border-transparent hover:border-red-300"
-                  >
-                    <XCircle className="h-8 w-8" />
-                    <span>Absent</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <p className="text-center text-xs text-gray-400 mt-5">You can always update this from the Attendance section</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Live Class Alert Bar (Responsive Flex Layout with Teacher Title) ── */}
+      {/* ── 2. Live Class High-Urgency Broadcast Alert Bar ── */}
       {liveClassData && !liveDismissed && (
-        <div className="relative bg-gradient-to-r from-red-600 to-rose-600 rounded-2xl p-4 sm:p-5 text-white shadow-md border border-red-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 animate-pulse">
-          {/* Top Right Dismiss Button */}
-          <button
-            onClick={() => setLiveDismissed(true)}
-            className="absolute top-3 right-3 p-1.5 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors z-10"
-            title="Dismiss notification"
-          >
-            <X className="h-4 w-4" />
-          </button>
-
-          {/* Content Box */}
-          <div className="flex items-start sm:items-center gap-3 pr-8 sm:pr-0 min-w-0 flex-1">
-            <div className="p-2.5 bg-white/20 rounded-xl text-white shrink-0 mt-0.5 sm:mt-0">
-              <Video className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-black uppercase tracking-wider bg-white/25 text-white px-2 py-0.5 rounded-md whitespace-nowrap">
-                  🔴 LIVE NOW
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 p-4 sm:p-5 text-white shadow-xl shadow-red-500/15 border border-red-400/30"
+        >
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+              <div className="relative p-2.5 sm:p-3 bg-white/20 rounded-2xl text-white shrink-0 shadow-inner">
+                <Video className="h-6 w-6" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
                 </span>
               </div>
-              <h3 className="text-xs sm:text-sm font-bold text-white leading-tight break-words truncate">
-                {liveClassData.title || 'Interactive Live Class'}
-              </h3>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-white/25 text-white px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    LIVE BROADCAST NOW
+                  </span>
+                  {liveClassData.platform && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-black/20 text-white/90 px-2 py-0.5 rounded-full">
+                      {liveClassData.platform}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-white leading-tight truncate">
+                  {liveClassData.title || 'Interactive Live Class'}
+                </h3>
+                {liveClassData.profiles?.full_name && (
+                  <p className="text-xs text-red-100 font-medium mt-0.5">
+                    Faculty: {liveClassData.profiles.full_name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:shrink-0 w-full sm:w-auto">
+              <Link
+                to="/student/live-class"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-red-700 text-xs sm:text-sm font-extrabold rounded-xl hover:bg-red-50 hover:shadow-lg transition-all active:scale-95 shadow-md"
+              >
+                <span>Join Classroom Now</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <button
+                onClick={() => setLiveDismissed(true)}
+                className="p-2.5 text-white/70 hover:text-white rounded-xl bg-black/10 hover:bg-black/20 transition-colors"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
-
-          {/* CTA Button */}
-          <Link
-            to="/student/live-class"
-            className="w-full sm:w-auto text-center px-4 py-2.5 bg-white text-red-700 text-xs font-black rounded-xl hover:bg-red-50 transition-all shrink-0 shadow-sm flex items-center justify-center gap-1.5"
-          >
-            <span>Join Live Class</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
+        </motion.div>
       )}
 
-      {/* ── Pending Fee Alert Bar (if fee pending) ── */}
+      {/* ── 3. Pending Fee Warning Bar ── */}
       {!loading && stats.pending_fees > 0 && (
-        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-amber-900 shadow-sm flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-200/60 rounded-xl text-amber-800">
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-amber-50 border border-amber-200/80 p-4 text-amber-950 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 bg-amber-200/60 rounded-xl text-amber-800 shrink-0">
               <AlertCircle className="h-5 w-5" />
             </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/60 text-amber-900 px-2 py-0.5 rounded-md">
-                PAYMENT ALERT
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
+                TUITION FEE PENDING
               </span>
-              <p className="text-xs font-bold text-amber-900 mt-0.5">
-                You have {stats.pending_fees} pending fee {stats.pending_fees === 1 ? 'record' : 'records'}. Please complete payment.
+              <p className="text-xs sm:text-sm font-bold text-amber-950 mt-0.5">
+                You have {stats.pending_fees} pending fee record{stats.pending_fees > 1 ? 's' : ''}. Complete payment to maintain uninterrupted access.
               </p>
             </div>
           </div>
           <Link
             to="/student/pay-fee"
-            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors shrink-0 shadow-sm"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
           >
-            Pay Fee →
+            <span>Pay Fee & Upload Receipt</span>
+            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
-        </div>
+        </motion.div>
       )}
 
-      {/* Welcome */}
-      <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 rounded-2xl p-6 text-white relative overflow-hidden">
-        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full bg-amber-400/10 pointer-events-none" />
-        <div className="relative">
-          <p className="text-blue-300 text-sm mb-1">Welcome back 👋</p>
-          <h2 className="font-display font-bold text-2xl">{profile?.full_name || 'Student'}</h2>
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
-              {loading
-                ? <div className="h-7 w-12 bg-white/20 rounded mx-auto animate-pulse" />
-                : <p className={`text-2xl font-bold ${pct >= 75 ? 'text-green-300' : pct >= 50 ? 'text-amber-300' : 'text-red-300'}`}>{pct}%</p>
-              }
-              <p className="text-xs text-blue-200 mt-0.5">Attendance</p>
+      {/* ── 4. High-Impact Student Command Hero Deck ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-6 sm:p-8 text-white shadow-xl shadow-blue-950/20 border border-white/10">
+        {/* Subtle background ambient orbs */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 left-1/4 w-60 h-60 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 sm:gap-8">
+
+          {/* Left Column: Greeting, Student identity, Batch tag, and streak */}
+          <div className="space-y-3 sm:space-y-4 max-w-xl">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-blue-200 text-xs font-medium backdrop-blur-md">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                {getTimeGreeting()},
+              </span>
+
+              {batchName ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-bold backdrop-blur-md">
+                  <GraduationCap className="h-3.5 w-3.5 text-indigo-300" />
+                  {batchName}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold backdrop-blur-md">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                  Active Student
+                </span>
+              )}
+
+              {stats.streak > 0 && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-400/40 text-amber-300 text-xs font-black backdrop-blur-md shadow-sm">
+                  <Flame className="h-3.5 w-3.5 text-orange-400 fill-orange-400" />
+                  {stats.streak}d Streak!
+                </div>
+              )}
             </div>
-            <div className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
-              {loading
-                ? <div className="h-7 w-8 bg-white/20 rounded mx-auto animate-pulse" />
-                : <p className="text-2xl font-bold text-green-300">{stats.present}</p>
-              }
-              <p className="text-xs text-blue-200 mt-0.5">Present</p>
+
+            <div className="space-y-1">
+              <h1 className="font-display font-black text-2xl sm:text-3xl lg:text-4xl text-white tracking-tight leading-tight">
+                {profile?.full_name || 'Enrolled Student'}
+              </h1>
+              <p className="text-xs sm:text-sm text-blue-200/80 leading-relaxed">
+                {dateLabel} • Coaching Institute Academic Portal
+              </p>
             </div>
-            <div className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
-              {loading
-                ? <div className="h-7 w-8 bg-white/20 rounded mx-auto animate-pulse" />
-                : <p className="text-2xl font-bold text-red-300">{stats.absent}</p>
-              }
-              <p className="text-xs text-blue-200 mt-0.5">Absent</p>
+
+            {/* Attendance Status & Inline 1-Click Action */}
+            <div className="pt-1 flex items-center gap-3 flex-wrap">
+              {todayAttendance ? (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold backdrop-blur-md">
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <span>Today marked as <strong className="capitalize text-white">{todayAttendance}</strong></span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowPopup(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs sm:text-sm font-black shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 active:scale-95 transition-all"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-900 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-950" />
+                  </span>
+                  <span>Mark Today&apos;s Attendance</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              )}
+
+              {isRefreshing && (
+                <span className="text-[11px] text-blue-300/70 flex items-center gap-1.5 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  Syncing live records…
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Right Column: Attendance Radial Gauge & Stats Cluster */}
+          <div className="flex items-center gap-5 sm:gap-6 bg-white/[0.07] backdrop-blur-md border border-white/10 rounded-2xl p-4 sm:p-5 shrink-0 justify-between sm:justify-start">
+            <AttendanceGauge percentage={stats.pct} size={92} strokeWidth={8} />
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
+                <span className="text-blue-100 font-medium">Present:</span>
+                <span className="font-bold text-white ml-auto">{stats.present}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
+                <span className="text-blue-100 font-medium">Late:</span>
+                <span className="font-bold text-white ml-auto">{stats.late || 0}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-400 shadow-sm shadow-rose-400/50" />
+                <span className="text-blue-100 font-medium">Absent:</span>
+                <span className="font-bold text-white ml-auto">{stats.absent}</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* Quick links */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
-        {quickLinks.map(q => {
-          const isLiveTile = q.label === 'Live Class' && stats.live
-          return (
-            <Link
-              key={q.path}
-              to={q.path}
-              className={`rounded-2xl border p-4 transition-all duration-300 group flex flex-col justify-between h-full min-w-0 ${
-                isLiveTile
-                  ? 'bg-rose-50/90 border-rose-200 shadow-sm hover:bg-rose-100/90 hover:-translate-y-1'
-                  : 'bg-white border-gray-100 hover:shadow-md hover:-translate-y-1'
-              }`}
-            >
-              <div>
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200 ${
-                  isLiveTile ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30' : q.color
-                }`}>
-                  {q.icon}
+      {/* ── 5. Responsive Command Matrix (The 7 Core Hubs) ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+            <span>Navigation Hub</span>
+            <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <span className="text-xs font-normal text-slate-400 capitalize">Quick Actions</span>
+          </h2>
+        </div>
+
+        {/* Device-optimized grid: 2 cols on mobile, 4 cols on tablet, 7 cols on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-3.5">
+          {quickLinks.map(q => {
+            return (
+              <Link
+                key={q.path}
+                to={q.path}
+                className={`group relative rounded-2xl bg-white border border-slate-100 hover:border-slate-300/80 p-3.5 sm:p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/50 flex flex-col justify-between min-h-[120px] ${
+                  q.isLive ? 'ring-2 ring-red-500/30 border-red-200 bg-red-50/20' : ''
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-2.5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${q.iconBg}`}>
+                      {q.icon}
+                    </div>
+                    {q.badge && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-tight shrink-0 ${
+                        q.isLive
+                          ? 'bg-red-600 text-white animate-pulse font-black'
+                          : q.badge.includes('Due') || q.badge.includes('DUE')
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {q.badge}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-blue-950 transition-colors truncate">
+                    {q.label}
+                  </h3>
                 </div>
-                <p className={`font-bold text-xs sm:text-sm truncate ${isLiveTile ? 'text-rose-950' : 'text-gray-900'}`}>{q.label}</p>
-                <p className={`text-[11px] sm:text-xs mt-0.5 leading-snug line-clamp-2 ${isLiveTile ? 'text-rose-700 font-semibold' : 'text-gray-500'}`}>{q.desc}</p>
-              </div>
-            </Link>
-          )
-        })}
+                <p className="text-[11px] text-slate-500 mt-1 line-clamp-1 group-hover:text-slate-700 transition-colors">
+                  {q.desc}
+                </p>
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
-      {/* ── BENEFICIAL BACKEND WIDGETS SECTION ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* ── 6. Main Adaptive Multi-Column Learning & Activity Deck ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
 
-        {/* 📝 Active Homework & Assignments Widget */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-indigo-50 text-indigo-700 rounded-lg">
-                <ClipboardList className="h-4 w-4" />
-              </span>
-              <h3 className="font-bold text-gray-900 text-sm">Active Assignments</h3>
+        {/* ── Left / Primary Column (7 cols on lg+) ── */}
+        <div className="lg:col-span-7 space-y-5 sm:space-y-6">
+
+          {/* 📝 Active Assignments & Homework Widget */}
+          <div className="rounded-3xl bg-white border border-slate-100 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                  <ClipboardList className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">Active Assignments</h3>
+                  <p className="text-[11px] text-slate-400">Classwork, homework & submissions</p>
+                </div>
+              </div>
+              <Link
+                to="/student/homework"
+                className="text-xs font-bold text-indigo-700 hover:text-indigo-900 hover:underline inline-flex items-center gap-1 group"
+              >
+                <span>View all</span>
+                <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
             </div>
-            <Link to="/student/homework" className="text-xs text-indigo-700 font-medium hover:underline flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+
+            <div className="mt-4">
+              {loading && !initialCache ? (
+                <div className="space-y-2.5">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-14 bg-slate-100 rounded-2xl animate-pulse" />
+                  ))}
+                </div>
+              ) : recentHomework.length === 0 ? (
+                <div className="py-8 text-center space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-400 mx-auto flex items-center justify-center">
+                    <ClipboardList className="h-6 w-6" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-700">No active homework assigned currently</p>
+                  <p className="text-xs text-slate-400">You are completely caught up with your batch coursework!</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {recentHomework.map(hw => {
+                    const isOverdue = hw.due_date ? new Date(hw.due_date) < new Date(todayISO()) : false
+                    return (
+                      <Link
+                        key={hw.id}
+                        to={`/student/homework?id=${hw.id}`}
+                        className="p-3.5 bg-slate-50/80 hover:bg-indigo-50/70 border border-slate-100 hover:border-indigo-200/80 rounded-2xl flex items-center justify-between gap-3 transition-all duration-150 group cursor-pointer"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-md">
+                              Coursework
+                            </span>
+                            {isOverdue && (
+                              <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 border border-rose-200/60 px-1.5 py-0.5 rounded-md">
+                                Overdue
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-indigo-950 truncate">
+                            {hw.title}
+                          </p>
+                        </div>
+
+                        {hw.due_date && (
+                          <div className="shrink-0 text-right">
+                            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-xl border flex items-center gap-1 transition-all ${
+                              isOverdue
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-white text-slate-600 border-slate-200/80 group-hover:border-indigo-300'
+                            }`}>
+                              <Clock className="h-3 w-3" />
+                              <span>Due {new Date(hw.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                            </span>
+                          </div>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          {loading ? (
-            <div className="space-y-2 py-2">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />
-              ))}
+          {/* 📚 Recent Batch Materials Widget */}
+          <div className="rounded-3xl bg-white border border-slate-100 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-blue-50 text-blue-700 rounded-xl">
+                  <BookOpen className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">Recent Batch Materials</h3>
+                  <p className="text-[11px] text-slate-400">Class lectures, notes & downloadable resources</p>
+                </div>
+              </div>
+              <Link
+                to="/student/study"
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1 group"
+              >
+                <span>View all</span>
+                <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
             </div>
-          ) : recentHomework.length === 0 ? (
-            <div className="text-center py-6 text-gray-400 text-xs">
-              No active homework assigned currently.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recentHomework.map(hw => {
-                const isOverdue = hw.due_date ? new Date(hw.due_date) < new Date(todayISO()) : false
-                return (
-                  <Link
-                    key={hw.id}
-                    to={`/student/homework?id=${hw.id}`}
-                    className="p-3 bg-gray-50/80 hover:bg-indigo-50/80 hover:border-indigo-200 transition-all rounded-xl border border-gray-100 flex items-center justify-between gap-3 group cursor-pointer"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-bold text-indigo-700 uppercase bg-indigo-50 px-2 py-0.5 rounded-md group-hover:bg-indigo-100">
-                          Assignment
+
+            <div className="mt-4">
+              {loading && !initialCache ? (
+                <div className="space-y-2.5">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-14 bg-slate-100 rounded-2xl animate-pulse" />
+                  ))}
+                </div>
+              ) : recentStudyCards.length === 0 ? (
+                <div className="py-8 text-center space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-400 mx-auto flex items-center justify-center">
+                    <BookOpen className="h-6 w-6" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-700">No study cards uploaded for your batch yet</p>
+                  <p className="text-xs text-slate-400">Check back soon or explore the main Study section for public lectures.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {recentStudyCards.map(sc => (
+                    <Link
+                      key={sc.id}
+                      to={`/student/study?subject=${encodeURIComponent(sc.subject || '')}&cardId=${sc.id}`}
+                      className="p-3.5 bg-slate-50/80 hover:bg-blue-50/70 border border-slate-100 hover:border-blue-200/80 rounded-2xl flex items-center justify-between gap-3 transition-all duration-150 group cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wide text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md inline-block mb-1">
+                          {sc.subject || 'General Studies'}
                         </span>
-                        {isOverdue && (
-                          <span className="text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200/60">
-                            Overdue
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-950 truncate">
+                          {sc.title}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 text-[11px] font-semibold text-slate-600 bg-white border border-slate-200/80 group-hover:border-blue-300 px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition-colors">
+                        {sc.type === 'youtube_video' || sc.type === 'youtube_playlist' ? (
+                          <><span>🎥</span><span>Video</span></>
+                        ) : sc.type === 'google_drive' ? (
+                          <><span>📁</span><span>Notes</span></>
+                        ) : (
+                          <><span>🔗</span><span>Link</span></>
+                        )}
+                        <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-blue-600" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── Right / Secondary Column (5 cols on lg+) ── */}
+        <div className="lg:col-span-5 space-y-5 sm:space-y-6">
+
+          {/* 📅 Attendance Summary & Streak Card */}
+          <div className="rounded-3xl bg-white border border-slate-100 p-5 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                  <CalendarCheck className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">Attendance Record</h3>
+                  <p className="text-[11px] text-slate-400">Streak, consistency & status</p>
+                </div>
+              </div>
+              <Link
+                to="/student/attendance"
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline inline-flex items-center gap-1 group"
+              >
+                <span>Full log</span>
+                <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              {/* Streak callout */}
+              <div className="rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-yellow-500/10 border border-orange-200/60 p-4 flex items-center gap-3.5">
+                <span className="text-3xl">🔥</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-wider text-orange-800">Study Streak</p>
+                    <span className="text-base font-black text-orange-950 font-display">
+                      {stats.streak} {stats.streak === 1 ? 'Day' : 'Days'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-orange-700/90 mt-0.5 leading-snug">
+                    {stats.streak >= 5
+                      ? 'Incredible momentum! Keep marking attendance.'
+                      : stats.streak > 0
+                      ? 'Great consistency. Light up your streak every day!'
+                      : 'Mark attendance daily to build an unstoppable study habit.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action trigger button */}
+              {!todayAttendance ? (
+                <button
+                  onClick={() => setShowPopup(true)}
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                >
+                  <CalendarCheck className="h-4 w-4 text-amber-400" />
+                  <span>Mark Today&apos;s Attendance</span>
+                </button>
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-slate-600 font-medium">Today&apos;s Status:</span>
+                  <span className="font-extrabold capitalize text-emerald-700 bg-emerald-100/60 px-2.5 py-0.5 rounded-lg">
+                    ✓ {todayAttendance}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 📢 Announcements & Notice Board */}
+          <div className="rounded-3xl bg-white border border-slate-100 p-5 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-teal-50 text-teal-700 rounded-xl">
+                  <Bell className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">Notice Board</h3>
+                  <p className="text-[11px] text-slate-400">Official circulars & announcements</p>
+                </div>
+              </div>
+              {notifications.length > 0 && (
+                <button
+                  onClick={clearNotifications}
+                  disabled={clearing}
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-800 inline-flex items-center gap-1 disabled:opacity-50"
+                  title="Mark all as read"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  <span>{clearing ? 'Clearing…' : 'Clear'}</span>
+                </button>
+              )}
+            </div>
+
+            <div className="mt-4">
+              {notifications.length === 0 ? (
+                <div className="py-8 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 mx-auto flex items-center justify-center">
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-700">No unread announcements</p>
+                  <p className="text-xs text-slate-400">All caught up! Check the notifications section for full history.</p>
+                  <Link
+                    to="/student/notifications"
+                    className="inline-block mt-2 text-xs font-bold text-teal-700 hover:underline"
+                  >
+                    View notice history →
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map(n => (
+                    <div
+                      key={n.id}
+                      className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-1 hover:bg-slate-100/70 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">{n.title}</h4>
+                        {n.created_at && (
+                          <span className="text-[10px] text-slate-400 shrink-0">
+                            {new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs font-semibold text-gray-900 mt-1 truncate group-hover:text-indigo-950">{hw.title}</p>
+                      <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line line-clamp-3">
+                        {n.body}
+                      </p>
                     </div>
-                    {hw.due_date && (
-                      <span className={`text-[10px] shrink-0 font-medium px-2 py-1 rounded-md border flex items-center gap-1 transition-colors ${
-                        isOverdue
-                          ? 'bg-red-50 text-red-700 border-red-200 group-hover:bg-red-600 group-hover:text-white group-hover:border-red-600'
-                          : 'bg-white text-gray-500 border-gray-100 group-hover:bg-indigo-950 group-hover:text-amber-400 group-hover:border-indigo-950'
-                      }`}>
-                        Due {new Date(hw.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        <ArrowRight className="h-3 w-3" />
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
+                  ))}
+                  <div className="pt-2 text-center">
+                    <Link
+                      to="/student/notifications"
+                      className="text-xs font-bold text-teal-700 hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Open full announcements archive</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* 📚 Recent Study Uploads Widget */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-blue-50 text-blue-700 rounded-lg">
-                <BookOpen className="h-4 w-4" />
-              </span>
-              <h3 className="font-bold text-gray-900 text-sm">Recent Batch Materials</h3>
-            </div>
-            <Link to="/student/study" className="text-xs text-blue-700 font-medium hover:underline flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
           </div>
 
-          {loading ? (
-            <div className="space-y-2 py-2">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : recentStudyCards.length === 0 ? (
-            <div className="text-center py-6 text-gray-400 text-xs">
-              No study cards uploaded for your batch yet.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recentStudyCards.map(sc => (
-                <Link
-                  key={sc.id}
-                  to={`/student/study?subject=${encodeURIComponent(sc.subject || '')}&cardId=${sc.id}`}
-                  className="p-3 bg-gray-50/80 hover:bg-blue-50/80 hover:border-blue-200 transition-all rounded-xl border border-gray-100 flex items-center justify-between gap-3 group cursor-pointer"
-                >
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-blue-700 uppercase bg-blue-50 px-2 py-0.5 rounded-md group-hover:bg-blue-100">
-                      {sc.subject || 'General'}
-                    </span>
-                    <p className="text-xs font-semibold text-gray-900 mt-1 truncate group-hover:text-blue-950">{sc.title}</p>
-                  </div>
-                  <span className="text-[10px] text-gray-500 font-medium bg-white px-2 py-1 rounded-md border border-gray-100 shrink-0 flex items-center gap-1 group-hover:bg-blue-950 group-hover:text-amber-400 group-hover:border-blue-950 transition-colors">
-                    {sc.type === 'youtube_video' || sc.type === 'youtube_playlist' ? '🎥 Video' : sc.type === 'google_drive' ? '📁 Notes' : '🔗 Link'}
-                    <ArrowRight className="h-3 w-3" />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
 
       </div>
 
-      {/* Recent notifications */}
-      {notifications.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">Recent Announcements</h3>
-            <div className="flex items-center gap-3">
-              <button onClick={clearNotifications} disabled={clearing}
-                className="flex items-center gap-1 text-xs text-red-500 font-medium hover:text-red-700 disabled:opacity-40 transition-colors">
-                <Trash2 className="h-3.5 w-3.5" />{clearing ? 'Clearing…' : 'Clear all'}
-              </button>
-              <Link to="/student/notifications" className="text-xs text-blue-700 font-medium hover:underline">View all</Link>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {notifications.map(n => (
-              <div key={n.id} className="px-4 py-3">
-                <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed whitespace-pre-line">{n.body}</p>
-              </div>
-            ))}
+      {/* ── 7. Redesigned Framer Motion Attendance Marking Modal ── */}
+      <AnimatePresence>
+        {showPopup && !loading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Glass Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPopup(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-md"
+            />
 
+            {/* Modal Dialog Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 12 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 sm:p-8 z-10 border border-slate-100"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowPopup(false)}
+                className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              {/* Modal Header */}
+              <div className="flex items-center gap-3.5 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-950 shadow-inner">
+                  <CalendarCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 font-display">
+                    Mark Today&apos;s Attendance
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500">{dateLabel}</p>
+                </div>
+              </div>
+
+              {/* Modal Body: Selection vs Confirmation */}
+              <div>
+                {confirm ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center space-y-4"
+                  >
+                    <p className="text-sm font-medium text-slate-800">
+                      Confirm marking yourself as{' '}
+                      <span className={`capitalize font-black px-2 py-0.5 rounded-lg text-white ${
+                        confirm === 'present' ? 'bg-emerald-600' : confirm === 'late' ? 'bg-amber-500' : 'bg-rose-600'
+                      }`}>
+                        {confirm}
+                      </span>{' '}
+                      for today?
+                    </p>
+                    <div className="flex gap-3 justify-center pt-2">
+                      <button
+                        onClick={() => markAttendance(confirm)}
+                        disabled={!!marking}
+                        className="px-6 py-2.5 bg-blue-950 hover:bg-blue-900 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md disabled:opacity-50 active:scale-95"
+                      >
+                        {marking ? 'Saving Record…' : 'Yes, Confirm'}
+                      </button>
+                      <button
+                        onClick={() => setConfirm(null)}
+                        className="px-5 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-all"
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                    <button
+                      onClick={() => setConfirm('present')}
+                      className="flex flex-col items-center justify-center gap-2 p-4 sm:p-5 bg-emerald-50 hover:bg-emerald-100/80 border-2 border-emerald-200 text-emerald-800 rounded-2xl font-bold text-xs sm:text-sm transition-all hover:-translate-y-1 hover:shadow-md"
+                    >
+                      <CheckCircle className="h-7 w-7 text-emerald-600" />
+                      <span>Present</span>
+                    </button>
+                    <button
+                      onClick={() => setConfirm('late')}
+                      className="flex flex-col items-center justify-center gap-2 p-4 sm:p-5 bg-amber-50 hover:bg-amber-100/80 border-2 border-amber-200 text-amber-800 rounded-2xl font-bold text-xs sm:text-sm transition-all hover:-translate-y-1 hover:shadow-md"
+                    >
+                      <Clock className="h-7 w-7 text-amber-600" />
+                      <span>Late</span>
+                    </button>
+                    <button
+                      onClick={() => setConfirm('absent')}
+                      className="flex flex-col items-center justify-center gap-2 p-4 sm:p-5 bg-rose-50 hover:bg-rose-100/80 border-2 border-rose-200 text-rose-800 rounded-2xl font-bold text-xs sm:text-sm transition-all hover:-translate-y-1 hover:shadow-md"
+                    >
+                      <XCircle className="h-7 w-7 text-rose-600" />
+                      <span>Absent</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-center text-[11px] text-slate-400 mt-6">
+                You can review or view full monthly trends from the Attendance section anytime.
+              </p>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }

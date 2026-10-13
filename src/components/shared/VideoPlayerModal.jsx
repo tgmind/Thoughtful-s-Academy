@@ -1,22 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Heart, BookOpen, ListVideo, ExternalLink, Sparkles,
-  Maximize2, Minimize2, ArrowLeft, ShieldCheck
+  Maximize2, Minimize2, ArrowLeft
 } from 'lucide-react'
-
-// ─── URL Helpers ──────────────────────────────────────────────────────────────
-
-function getYTVideoId(url) {
-  if (!url) return null
-  const match = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
-  return match?.[1] ?? null
-}
-
-function getYTPlaylistId(url) {
-  if (!url) return null
-  const match = url.match(/[?&]list=([^&]+)/)
-  return match?.[1] ?? null
-}
+import { getYTVideoId, getYTPlaylistId, resolveYouTubeMedia } from '../../utils/youtube'
+import ProtectedVideoPlayer from './ProtectedVideoPlayer'
 
 function getEmbedUrl(url, type) {
   if (!url) return ''
@@ -62,8 +50,11 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const embedUrl = getEmbedUrl(card?.url, card?.type)
-  const isPlaylist = card?.type === 'youtube_playlist'
-  const isYoutube = card?.type?.startsWith('youtube')
+  const media = resolveYouTubeMedia(card?.url, card?.thumbnail_url, card?.type)
+  const playlistId = media.playlistId || getYTPlaylistId(card?.url)
+  const isPlaylist = card?.type === 'youtube_playlist' || media.isPlaylist || !!playlistId
+  const videoId = media.videoId || getYTVideoId(card?.url) || ''
+  const isYoutube = card?.type?.startsWith('youtube') || isPlaylist || !!videoId || !!playlistId
 
   // Sync external bookmark state
   useEffect(() => { setIsBookmarked(bookmarked) }, [bookmarked])
@@ -110,14 +101,10 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
         await el.requestFullscreen()
         try {
           await screen.orientation?.lock?.('landscape')
-        } catch (err) {
-          void err
-        }
-      } catch (err) {
-        void err
-      }
+        } catch { /* Fallback */ }
+      } catch { /* Fallback */ }
     } else {
-      try { screen.orientation?.unlock?.() } catch (err) { void err }
+      try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
       document.exitFullscreen?.().catch(() => {})
     }
   }, [])
@@ -128,13 +115,13 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
       const isFull = !!document.fullscreenElement
       setIsFullscreen(isFull)
       if (!isFull) {
-        try { screen.orientation?.unlock?.() } catch (err) { void err }
+        try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
       }
     }
     document.addEventListener('fullscreenchange', handler)
     return () => {
       document.removeEventListener('fullscreenchange', handler)
-      try { screen.orientation?.unlock?.() } catch (err) { void err }
+      try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
     }
   }, [])
 
@@ -156,7 +143,7 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
           <button
             onClick={() => {
               if (document.fullscreenElement) {
-                try { screen.orientation?.unlock?.() } catch (err) { void err }
+                try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
                 document.exitFullscreen?.().catch(() => {})
               }
               onClose()
@@ -224,12 +211,21 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
 
       {/* ─── 2. MAIN THEATER CLASSROOM STAGE ───────────────────────────────────── */}
       <main className="flex-1 w-full bg-black relative flex items-center justify-center overflow-hidden">
-        {embedUrl ? (
+        {isYoutube ? (
+          <ProtectedVideoPlayer
+            key={card.id}
+            videoId={videoId}
+            playlistId={playlistId}
+            title={card.title}
+            subject={card.subject}
+            isPlaylist={isPlaylist}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={handleFullscreen}
+            className="w-full h-full"
+          />
+        ) : embedUrl ? (
           <div className="relative w-full h-full flex items-center justify-center bg-black">
-            
-            {/* The Video Iframe */}
             <iframe
-              ref={containerRef}
               src={embedUrl}
               title={card.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -237,46 +233,6 @@ export default function VideoPlayerModal({ card, bookmarked, onBookmark, onClose
               className="w-full h-full border-0 block object-contain"
               style={{ backgroundColor: '#000' }}
             />
-
-            {/* ─── YOUTUBE BRANDING COVER & SHIELDS ─────────────────────────── */}
-            {isYoutube && (
-              <>
-                {/* 🛡️ Sleek Brand Badge Covering YouTube Logo (Bottom-Right) */}
-                <div
-                  className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950/95 border border-slate-700/80 text-white shadow-xl backdrop-blur-md select-none"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="text-[10px] sm:text-xs font-black tracking-wide text-slate-200">
-                    Thoughtful&apos;s Academy
-                  </span>
-                </div>
-
-                {/* Shield 1: Top-Left Title Click Absorber */}
-                <div
-                  aria-hidden="true"
-                  className="absolute top-0 left-0 w-[70%] h-14 z-20 bg-transparent cursor-default"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                />
-
-                {/* Shield 2: Top-Right Share Click Absorber */}
-                <div
-                  aria-hidden="true"
-                  className="absolute top-0 right-0 w-[240px] h-14 z-20 bg-transparent cursor-default"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                />
-
-                {/* Shield 3: Bottom-Right YouTube Logo Click Absorber */}
-                <div
-                  aria-hidden="true"
-                  className="absolute bottom-0 right-0 w-[240px] h-16 z-10 bg-transparent cursor-default"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                />
-              </>
-            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-slate-500 gap-3">

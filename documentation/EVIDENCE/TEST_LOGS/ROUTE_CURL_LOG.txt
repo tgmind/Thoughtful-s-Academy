@@ -1,0 +1,52 @@
+================================================================================
+AUDIT EXECUTION LOG: RUNTIME HTTP ENDPOINT & PROXY PROBING
+Target: http://localhost:5173 (Pre-existing Dev Server PID 5289)
+Timestamp: 2026-10-13T14:18:42Z
+Status: VERIFIED
+================================================================================
+
+1. ROUTE HTTP PROBES:
+--------------------------------------------------------------------------------
+GET /
+Status: 200 OK
+Content-Type: text/html
+Headers:
+  Vary: Origin
+  Cache-Control: no-cache
+  Etag: W/"136b-aioFGkAjaeRKoWhXWaEf1NolDBs"
+HTML Title: Thoughtful's Academy — Online Coaching, Live Classes & Study Material
+
+GET /login
+Status: 200 OK
+SPA Fallback: index.html served correctly
+
+GET /register
+Status: 200 OK
+SPA Fallback: index.html served correctly
+
+GET /batch-details
+Status: 200 OK
+SPA Fallback: index.html served correctly
+
+GET /manifest.json
+Status: 200 OK
+Content-Type: application/json
+Payload: PWA manifest with short_name, icons (192, 512, maskable), theme_color
+
+GET /push-sw.js
+Status: 200 OK
+Content-Type: text/javascript
+Payload: Web Push Service Worker handler with push and notificationclick listeners
+
+2. VITE YOUTUBE PROXY MIDDLEWARE PROBES:
+--------------------------------------------------------------------------------
+GET /api/youtube-playlist
+Status: 400 Bad Request
+Content-Type: application/json
+Response: {"error":"Missing listId or discoverable videoId parameter"}
+
+GET /api/youtube-playlist?listId=PLtest
+Status: 404 Not Found
+Content-Type: application/json
+Response: {"error":"YouTube responded with 404"}
+Upstream Proxy Validation: Successfully forwarded request to https://www.youtube.com/feeds/videos.xml?playlist_id=PLtest and caught 404 upstream response.

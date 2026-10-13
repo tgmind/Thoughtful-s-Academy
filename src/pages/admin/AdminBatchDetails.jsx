@@ -13,16 +13,7 @@ import ActivityLogModal from '../../components/shared/ActivityLogModal'
 import { logActivity } from '../../lib/activityLogger'
 
 import DriveImage from '../../components/shared/DriveImage'
-
-function getYTVideoId(url) {
-  const match = url?.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
-  return match?.[1] ?? null
-}
-
-function getYTThumb(url) {
-  const id = getYTVideoId(url)
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
-}
+import { getYTThumb, getYTPlaylistId, fetchYouTubeOEmbed } from '../../utils/youtube'
 
 // Rich Text Editor Toolbar Component
 function RichTextEditor({ value, onChange }) {
@@ -284,15 +275,30 @@ export default function AdminBatchDetails() {
       return
     }
 
-    const thumb = getYTThumb(cardForm.url.trim())
+    const trimmedUrl = cardForm.url.trim()
+    const listId = getYTPlaylistId(trimmedUrl)
+    const effectiveType = (cardForm.type === 'youtube_video' && listId) ? 'youtube_playlist' : cardForm.type
+    let thumb = getYTThumb(trimmedUrl)
+
+    if (!thumb && (effectiveType === 'youtube_playlist' || listId)) {
+      try {
+        const oembed = await fetchYouTubeOEmbed(trimmedUrl)
+        if (oembed?.thumbnail_url) {
+          thumb = oembed.thumbnail_url
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
     setSavingCard(true)
     const payload = {
-      title: cardForm.title,
-      description: cardForm.description || null,
-      type: cardForm.type,
-      url: cardForm.url,
+      title: cardForm.title.trim(),
+      description: cardForm.description?.trim() || null,
+      type: effectiveType,
+      url: trimmedUrl,
       thumbnail_url: thumb || null,
-      subject: cardForm.subject || null,
+      subject: cardForm.subject?.trim() || null,
       is_public: cardForm.is_public,
       batch_id: selectedBatchId,
       batch_ids: [selectedBatchId],
@@ -606,7 +612,22 @@ export default function AdminBatchDetails() {
                   type="text"
                   placeholder="https://www.youtube.com/watch?v=... or Google Drive link"
                   value={cardForm.url}
-                  onChange={e => setCardForm(f => ({ ...f, url: e.target.value }))}
+                  onChange={e => {
+                    const val = e.target.value
+                    const listId = getYTPlaylistId(val.trim())
+                    setCardForm(f => ({
+                      ...f,
+                      url: val,
+                      type: (listId && f.type === 'youtube_video') ? 'youtube_playlist' : f.type,
+                    }))
+                    if (listId && !cardForm.title.trim()) {
+                      fetchYouTubeOEmbed(val.trim()).then(d => {
+                        if (d?.title) {
+                          setCardForm(f => ({ ...f, title: f.title || d.title }))
+                        }
+                      }).catch(() => {})
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none font-mono"
                 />
               </div>

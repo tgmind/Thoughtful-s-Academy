@@ -1,0 +1,47 @@
+================================================================================
+AUDIT BENCHMARK: FRONTEND BUNDLE & CHUNK COMPOSITION
+Platform: Vite 5.4.10, Rollup 4.24.0, Tailwind CSS 3.4.14
+Build Timestamp: 2026-10-13T14:10:07Z
+Build Duration: 10.19s
+Total Precache Assets: 62 entries (1,821.16 KiB uncompressed)
+================================================================================
+
+1. VENDOR CHUNK SIZES (GZIP COMPRESSED):
+--------------------------------------------------------------------------------
+Chunk Name                  Raw Size     Gzip Size   Contents
+--------------------------------------------------------------------------------
+vendor-charts.js            355.02 kB    98.46 kB    Recharts, D3-array, D3-shape, D3-scale
+vendor-react.js             282.47 kB    84.17 kB    React 18, React-DOM, React-Router-DOM
+vendor-supabase.js          211.21 kB    54.47 kB    @supabase/supabase-js, realtime-js, gotrue
+vendor-ui.js                114.38 kB    37.77 kB    Framer Motion, Lucide-React
+index.css                   160.71 kB    22.70 kB    Compiled Tailwind CSS & typography
+
+Vendor JS Subtotal:         963.08 kB   274.87 kB
+CSS Subtotal:               160.71 kB    22.70 kB
+Total Critical Assets:    1,123.79 kB   297.57 kB
+
+2. TOP 10 APPLICATION CHUNKS (GZIP COMPRESSED):
+--------------------------------------------------------------------------------
+Chunk Name                  Raw Size     Gzip Size   Component / Page
+--------------------------------------------------------------------------------
+WatchLecture.js              64.93 kB    17.29 kB    src/pages/student/WatchLecture.jsx
+StudySection-DUZz8-aR.js     58.80 kB    12.56 kB    src/pages/teacher/StudySection.jsx
+Home.js                      42.48 kB    10.48 kB    src/pages/Home.jsx
+StudentDashboard.js          40.69 kB    10.33 kB    src/pages/student/StudentDashboard.jsx
+DashboardShell.js            35.87 kB     9.60 kB    src/components/layout/DashboardShell.jsx
+StudySection-BUWi8DDr.js     38.04 kB     8.68 kB    src/pages/student/StudySection.jsx
+index-B3zEYZrn.js            24.52 kB     7.52 kB    Application main & router root
+BatchDetails.js              28.17 kB     7.21 kB    src/pages/BatchDetails.jsx
+FeeManager.js                26.42 kB     6.56 kB    src/pages/admin/FeeManager.jsx
+AdminMessages.js             21.45 kB     5.63 kB    src/pages/admin/AdminMessages.jsx
+
+3. PERFORMANCE ASSESSMENT:
+--------------------------------------------------------------------------------
+- Code Splitting: Successfully split with dynamic React.lazy() across all routes.
+- Vendor Segregation: manualChunks separates heavy vendor libraries (recharts, react, supabase, ui).
+- First Contentful Paint (FCP) Impact:
+  Initial page load for landing page requires:
+  vendor-react (84.2 kB) + vendor-ui (37.8 kB) + vendor-supabase (54.5 kB) + index.css (22.7 kB) + Home.js (10.5 kB)
+  = ~209.7 kB compressed over the wire.
+- PWA Offline Precache:
+  Service Worker precaches 1.82 MB on initial install. On low-bandwidth 3G mobile connections in Tier-2/3 Indian cities, this initial precache burst takes ~4-6 seconds, but subsequent visits are served instantly from CacheStorage.

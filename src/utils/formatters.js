@@ -87,15 +87,45 @@ export function getDriveImageUrls(url) {
 
 // ---- URL helpers --------------------------------------------
 
-// Ensures an external link has a protocol. Without one, an
-// <a href="meet.google.com/abc"> is treated as a *relative*
-// path and React Router resolves it to a 404 / error page.
+// Ensures an external link has a protocol and is safe against script execution (XSS).
+// Rejects dangerous protocols like javascript:, data:, vbscript:, blob:, etc.
+// Whitelists strictly: http, https, mailto, tel.
 export function normalizeUrl(url) {
   if (!url) return ''
   const trimmed = String(url).trim()
   if (!trimmed) return ''
-  // Already has a scheme (http, https, mailto, tel, etc.)
-  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed)) return trimmed
+
+  // Filter out whitespace and non-printable control characters when testing dangerous schemes
+  let sanitizedForScheme = ''
+  for (let i = 0; i < trimmed.length; i++) {
+    const code = trimmed.charCodeAt(i)
+    if (code > 32 && code !== 127) {
+      sanitizedForScheme += trimmed[i]
+    }
+  }
+  sanitizedForScheme = sanitizedForScheme.toLowerCase()
+
+  if (
+    sanitizedForScheme.startsWith('javascript:') ||
+    sanitizedForScheme.startsWith('data:') ||
+    sanitizedForScheme.startsWith('vbscript:') ||
+    sanitizedForScheme.startsWith('blob:') ||
+    sanitizedForScheme.startsWith('file:')
+  ) {
+    return ''
+  }
+
+  // Check for explicit scheme (e.g. "https://...", "mailto:...")
+  const schemeMatch = trimmed.match(/^([a-zA-Z][a-zA-Z\d+.-]*):/)
+  if (schemeMatch) {
+    const scheme = schemeMatch[1].toLowerCase()
+    if (['http', 'https', 'mailto', 'tel'].includes(scheme)) {
+      return trimmed
+    }
+    // Disallowed scheme
+    return ''
+  }
+
   // Protocol-relative URL ("//meet.google.com/…")
   if (trimmed.startsWith('//')) return `https:${trimmed}`
   return `https://${trimmed}`

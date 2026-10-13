@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { INSTITUTE_NAME } from '../lib/constants'
 import { getYouTubeThumbnail, convertDriveUrl } from '../utils/formatters'
 import DriveImage from '../components/shared/DriveImage'
+import DOMPurify from 'dompurify'
 
 
 export default function BatchDetails() {
@@ -529,7 +530,7 @@ export default function BatchDetails() {
               {activeBatch.detailed_info ? (
                 <div
                   className="prose prose-blue max-w-none text-gray-800 text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: activeBatch.detailed_info }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeBatch.detailed_info) }}
                 />
               ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">

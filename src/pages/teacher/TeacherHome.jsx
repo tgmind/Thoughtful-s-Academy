@@ -94,7 +94,19 @@ export default function TeacherHome() {
     { key: 'fee_records',   label: 'Fee Records',    perm: perms?.can_view_fee_records,   path: '/teacher/fee-records', icon: <Receipt className="h-5 w-5" />,      color: 'bg-amber-50 text-amber-700'  },
   ]
 
-  if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+  if (loading) {
+    return (
+      <div className="space-y-6 pb-20 lg:pb-0 animate-pulse">
+        <div className="bg-slate-200/80 rounded-3xl h-48 w-full" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 h-28" />
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 h-44" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">

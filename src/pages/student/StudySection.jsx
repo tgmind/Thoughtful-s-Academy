@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import LiveClassBanner from '../../components/shared/LiveClassBanner'
 import { normalizeUrl } from '../../utils/formatters'
+import { getYTThumb } from '../../utils/youtube'
 
 // Subject Theme Resolver for Physics Wallah / Premium EdTech Style
 function getSubjectTheme(subjectName = '') {
@@ -85,16 +86,6 @@ function getSubjectTheme(subjectName = '') {
   }
 }
 
-function getYTVideoId(url) {
-  if (!url) return null
-  const match = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
-  return match?.[1] ?? null
-}
-
-function getYTThumb(url) {
-  const id = getYTVideoId(url)
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
-}
 
 const TYPE_BADGES = {
   youtube_video:    { label: 'Video Lecture', color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },

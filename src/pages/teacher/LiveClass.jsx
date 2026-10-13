@@ -57,8 +57,10 @@ export default function LiveClass({ isAdmin = false }) {
 
     const permCheck = isAdmin
       ? Promise.resolve(true)
-      : supabase.from('teacher_profiles').select('can_drop_live_class').eq('id', user.id).maybeSingle()
-          .then(({ data: p }) => p?.can_drop_live_class ?? false)
+      : Promise.all([
+          supabase.from('teacher_profiles').select('can_drop_live_class').eq('id', user.id).maybeSingle(),
+          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
+        ]).then(([{ data: p }, { data: b }]) => (p?.can_drop_live_class ?? false) || (b && b.length > 0))
           .catch(() => false)
 
     permCheck.then(async (ok) => {
@@ -82,7 +84,7 @@ export default function LiveClass({ isAdmin = false }) {
       const channelConfig = { event: '*', schema: 'public', table: 'live_classes' }
 
       channel = supabase
-        .channel(`lc_manage_${user.id}_${Date.now()}`)
+        .channel(`lc_manage_${user.id}`)
         .on('postgres_changes', channelConfig, loadClasses)
         .subscribe()
     })

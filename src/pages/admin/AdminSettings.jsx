@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TriangleAlert, Trash2, RefreshCcw, ShieldAlert, ChevronDown, ChevronRight, Users, UserCog, ToggleLeft, ToggleRight } from 'lucide-react'
+import { TriangleAlert, Trash2, RefreshCcw, ShieldAlert, ChevronDown, ChevronRight, Users, UserCog } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -25,15 +25,6 @@ const DELETION_STEPS = [
   { label: 'User profiles (non-admin)', table: 'profiles', filter: true },
 ]
 
-const ALL_PERMS = [
-  { key: 'can_manage_study_cards', label: 'Study Cards',       short: 'Study Cards' },
-  { key: 'can_manage_homework',    label: 'Homework',          short: 'Homework'    },
-  { key: 'can_drop_live_class',    label: 'Live Class Links',  short: 'Live Class'  },
-  { key: 'can_message_students',   label: 'Message Students',  short: 'Messages'    },
-  { key: 'can_view_attendance',    label: 'View Attendance',   short: 'Attendance'  },
-  { key: 'can_view_fee_records',   label: 'View Fee Records',  short: 'Fee Records' },
-]
-
 export default function AdminSettings() {
   const { user } = useAuth()
 
@@ -43,9 +34,6 @@ export default function AdminSettings() {
   const [resetting,  setResetting]  = useState(false)
   const [progress,   setProgress]   = useState([])
   const [done,       setDone]       = useState(false)
-
-  const openModal  = () => { setInput(''); setProgress([]); setDone(false); setShowModal(true) }
-  const closeModal = () => { if (!resetting) setShowModal(false) }
 
   // ── Delete students ──
   const [studentsOpen,     setStudentsOpen]     = useState(false)
@@ -69,51 +57,9 @@ export default function AdminSettings() {
   const [teacherProgress,  setTeacherProgress]  = useState([])
   const [teacherDone,      setTeacherDone]      = useState(false)
 
-  // ── Teacher Permissions ──
-  const [permsOpen,     setPermsOpen]     = useState(false)
-  const [permList,      setPermList]      = useState([])
-  const [loadingPerms,  setLoadingPerms]  = useState(false)
-  const [savingPerm,    setSavingPerm]    = useState(null)
-
-  // ── Permission handlers ──
-  const loadPerms = async () => {
-    setLoadingPerms(true)
-    const [{ data: profiles }, { data: tps }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, email').eq('role', 'teacher').order('full_name'),
-      supabase.from('teacher_profiles').select('id, can_manage_study_cards, can_manage_homework, can_drop_live_class, can_message_students, can_view_attendance, can_view_fee_records'),
-    ])
-    const tpMap = {}; (tps ?? []).forEach(t => { if (t && t.id) tpMap[t.id] = t })
-    setPermList((profiles ?? []).map(t => ({
-      id: t.id,
-      full_name: t.full_name,
-      email: t.email,
-      can_manage_study_cards: tpMap[t.id]?.can_manage_study_cards ?? false,
-      can_manage_homework:    tpMap[t.id]?.can_manage_homework    ?? false,
-      can_drop_live_class:    tpMap[t.id]?.can_drop_live_class    ?? false,
-      can_message_students:   tpMap[t.id]?.can_message_students   ?? false,
-      can_view_attendance:    tpMap[t.id]?.can_view_attendance    ?? false,
-      can_view_fee_records:   tpMap[t.id]?.can_view_fee_records   ?? false,
-    })))
-    setLoadingPerms(false)
-  }
-
-  const togglePermsOpen = () => {
-    const opening = !permsOpen
-    setPermsOpen(opening)
-    if (opening && permList.length === 0) loadPerms()
-  }
-
-  const togglePerm = async (teacherId, field, currentVal) => {
-    setSavingPerm(`${teacherId}_${field}`)
-    const { error } = await supabase.from('teacher_profiles')
-      .upsert({ id: teacherId, [field]: !currentVal }, { onConflict: 'id' })
-    if (error) { toast.error(error.message) }
-    else {
-      setPermList(l => l.map(t => t.id === teacherId ? { ...t, [field]: !currentVal } : t))
-      toast.success('Permission updated')
-    }
-    setSavingPerm(null)
-  }
+  // ── Full reset handlers ──
+  const openModal  = () => { setInput(''); setProgress([]); setDone(false); setShowModal(true) }
+  const closeModal = () => { if (!resetting) setShowModal(false) }
 
   const runReset = async () => {
     if (input !== CONFIRM_WORD || !user) return
@@ -336,7 +282,7 @@ export default function AdminSettings() {
   const confirmed = input === CONFIRM_WORD
 
   return (
-    <div className="p-3 sm:p-6 w-full max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Admin Settings</h1>
@@ -505,133 +451,6 @@ export default function AdminSettings() {
                 </div>
               </>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* ── Teacher Permissions ── */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
-        <button
-          onClick={togglePermsOpen}
-          className="w-full bg-gray-50 px-5 py-4 flex items-center justify-between hover:bg-gray-100 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <ToggleRight className="h-5 w-5 text-blue-600 shrink-0" />
-            <div className="text-left">
-              <p className="font-semibold text-gray-800 text-sm">Teacher Permissions</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Control which teachers can manage homework and study cards.
-              </p>
-            </div>
-          </div>
-          {permsOpen
-            ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
-            : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />}
-        </button>
-
-        {permsOpen && (
-          <div className="border-t border-gray-200 bg-white px-4 sm:px-5 py-4 space-y-4">
-            {loadingPerms ? (
-              <p className="py-6 text-center text-sm text-gray-400">Loading teachers…</p>
-            ) : permList.length === 0 ? (
-              <p className="text-sm text-gray-400 py-6 text-center">No teachers found</p>
-            ) : (
-              <>
-                {/* Desktop View: Full-width Table */}
-                <div className="hidden md:block overflow-x-auto border border-gray-200/80 rounded-xl">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3">Teacher</th>
-                        {ALL_PERMS.map(p => (
-                          <th key={p.key} className="px-3 py-3 text-center whitespace-nowrap">{p.short}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
-                      {permList.map(t => (
-                        <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0">
-                                {t.full_name?.[0]?.toUpperCase() ?? '?'}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-bold text-slate-900 truncate text-xs">{t.full_name}</p>
-                                <p className="text-[10px] text-slate-400 truncate">{t.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          {ALL_PERMS.map(p => {
-                            const val = !!t[p.key]
-                            const isSaving = savingPerm === `${t.id}_${p.key}`
-                            return (
-                              <td key={p.key} className="px-3 py-3 text-center">
-                                <button
-                                  onClick={() => togglePerm(t.id, p.key, val)}
-                                  disabled={isSaving}
-                                  title={`${p.label}: ${val ? 'Enabled' : 'Disabled'}`}
-                                  className={`p-1 rounded-lg transition-all ${
-                                    isSaving ? 'opacity-40' : 'hover:scale-110 cursor-pointer'
-                                  }`}
-                                >
-                                  {val
-                                    ? <ToggleRight className="h-6 w-6 text-blue-600 mx-auto" />
-                                    : <ToggleLeft  className="h-6 w-6 text-slate-300 mx-auto" />}
-                                </button>
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile View: Flex/Grid Cards */}
-                <div className="md:hidden space-y-3">
-                  {permList.map(t => (
-                    <div key={t.id} className="p-3.5 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                          {t.full_name?.[0]?.toUpperCase() ?? '?'}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-xs text-slate-900 truncate">{t.full_name}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{t.email}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-                        {ALL_PERMS.map(p => {
-                          const val = !!t[p.key]
-                          const isSaving = savingPerm === `${t.id}_${p.key}`
-                          return (
-                            <button
-                              key={p.key}
-                              onClick={() => togglePerm(t.id, p.key, val)}
-                              disabled={isSaving}
-                              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                                val
-                                  ? 'bg-blue-50/90 border-blue-200 text-blue-900'
-                                  : 'bg-white border-slate-200/80 text-slate-500'
-                              }`}
-                            >
-                              <span>{p.label}</span>
-                              {val
-                                ? <ToggleRight className="h-5 w-5 text-blue-600 shrink-0" />
-                                : <ToggleLeft  className="h-5 w-5 text-slate-300 shrink-0" />}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-            <p className="text-xs text-slate-400">
-              Changes take effect immediately across all teacher portals.
-            </p>
           </div>
         )}
       </div>

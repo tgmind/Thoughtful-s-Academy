@@ -1,0 +1,80 @@
+================================================================================
+AUDIT EXECUTION LOG: PRODUCTION BUILD TEST
+Command: npm run build
+Environment: Node.js Linux x86_64, Vite v5.4.10, vite-plugin-pwa v1.3.0
+Timestamp: 2026-10-13T14:10:07Z
+Exit Code: 0
+Status: SUCCESS
+================================================================================
+
+> coaching-institute@0.1.0 build
+> vite build
+
+vite v5.4.10 building for production...
+transforming (615) ...
+rendering chunks (52)...
+computing gzip size (54)...
+
+dist/registerSW.js                           0.13 kB
+dist/index.html                              4.83 kB │ gzip:  1.60 kB
+dist/assets/index-DrO3lVfK.css             160.71 kB │ gzip: 22.70 kB
+dist/assets/constants-Bxu7m5Te.js            0.12 kB │ gzip:  0.13 kB
+dist/assets/DriveImage-JdRjOTTE.js           0.51 kB │ gzip:  0.36 kB
+dist/assets/clipboard-DQDuQm9R.js            0.63 kB │ gzip:  0.41 kB
+dist/assets/StudentLayout-BpHsLBoX.js        1.07 kB │ gzip:  0.46 kB
+dist/assets/TeacherLayout-B3vgysN1.js        1.07 kB │ gzip:  0.46 kB
+dist/assets/formatters-Cq13tTBl.js           1.45 kB │ gzip:  0.59 kB
+dist/assets/AdminLayout-Dxy6MGP8.js          1.64 kB │ gzip:  0.57 kB
+dist/assets/LiveClass-BJxOjd_L.js            2.63 kB │ gzip:  1.29 kB
+dist/assets/ErrorPages-CtQrWuSY.js           2.67 kB │ gzip:  1.06 kB
+dist/assets/LiveClassBanner-BX4VQcp4.js      2.71 kB │ gzip:  1.06 kB
+dist/assets/CustomSelect-DIuByU7x.js         2.92 kB │ gzip:  1.23 kB
+dist/assets/ResetPassword-47dXFdbV.js        4.11 kB │ gzip:  1.58 kB
+dist/assets/youtube-CjzeNv2S.js              4.69 kB │ gzip:  1.80 kB
+dist/assets/QRManager-DOmMJFnb.js            5.22 kB │ gzip:  2.02 kB
+dist/assets/FeeRecords-Xcp1ZbgD.js           5.23 kB │ gzip:  2.09 kB
+dist/assets/Login-CHZ9nDGh.js                7.52 kB │ gzip:  2.53 kB
+dist/assets/Analytics-BukFZj_f.js            7.74 kB │ gzip:  2.68 kB
+dist/assets/Homework-BxTGmOgc.js             8.06 kB │ gzip:  2.90 kB
+dist/assets/PayFee-DIoy_RbK.js               8.35 kB │ gzip:  2.79 kB
+dist/assets/TeacherHome-5VFI18RL.js          8.95 kB │ gzip:  2.70 kB
+dist/assets/ActivityLogModal-CfeltotT.js     9.07 kB │ gzip:  2.94 kB
+dist/assets/SalaryStatus-BTCewA4O.js         9.19 kB │ gzip:  3.10 kB
+dist/assets/LiveClass-i4hvYFYl.js           10.50 kB │ gzip:  3.52 kB
+dist/assets/Messages-BrCC5ze2.js            10.83 kB │ gzip:  3.58 kB
+dist/assets/Notifications-DNyG0tTA.js       11.60 kB │ gzip:  3.96 kB
+dist/assets/BatchManager-CgKM8a0M.js        11.88 kB │ gzip:  3.78 kB
+dist/assets/Announcements-Cr2yPUYZ.js       12.80 kB │ gzip:  3.94 kB
+dist/assets/Register-BGGVLZ26.js            12.99 kB │ gzip:  4.50 kB
+dist/assets/Homework-CsJrqAR1.js            14.00 kB │ gzip:  4.08 kB
+dist/assets/AdminHome-xHKgpr_y.js           14.41 kB │ gzip:  3.53 kB
+dist/assets/Attendance-DpXTXVA-.js          14.50 kB │ gzip:  4.29 kB
+dist/assets/TeacherManager-BhW1ppZ6.js      16.11 kB │ gzip:  4.42 kB
+dist/assets/SalaryManager-B2z0Q5mM.js       16.77 kB │ gzip:  4.50 kB
+dist/assets/StudentTracker-CykSIo12.js      17.02 kB │ gzip:  4.88 kB
+dist/assets/Notifications-wuoUIWXo.js       19.17 kB │ gzip:  5.43 kB
+dist/assets/Messages-G2F48aAg.js            19.62 kB │ gzip:  5.20 kB
+dist/assets/AdminBatchDetails-4pczvibp.js   20.51 kB │ gzip:  5.54 kB
+dist/assets/AdminMessages-BZDgWa8g.js       21.45 kB │ gzip:  5.63 kB
+dist/assets/AdminSettings-DcHgkhSE.js       23.39 kB │ gzip:  4.81 kB
+dist/assets/index-B3zEYZrn.js               24.52 kB │ gzip:  7.52 kB
+dist/assets/FeeManager-Cl9Aty_2.js          26.42 kB │ gzip:  6.56 kB
+dist/assets/BatchDetails-BgBFuyvU.js        28.17 kB │ gzip:  7.21 kB
+dist/assets/DashboardShell-BW0MBsK0.js      35.87 kB │ gzip:  9.60 kB
+dist/assets/StudySection-BUWi8DDr.js        38.04 kB │ gzip:  8.68 kB
+dist/assets/StudentDashboard-wvuol49H.js    40.69 kB │ gzip: 10.33 kB
+dist/assets/Home-4qt0wq1Q.js                42.48 kB │ gzip: 10.48 kB
+dist/assets/StudySection-DUZz8-aR.js        58.80 kB │ gzip: 12.56 kB
+dist/assets/WatchLecture-xoHNfcm4.js        64.93 kB │ gzip: 17.29 kB
+dist/assets/vendor-ui-CYGAx1uj.js          114.38 kB │ gzip: 37.77 kB
+dist/assets/vendor-supabase-J7ITh-P0.js    211.21 kB │ gzip: 54.47 kB
+dist/assets/vendor-react-BnAx2U9k.js       282.47 kB │ gzip: 84.17 kB
+dist/assets/vendor-charts-DJfNzIcm.js      355.02 kB │ gzip: 98.46 kB
+✓ built in 10.19s
+
+PWA v1.3.0
+mode      generateSW
+precache  62 entries (1821.16 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-bdb082da.js

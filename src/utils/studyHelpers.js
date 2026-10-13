@@ -78,18 +78,7 @@ export function getSubjectTheme(subjectName = '') {
   }
 }
 
-/** Extract YouTube video ID from various URL formats */
-export function getYTVideoId(url) {
-  if (!url) return null
-  const match = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
-  return match?.[1] ?? null
-}
-
-/** Get YouTube thumbnail URL from a video URL */
-export function getYTThumb(url) {
-  const id = getYTVideoId(url)
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
-}
+export { getYTVideoId, getYTPlaylistId, getYTThumb, isValidPlaylistId } from './youtube'
 
 /** Card type badge configuration */
 export const TYPE_BADGES = {

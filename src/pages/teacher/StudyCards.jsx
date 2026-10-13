@@ -4,15 +4,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-function getYTVideoId(url) {
-  const match = url?.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
-  return match?.[1] ?? null
-}
-
-function getYTThumb(url) {
-  const id = getYTVideoId(url)
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
-}
+import { getYTVideoId, getYTThumb, getYTPlaylistId, fetchYouTubeOEmbed } from '../../utils/youtube'
 
 const TYPES = [
   { value: 'youtube_video',    label: 'YouTube Video'    },
@@ -47,32 +39,46 @@ export default function StudyCards({ isAdmin = false }) {
   const [playlistThumb, setPlaylistThumb] = useState(null)
 
   useEffect(() => {
-    if (form.type !== 'youtube_playlist' || !form.url.trim()) {
+    const trimmed = form.url.trim()
+    if (!trimmed) {
       setPlaylistThumb(null)
       return
     }
+
+    const listId = getYTPlaylistId(trimmed)
+    if (listId && form.type === 'youtube_video') {
+      setForm(f => ({ ...f, type: 'youtube_playlist' }))
+    }
+
     // If the URL contains a video ID (e.g. watch?v=...&list=...) getYTThumb handles it
-    if (getYTVideoId(form.url)) {
+    if (getYTVideoId(trimmed)) {
       setPlaylistThumb(null)
       return
     }
-    const controller = new AbortController()
-    fetch(
-      `https://www.youtube.com/oembed?url=${encodeURIComponent(form.url.trim())}&format=json`,
-      { signal: controller.signal }
-    )
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.thumbnail_url) setPlaylistThumb(d.thumbnail_url) })
-      .catch(() => {})
-    return () => controller.abort()
+
+    if (listId || form.type === 'youtube_playlist') {
+      let active = true
+      fetchYouTubeOEmbed(trimmed).then(d => {
+        if (!active) return
+        if (d?.thumbnail_url) setPlaylistThumb(d.thumbnail_url)
+        if (d?.title) {
+          setForm(f => f.title.trim() ? f : { ...f, title: d.title })
+        }
+      })
+      return () => { active = false }
+    } else {
+      setPlaylistThumb(null)
+    }
   }, [form.url, form.type])
 
   useEffect(() => {
     if (!user) return
     const checks = isAdmin
       ? Promise.resolve(true)
-      : supabase.from('teacher_profiles').select('can_manage_study_cards').eq('id', user.id).maybeSingle()
-          .then(({ data: p }) => p?.can_manage_study_cards ?? false)
+      : Promise.all([
+          supabase.from('teacher_profiles').select('can_manage_study_cards').eq('id', user.id).maybeSingle(),
+          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
+        ]).then(([{ data: p }, { data: b }]) => (p?.can_manage_study_cards ?? false) || (b && b.length > 0))
           .catch(() => false)
 
     checks.then(ok => {
@@ -121,12 +127,22 @@ export default function StudyCards({ isAdmin = false }) {
     if (!form.title.trim() || !form.url.trim()) { toast.error('Title and URL are required'); return }
     if (!form.is_public && form.batch_ids.length === 0) { toast.error('Select at least one visibility option'); return }
     if (form.batch_ids.length > 0 && !form.subject.trim()) { toast.error('Subject is required when a batch is selected'); return }
-    const thumb = getYTThumb(form.url.trim()) || playlistThumb
+    const listId = getYTPlaylistId(form.url.trim())
+    const effectiveType = (form.type === 'youtube_video' && listId) ? 'youtube_playlist' : form.type
+    let thumb = getYTThumb(form.url.trim()) || playlistThumb
+    if (!thumb && (effectiveType === 'youtube_playlist' || listId)) {
+      try {
+        const oembed = await fetchYouTubeOEmbed(form.url.trim())
+        if (oembed?.thumbnail_url) thumb = oembed.thumbnail_url
+      } catch {
+        // Fallback
+      }
+    }
     setSaving(true)
     const payload = {
       title:         form.title.trim(),
       description:   form.description.trim() || null,
-      type:          form.type,
+      type:          effectiveType,
       url:           form.url.trim(),
       thumbnail_url: thumb || null,
       is_public:     form.is_public,

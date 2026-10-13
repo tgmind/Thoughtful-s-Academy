@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
-import { getSubjectTheme, getYTVideoId, getYTThumb, TYPE_BADGES, EMPTY_CARD_FORM, unionSubjects } from '../../utils/studyHelpers'
+import { getSubjectTheme, getYTVideoId, getYTPlaylistId, getYTThumb, TYPE_BADGES, EMPTY_CARD_FORM, unionSubjects } from '../../utils/studyHelpers'
 import { logActivity } from '../../lib/activityLogger'
 import ActivityLogModal from '../../components/shared/ActivityLogModal'
 
@@ -355,7 +355,7 @@ function ManageableStudyCard({
   if (viewMode === 'list') {
     return (
       <div
-        className={`group relative rounded-2xl border transition-all duration-300 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${card.is_featured
+        className={`group relative isolate rounded-2xl border transition-all duration-300 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${card.is_featured
             ? 'bg-slate-900/95 border-amber-500/40 shadow-sm hover:border-amber-400'
             : 'bg-white border-slate-200/90 hover:border-blue-400 shadow-2xs hover:shadow-md'
           } ${!card.is_active ? 'opacity-60 grayscale-[25%]' : ''}`}
@@ -459,7 +459,7 @@ function ManageableStudyCard({
 
   return (
     <div
-      className={`group relative rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col justify-between ${card.is_featured
+      className={`group relative isolate rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col justify-between ${card.is_featured
           ? 'bg-slate-900/95 border-amber-500/40 shadow-md hover:shadow-amber-500/20 hover:border-amber-400'
           : 'bg-white border-slate-200/90 hover:border-blue-400 shadow-2xs hover:shadow-lg'
         } ${!card.is_active ? 'opacity-60 grayscale-[20%]' : ''}`}
@@ -633,7 +633,6 @@ export default function StudySection({ isAdmin = false }) {
   const navigate = useNavigate()
 
   const [hasAccess, setHasAccess] = useState(isAdmin)
-  const [canManageStudyCards, setCanManageStudyCards] = useState(isAdmin)
   const [loading, setLoading] = useState(true)
   const [batches, setBatches] = useState([])
   const [cards, setCards] = useState([])
@@ -663,18 +662,11 @@ export default function StudySection({ isAdmin = false }) {
       setLoading(true)
 
       let access = isAdmin
-      let canManagePerm = isAdmin
       if (!isAdmin && user) {
+        // All authenticated teachers can view the study section
         access = true
-        const { data: tp } = await supabase
-          .from('teacher_profiles')
-          .select('can_manage_study_cards')
-          .eq('id', user.id)
-          .maybeSingle()
-        canManagePerm = tp?.can_manage_study_cards ?? false
       }
       setHasAccess(access)
-      setCanManageStudyCards(canManagePerm)
 
       if (access) {
         const { data: bData } = await supabase
@@ -730,7 +722,12 @@ export default function StudySection({ isAdmin = false }) {
     }
 
     const trimmed = form.url.trim()
-    if (getYTVideoId(trimmed)) {
+    const listId = getYTPlaylistId(trimmed)
+    if (listId) {
+      if (form.type !== 'youtube_playlist') {
+        setForm(f => ({ ...f, type: 'youtube_playlist' }))
+      }
+    } else if (getYTVideoId(trimmed)) {
       if (form.type !== 'youtube_video' && form.type !== 'youtube_playlist') {
         setForm(f => ({ ...f, type: 'youtube_video' }))
       }
@@ -844,14 +841,12 @@ export default function StudySection({ isAdmin = false }) {
 
   const canManageBatch = (batch) => {
     if (isAdmin) return true
-    if (!canManageStudyCards) return false
     if (isBatchTeacher(batch, user?.id)) return true
     return false
   }
 
   const canManageCard = (card, batch) => {
     if (isAdmin) return true
-    if (!canManageStudyCards) return false
     if (isBatchTeacher(selectedBatch, user?.id)) return true
     if (isBatchTeacher(batch, user?.id)) return true
 
@@ -868,10 +863,6 @@ export default function StudySection({ isAdmin = false }) {
   }, [batches, isAdmin, user?.id])
 
   const openAddForm = (presetType = 'external_link') => {
-    if (!isAdmin && !canManageStudyCards) {
-      toast.error('Permission required to manage study cards')
-      return
-    }
     let type = presetType
     if (selectedFolder === 'video') type = 'youtube_video'
     else if (selectedFolder === 'drive') type = 'google_drive'
@@ -905,10 +896,6 @@ export default function StudySection({ isAdmin = false }) {
   }
 
   const save = async () => {
-    if (!isAdmin && !canManageStudyCards) {
-      toast.error('Permission required to manage study cards')
-      return
-    }
     if (!form.title.trim() || !form.url.trim()) { toast.error('Title and URL are required'); return }
     if (!form.is_public && form.batch_ids.length === 0) { toast.error('Select at least one target batch or public option'); return }
     if (form.batch_ids.length > 0 && !form.subject.trim()) { toast.error('Subject is required when a batch is selected'); return }
@@ -1522,9 +1509,9 @@ export default function StudySection({ isAdmin = false }) {
     <div className="w-full space-y-4 pb-28 sm:pb-12 text-slate-900 min-w-0 overflow-x-hidden">
 
       {/* ───────────────────────────────────────────────────────────────────────── */}
-      {/* INNOVATIVE COMPACT STACKED-HIERARCHY HEADER BAR                           */}
+      {/* COMPACT STACKED-HIERARCHY HEADER BAR                                      */}
       {/* ───────────────────────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-2xs p-2.5 space-y-2 transition-all">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3 sm:p-3.5 space-y-2.5 transition-all">
         
         {/* Row 1: Circular Back Button & Full Stacked Context Hierarchy + Add CTA */}
         <div className="flex items-center justify-between gap-2 min-w-0">

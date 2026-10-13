@@ -128,6 +128,8 @@ export function useNavBadges(role, userId) {
     if (!role || !userId) return
     let cancelled = false
     let channel = null
+    let livePoll = null
+    let studentBatchId = null
     // Unique suffix prevents 'cannot add callbacks after subscribe' on StrictMode remount
     const suffix = `${userId}_${Date.now()}`
 
@@ -151,12 +153,21 @@ export function useNavBadges(role, userId) {
       else setDot(path, false)
     }
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !cancelled && role === 'student') {
+        refresh('/student/live-class', () => studentLiveActive(studentBatchId))
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('focus', onVisibilityChange)
+
     const init = async () => {
       if (role === 'student') {
         const { data: sp } = await supabase
           .from('student_profiles').select('batch_id').eq('id', userId).maybeSingle()
         if (cancelled) return
         const batchId = sp?.batch_id ?? null
+        studentBatchId = batchId
 
         const [msg, notif, live, hw] = await Promise.all([
           countUnreadMessages(userId),
@@ -166,11 +177,18 @@ export function useNavBadges(role, userId) {
         ])
         if (cancelled) return
         seed({
-          '/student/messages':       msg > 0,
-          '/student/notifications':  notif > 0,
-          '/student/live-class':     live,
-          '/student/homework':       hw,
+          '/student/messages': msg > 0,
+          '/student/notifications': notif > 0,
+          '/student/live-class': live,
+          '/student/homework': hw,
         })
+
+        // Light 60s fallback heartbeat (WebSockets handle instant push updates)
+        livePoll = setInterval(() => {
+          if (!cancelled && document.visibilityState === 'visible') {
+            refresh('/student/live-class', () => studentLiveActive(batchId))
+          }
+        }, 60000)
 
         channel = supabase
           .channel(`nav_badges_s_${suffix}`)
@@ -180,8 +198,19 @@ export function useNavBadges(role, userId) {
             () => refresh('/student/notifications', () => studentNotifUnread(userId, batchId)))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${userId}` },
             () => refresh('/student/notifications', () => studentNotifUnread(userId, batchId)))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' },
-            () => refresh('/student/live-class', () => studentLiveActive(batchId)))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' }, (payload) => {
+            const { eventType, new: newRow } = payload || {}
+            if (eventType === 'DELETE' || (newRow && !newRow.is_active)) {
+              // 0ms instant dismiss dot
+              setDot('/student/live-class', false)
+            } else if (newRow && newRow.is_active) {
+              if (!newRow.batch_id || !batchId || newRow.batch_id === batchId) {
+                // 0ms instant raise dot
+                raise('/student/live-class')
+              }
+            }
+            refresh('/student/live-class', () => studentLiveActive(batchId))
+          })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'homework' },
             () => refresh('/student/homework', () => studentHomeworkPending(userId, batchId)))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'homework_submissions', filter: `student_id=eq.${userId}` },
@@ -232,7 +261,13 @@ export function useNavBadges(role, userId) {
 
     init()
 
-    return () => { cancelled = true; if (channel) supabase.removeChannel(channel) }
+    return () => {
+      cancelled = true
+      if (livePoll) clearInterval(livePoll)
+      if (channel) supabase.removeChannel(channel)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('focus', onVisibilityChange)
+    }
   }, [role, userId, raise, setDot])
 
   return badges

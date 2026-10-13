@@ -54,6 +54,9 @@ export function AuthProvider({ children }) {
   }, [fetchProfile])
 
   const signOut = useCallback(async () => {
+    try {
+      supabase.removeAllChannels()
+    } catch { /* ignore */ }
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
@@ -70,6 +73,7 @@ export function AuthProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')

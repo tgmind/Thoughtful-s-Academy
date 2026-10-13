@@ -55,8 +55,13 @@ export default function StudentLiveClass() {
                 (payload.eventType === 'UPDATE' && !payload.new?.is_active)
               ) {
                 setLiveClass(null)
+              } else if (payload.new && payload.new.is_active) {
+                const bId = batchIdRef.current
+                if (!payload.new.batch_id || !bId || payload.new.batch_id === bId) {
+                  setLiveClass(prev => ({ ...(prev || {}), ...payload.new }))
+                }
+                fetchLive()
               } else {
-                // New class started or reactivated: refetch to get joined teacher name
                 fetchLive()
               }
             }
@@ -67,14 +72,37 @@ export default function StudentLiveClass() {
       }
     }
 
+    // 60s fallback heartbeat (WebSockets handle instant push updates)
+    const pollInterval = setInterval(() => {
+      if (!unmounted && document.visibilityState === 'visible') fetchLive()
+    }, 60000)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !unmounted) {
+        fetchLive()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
     init()
     return () => {
       unmounted = true
+      clearInterval(pollInterval)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
       if (channel) supabase.removeChannel(channel)
     }
   }, [user])
 
-  if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+  if (loading) {
+    return (
+      <div className="space-y-6 pb-20 lg:pb-0 max-w-2xl animate-pulse">
+        <div className="h-6 w-32 bg-slate-200 rounded-lg" />
+        <div className="h-44 bg-slate-200/80 rounded-3xl w-full" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0 max-w-2xl">

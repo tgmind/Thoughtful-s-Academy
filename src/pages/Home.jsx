@@ -703,36 +703,52 @@ export default function Home() {
       {/* ════════════ BATCH POSTERS ════════════ */}
       <BatchPostersSection batches={batchPosters} />
 
-      {/* ════════════ INFO STRIP ════════════ */}
-      <section className="bg-white border-b border-gray-100">
-        <div className={`${CONTAINER} py-10`}>
-          <div className="grid sm:grid-cols-3 gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-900 flex items-center justify-center flex-shrink-0">
-                <Video className="h-5 w-5" />
+      {/* ════════════ INFO & TRUST STRIP ════════════ */}
+      <section className="bg-white border-b border-slate-100">
+        <div className={`${CONTAINER} py-12`}>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                <Video className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">Live &amp; recorded classes</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">Attend live, or catch up later. Every lecture stays available.</p>
-              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
+                HD STREAMING &amp; LIVE
+              </span>
+              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Live &amp; Recorded Classes</h3>
+              <p className="text-slate-500 text-xs leading-relaxed">Attend interactive sessions live, or catch up anytime with protected 1080p replay &amp; speed controls.</p>
             </div>
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
-                <MessageSquare className="h-5 w-5" />
+
+            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-amber-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                <MessageSquare className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">Personal doubt support</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">Message your teacher directly. No question is too small.</p>
-              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
+                1-ON-1 MENTORSHIP
+              </span>
+              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Personal Doubt Support</h3>
+              <p className="text-slate-500 text-xs leading-relaxed">Message Subodh Sir directly or ask timestamped doubts during video playback. No question is left behind.</p>
             </div>
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-green-50 text-green-700 flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="h-5 w-5" />
+
+            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-emerald-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                <BookOpen className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">Structured batches</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">Material organised by batch, so you always know what&apos;s next.</p>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
+                SMART STUDY CARDS
+              </span>
+              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Handwritten Notes &amp; DPPs</h3>
+              <p className="text-slate-500 text-xs leading-relaxed">Organized chapter formula sheets, practice problems, and downloadable PDFs tailored to your batch syllabus.</p>
+            </div>
+
+            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-rose-300 hover:shadow-md transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                <CheckCircle2 className="h-6 w-6" />
               </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 bg-rose-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
+                HABIT &amp; TRACKING
+              </span>
+              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Streak &amp; Attendance Gauge</h3>
+              <p className="text-slate-500 text-xs leading-relaxed">Daily check-in streak flames, interactive attendance gauges, and homework deadlines to foster peak consistency.</p>
             </div>
           </div>
         </div>

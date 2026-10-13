@@ -154,7 +154,21 @@ export default function BatchManager() {
     return names.length > 0 ? names.join(', ') : (b.profiles?.full_name || null)
   }
 
-  if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+  if (loading) {
+    return (
+      <div className="space-y-5 pb-20 lg:pb-0 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="h-6 w-32 bg-slate-200 rounded-lg" />
+          <div className="h-9 w-28 bg-slate-200 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 h-40" />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 pb-20 lg:pb-0">

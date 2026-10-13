@@ -75,7 +75,7 @@ export default function FeeManager() {
         supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
         supabase.from('profiles').select('id, full_name, email, phone, is_active').eq('role', 'student').eq('is_active', true).order('full_name'),
         supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, batches(id, name)'),
-        supabase.from('fee_records').select('id, student_id, amount, payment_month, status, reference_id, paid_at')
+        supabase.from('fee_records').select('id, student_id, amount, payment_month, status, reference_id, paid_at').in('payment_month', MONTHS)
       ])
 
       setPending(pendingRes.data ?? [])

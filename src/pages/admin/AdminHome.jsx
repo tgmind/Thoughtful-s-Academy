@@ -134,7 +134,23 @@ export default function AdminHome() {
     { label:'Pay Salary',       icon:<DollarSign className="h-4 w-4" />, path:'/admin/salary',        color:'bg-purple-600 text-white' },
   ]
 
-  if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+  if (loading) {
+    return (
+      <div className="space-y-6 pb-20 lg:pb-0 animate-pulse">
+        <div className="bg-slate-200/80 rounded-3xl h-36 w-full" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 h-24" />
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 h-20" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 h-64" />
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 h-64" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">

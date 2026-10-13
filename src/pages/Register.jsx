@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { GraduationCap, BookOpen, ShieldCheck, Eye, EyeOff, ChevronRight, ChevronLeft } from 'lucide-react'
+import { GraduationCap, Eye, EyeOff, ChevronRight, ChevronLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { INSTITUTE_NAME, INSTITUTE_TAGLINE } from '../lib/constants'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
 
-const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE
-
 function passwordStrength(pw) {
   let score = 0
-  if (pw.length >= 8)                score++
-  if (/[A-Z]/.test(pw))             score++
-  if (/[0-9]/.test(pw))             score++
-  if (/[^A-Za-z0-9]/.test(pw))      score++
-  return score  
+  if (pw.length >= 8)           score++
+  if (/[A-Z]/.test(pw))        score++
+  if (/[0-9]/.test(pw))        score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  return score
 }
 
 const strengthLabels = ['', 'Weak', 'Fair', 'Good', 'Strong']
@@ -42,239 +40,6 @@ function Field({ name, label, type = 'text', placeholder, required, value, error
   )
 }
 
-function RoleStep({ selected, onChange }) {
-  const roles = [
-    {
-      key:   'student',
-      icon:  <GraduationCap className="h-8 w-8" />,
-      title: 'Student',
-      desc:  'Access lectures, track attendance, pay fees and message teachers.',
-    },
-    {
-      key:   'teacher',
-      icon:  <BookOpen className="h-8 w-8" />,
-      title: 'Teacher',
-      desc:  'Manage study cards, drop live classes and communicate with students.',
-    },
-    {
-      key:   'admin',
-      icon:  <ShieldCheck className="h-8 w-8" />,
-      title: 'Admin',
-      desc:  'Full control over the institute — students, teachers, fees and more.',
-      requiresCode: true,
-    },
-  ]
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 mb-6">Choose the account type you need.</p>
-      {roles.map(r => (
-        <button
-          key={r.key}
-          type="button"
-          onClick={() => onChange(r.key)}
-          className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all duration-150
-            ${selected === r.key
-              ? 'border-navy-800 bg-amber-50'
-              : 'border-gray-200 hover:border-navy-300 bg-white'
-            }`}
-        >
-          <span className={`p-2 rounded-lg ${selected === r.key ? 'bg-navy-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
-            {r.icon}
-          </span>
-          <div>
-            <p className="font-semibold text-gray-900">{r.title}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{r.desc}</p>
-            {r.requiresCode && (
-              <p className="text-xs text-amber-600 mt-1 font-medium">⚠ Requires admin invite code</p>
-            )}
-          </div>
-          {selected === r.key && (
-            <span className="ml-auto text-navy-800">
-              <ChevronRight className="h-5 w-5" />
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function DetailsForm({ role, batches, onSubmit, loading, onBatchChange, batchSubjects = [], form, setForm, errors = {}, setErrors }) {
-  const [showPw, setShowPw] = useState(false)
-  
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
-
-  const toggleSubject = (sub) => {
-    setForm(f => {
-      const current = Array.isArray(f.subjects) ? f.subjects : []
-      const already = current.includes(sub)
-      return { ...f, subjects: already ? current.filter(s => s !== sub) : [...current, sub] }
-    })
-  }
-
-  const validate = () => {
-    const e = {}
-    if (!form.full_name?.trim())         e.full_name         = 'Name is required'
-    if (!form.email?.trim())             e.email             = 'Email is required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email     = 'Invalid email'
-    if (!form.password)                 e.password          = 'Password is required'
-    else if (form.password.length < 8)  e.password          = 'At least 8 characters'
-    if (form.password !== form.confirm_password) e.confirm_password = 'Passwords do not match'
-    if (role === 'admin') {
-      if (!ADMIN_CODE) e.admin_code = 'Admin registration is disabled (VITE_ADMIN_CODE not set)'
-      else if (form.admin_code !== ADMIN_CODE) e.admin_code = 'Incorrect admin code'
-    }
-    return e
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const errs = validate()
-    if (Object.keys(errs).length) { setErrors(errs); return }
-    setErrors({})
-    onSubmit(form)
-  }
-
-  const pwStrength = passwordStrength(form.password || '')
-  const today = new Date().toISOString().split('T')[0]
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Field name="full_name" label="Full Name" placeholder="Ravi Kumar" required
-        value={form.full_name} error={errors.full_name} onChange={e => set('full_name', e.target.value)} />
-      <Field name="email" label="Email" placeholder="you@email.com" required
-        value={form.email} error={errors.email} onChange={e => set('email', e.target.value)} />
-      <Field name="phone" label="Phone Number" placeholder="+91 9876543210"
-        value={form.phone} error={errors.phone} onChange={e => set('phone', e.target.value)} />
-
-      <div>
-        <label htmlFor="password" className="label-base">
-          Password<span className="text-red-500 ml-0.5">*</span>
-        </label>
-        <div className="relative">
-          <input
-            id="password"
-            type={showPw ? 'text' : 'password'}
-            value={form.password || ''}
-            onChange={e => set('password', e.target.value)}
-            placeholder="Min. 8 characters"
-            className={`input-base pr-10 ${errors.password ? 'border-red-400' : ''}`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPw(s => !s)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        {form.password && (
-          <div className="mt-1.5 flex gap-1">
-            {[1,2,3,4].map(i => (
-              <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= pwStrength ? strengthColors[pwStrength] : 'bg-gray-200'}`} />
-            ))}
-            <span className="text-xs text-gray-500 ml-1">{strengthLabels[pwStrength]}</span>
-          </div>
-        )}
-        {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
-      </div>
-
-      <div>
-        <label htmlFor="confirm_password" className="label-base">
-          Confirm Password<span className="text-red-500 ml-0.5">*</span>
-        </label>
-        <input
-          id="confirm_password"
-          type={showPw ? 'text' : 'password'}
-          value={form.confirm_password || ''}
-          onChange={e => set('confirm_password', e.target.value)}
-          placeholder="Re-enter password"
-          className={`input-base ${errors.confirm_password ? 'border-red-400' : ''}`}
-        />
-        {errors.confirm_password && <p className="mt-1 text-xs text-red-500">{errors.confirm_password}</p>}
-      </div>
-
-      {role === 'student' && (
-        <>
-          <div>
-            <label htmlFor="batch_id" className="label-base">Batch / Class</label>
-            <select
-              id="batch_id"
-              value={form.batch_id || ''}
-              onChange={e => onBatchChange(e.target.value)}
-              className="input-base"
-            >
-              <option value="">Select your batch…</option>
-              {batches.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          </div>
-          {batchSubjects.length > 0 && (
-            <div>
-              <label className="label-base">Subjects</label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {batchSubjects.map(sub => {
-                  const chosen = (form.subjects || []).includes(sub)
-                  return (
-                    <button
-                      key={sub}
-                      type="button"
-                      onClick={() => toggleSubject(sub)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-colors
-                        ${chosen
-                          ? 'border-navy-800 bg-amber-50 text-navy-900'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-navy-300'}`}
-                    >
-                      {chosen ? '✓ ' : ''}{sub}
-                    </button>
-                  )
-                })}
-              </div>
-              <p className="mt-1 text-xs text-gray-400">Choose the subjects you will study in this batch.</p>
-            </div>
-          )}
-          <Field name="parent_phone" label="Parent's Phone" placeholder="+91 9876543210"
-            value={form.parent_phone} error={errors.parent_phone} onChange={e => set('parent_phone', e.target.value)} />
-          <Field name="date_of_birth" label="Date of Birth" type="date" max={today}
-            value={form.date_of_birth} error={errors.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} />
-        </>
-      )}
-
-      {role === 'teacher' && (
-        <>
-          <Field name="subject" label="Subject" placeholder="e.g. Mathematics, Physics"
-            value={form.subject} error={errors.subject} onChange={e => set('subject', e.target.value)} />
-          <Field name="qualification" label="Qualification" placeholder="e.g. M.Sc. Physics"
-            value={form.qualification} error={errors.qualification} onChange={e => set('qualification', e.target.value)} />
-        </>
-      )}
-
-      {role === 'admin' && (
-        <div>
-          <label htmlFor="admin_code" className="label-base">
-            Admin Invite Code<span className="text-red-500 ml-0.5">*</span>
-          </label>
-          <input
-            id="admin_code"
-            type="password"
-            value={form.admin_code || ''}
-            onChange={e => set('admin_code', e.target.value)}
-            placeholder="Enter the secret admin code"
-            className={`input-base ${errors.admin_code ? 'border-red-400' : ''}`}
-          />
-          {errors.admin_code && <p className="mt-1 text-xs text-red-500">{errors.admin_code}</p>}
-        </div>
-      )}
-
-      <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
-        {loading ? <LoadingSpinner size="sm" /> : 'Create Account'}
-      </button>
-    </form>
-  )
-}
-
 const INITIAL_FORM = {
   full_name: '',
   email: '',
@@ -285,22 +50,30 @@ const INITIAL_FORM = {
   subjects: [],
   parent_phone: '',
   date_of_birth: '',
-  subject: '',
-  qualification: '',
-  admin_code: '',
 }
 
 export default function Register() {
   const [searchParams]        = useSearchParams()
   const initialBatchId        = searchParams.get('batch') || searchParams.get('id')
   const [step,          setStep]          = useState(1)
-  const [role,          setRole]          = useState('')
   const [batches,       setBatches]       = useState([])
   const [batchSubjects, setBatchSubjects] = useState([])
   const [form,          setForm]          = useState(INITIAL_FORM)
   const [errors,        setErrors]        = useState({})
   const [loading,       setLoading]       = useState(false)
+  const [showPw,        setShowPw]        = useState(false)
+  const [dir,           setDir]           = useState(1)
   const navigate = useNavigate()
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  const toggleSubject = (sub) => {
+    setForm(f => {
+      const current = Array.isArray(f.subjects) ? f.subjects : []
+      const already = current.includes(sub)
+      return { ...f, subjects: already ? current.filter(s => s !== sub) : [...current, sub] }
+    })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -336,24 +109,58 @@ export default function Register() {
     }))
   }
 
-  const handleRegister = async (formData) => {
+  const validateStep1 = () => {
+    const e = {}
+    if (!form.full_name?.trim())         e.full_name         = 'Name is required'
+    if (!form.email?.trim())             e.email             = 'Email is required'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email     = 'Invalid email'
+    if (!form.password)                 e.password          = 'Password is required'
+    else if (form.password.length < 8)  e.password          = 'At least 8 characters'
+    if (form.password !== form.confirm_password) e.confirm_password = 'Passwords do not match'
+    return e
+  }
+
+  const goNext = () => {
+    const errs = validateStep1()
+    if (Object.keys(errs).length) {
+      setErrors(errs)
+      return
+    }
+    setErrors({})
+    setDir(1)
+    setStep(2)
+  }
+
+  const goBack = () => {
+    setDir(-1)
+    setStep(1)
+  }
+
+  const handleRegister = async (e) => {
+    e?.preventDefault()
+    const step1Errs = validateStep1()
+    if (Object.keys(step1Errs).length) {
+      setErrors(step1Errs)
+      setStep(1)
+      return
+    }
+
     setLoading(true)
     try {
-      const email = formData.email.trim().toLowerCase()
+      const email = form.email.trim().toLowerCase()
+      // Enforce strictly 'student' role for public signups
       const { data: authData, error: signUpErr } = await supabase.auth.signUp({
         email,
-        password: formData.password,
+        password: form.password,
         options: {
           data: {
-            role,
-            full_name:     formData.full_name.trim(),
-            phone:         formData.phone.trim() || null,
-            batch_id:      formData.batch_id || null,
-            parent_phone:  formData.parent_phone || null,
-            date_of_birth: formData.date_of_birth || null,
-            subjects:      formData.subjects || [],
-            subject:       formData.subject || null,
-            qualification: formData.qualification || null,
+            role:          'student',
+            full_name:     form.full_name.trim(),
+            phone:         form.phone.trim() || null,
+            batch_id:      form.batch_id || null,
+            parent_phone:  form.parent_phone || null,
+            date_of_birth: form.date_of_birth || null,
+            subjects:      form.subjects || [],
           },
         },
       })
@@ -363,44 +170,40 @@ export default function Register() {
       if (!uid) throw new Error('Registration failed — please try again.')
 
       if (authData.session) {
+        // Upsert base student profile
         await supabase.from('profiles').upsert({
-          id: uid, full_name: formData.full_name.trim(), email,
-          phone: formData.phone.trim() || null, role,
+          id: uid,
+          full_name: form.full_name.trim(),
+          email,
+          phone: form.phone.trim() || null,
+          role: 'student',
         }, { onConflict: 'id', ignoreDuplicates: true })
 
-        if (role === 'student') {
-          const trialEndsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
-          await supabase.from('student_profiles').upsert({
-            id:            uid,
-            batch_id:      formData.batch_id    || null,
-            parent_phone:  formData.parent_phone || null,
-            date_of_birth: formData.date_of_birth || null,
-            subjects:      Array.isArray(formData.subjects) && formData.subjects.length > 0 ? formData.subjects : [],
-            trial_ends_at: trialEndsAt,
-          }, { onConflict: 'id' })   // no ignoreDuplicates — always write trial_ends_at
+        // Initialize student metadata and trial period (2 days)
+        const trialEndsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+        await supabase.from('student_profiles').upsert({
+          id:            uid,
+          batch_id:      form.batch_id    || null,
+          parent_phone:  form.parent_phone || null,
+          date_of_birth: form.date_of_birth || null,
+          subjects:      Array.isArray(form.subjects) && form.subjects.length > 0 ? form.subjects : [],
+          trial_ends_at: trialEndsAt,
+        }, { onConflict: 'id' })
 
-          // Fetch batch name for the notification body
-          let batchLabel = ''
-          if (formData.batch_id) {
-            const { data: bData } = await supabase.from('batches').select('name').eq('id', formData.batch_id).maybeSingle()
-            batchLabel = bData?.name ? ` for ${bData.name}` : ''
-          }
-
-          // Notify admin + teachers via the existing notifications system
-          await supabase.from('notifications').insert({
-            title: `New student joined: ${formData.full_name.trim()}`,
-            body:  `${formData.full_name.trim()} has self-registered${batchLabel}. Free trial ends in 2 days. Please review and confirm enrollment.`,
-            type:  'announcement',
-            target_role: 'all',
-            is_active: true,
-          })
-        } else if (role === 'teacher') {
-          await supabase.from('teacher_profiles').upsert({
-            id:            uid,
-            subject:       formData.subject       || null,
-            qualification: formData.qualification || null,
-          }, { onConflict: 'id', ignoreDuplicates: true })
+        // Notification for admin review
+        let batchLabel = ''
+        if (form.batch_id) {
+          const { data: bData } = await supabase.from('batches').select('name').eq('id', form.batch_id).maybeSingle()
+          batchLabel = bData?.name ? ` for ${bData.name}` : ''
         }
+
+        await supabase.from('notifications').insert({
+          title: `New student joined: ${form.full_name.trim()}`,
+          body:  `${form.full_name.trim()} has self-registered${batchLabel}. Free trial ends in 2 days. Please review and confirm enrollment.`,
+          type:  'announcement',
+          target_role: 'all',
+          is_active: true,
+        })
       }
 
       toast.success('Account created successfully! Admin will be notified.', { duration: 5000 })
@@ -417,15 +220,14 @@ export default function Register() {
     }
   }
 
-  const slideVariants = {
-    enter: (dir) => ({ x: dir > 0 ?  60 : -60, opacity: 0 }),
-    center:        ()  => ({ x: 0,              opacity: 1 }),
-    exit:  (dir) => ({ x: dir > 0 ? -60 :  60, opacity: 0 }),
-  }
-  const [dir, setDir] = useState(1)
+  const pwStrength = passwordStrength(form.password || '')
+  const today = new Date().toISOString().split('T')[0]
 
-  const goNext = () => { setDir(1);  setStep(2) }
-  const goBack = () => { setDir(-1); setStep(1) }
+  const slideVariants = {
+    enter: (d) => ({ x: d > 0 ? 60 : -60, opacity: 0 }),
+    center:       ()  => ({ x: 0, opacity: 1 }),
+    exit:  (d) => ({ x: d > 0 ? -60 : 60, opacity: 0 }),
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 flex items-center justify-center p-4">
@@ -440,7 +242,7 @@ export default function Register() {
 
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="flex border-b border-gray-100">
-            {['Choose Role', 'Your Details'].map((label, idx) => (
+            {['Account Info', 'Batch & Enrollment'].map((label, idx) => (
               <div
                 key={label}
                 className={`flex-1 py-3 text-center text-sm font-medium transition-colors
@@ -467,55 +269,194 @@ export default function Register() {
                 transition={{ duration: 0.25, ease: 'easeInOut' }}
               >
                 {step === 1 ? (
-                  <>
-                    <h2 className="font-display font-bold text-xl text-navy-900 mb-1">Create an account</h2>
-                    <RoleStep selected={role} onChange={setRole} />
+                  <form onSubmit={(e) => { e.preventDefault(); goNext() }} className="space-y-4">
+                    <div className="mb-2">
+                      <h2 className="font-display font-bold text-xl text-navy-900">Student Registration</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">Create your account to start learning</p>
+                    </div>
+
+                    <Field
+                      name="full_name"
+                      label="Full Name"
+                      placeholder="Ravi Kumar"
+                      required
+                      value={form.full_name}
+                      error={errors.full_name}
+                      onChange={e => set('full_name', e.target.value)}
+                    />
+                    <Field
+                      name="email"
+                      label="Email"
+                      type="email"
+                      placeholder="you@email.com"
+                      required
+                      value={form.email}
+                      error={errors.email}
+                      onChange={e => set('email', e.target.value)}
+                    />
+                    <Field
+                      name="phone"
+                      label="Phone Number"
+                      placeholder="+91 9876543210"
+                      value={form.phone}
+                      error={errors.phone}
+                      onChange={e => set('phone', e.target.value)}
+                    />
+
+                    <div>
+                      <label htmlFor="password" className="label-base">
+                        Password<span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="password"
+                          type={showPw ? 'text' : 'password'}
+                          value={form.password || ''}
+                          onChange={e => set('password', e.target.value)}
+                          placeholder="Min. 8 characters"
+                          className={`input-base pr-10 ${errors.password ? 'border-red-400' : ''}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPw(s => !s)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {form.password && (
+                        <div className="mt-1.5 flex gap-1">
+                          {[1,2,3,4].map(i => (
+                            <div
+                              key={i}
+                              className={`h-1 flex-1 rounded-full transition-colors ${i <= pwStrength ? strengthColors[pwStrength] : 'bg-gray-200'}`}
+                            />
+                          ))}
+                          <span className="text-xs text-gray-500 ml-1">{strengthLabels[pwStrength]}</span>
+                        </div>
+                      )}
+                      {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="confirm_password" className="label-base">
+                        Confirm Password<span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <input
+                        id="confirm_password"
+                        type={showPw ? 'text' : 'password'}
+                        value={form.confirm_password || ''}
+                        onChange={e => set('confirm_password', e.target.value)}
+                        placeholder="Re-enter password"
+                        className={`input-base ${errors.confirm_password ? 'border-red-400' : ''}`}
+                      />
+                      {errors.confirm_password && <p className="mt-1 text-xs text-red-500">{errors.confirm_password}</p>}
+                    </div>
+
                     <button
-                      type="button"
-                      disabled={!role}
-                      onClick={goNext}
+                      type="submit"
                       className="btn-primary w-full mt-6"
                     >
                       Continue <ChevronRight className="h-4 w-4" />
                     </button>
-                  </>
+                  </form>
                 ) : (
-                  <>
+                  <form onSubmit={handleRegister} className="space-y-4">
                     <button
                       type="button"
                       onClick={goBack}
-                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2"
                     >
-                      <ChevronLeft className="h-4 w-4" /> Back
+                      <ChevronLeft className="h-4 w-4" /> Back to Account Info
                     </button>
-                    <h2 className="font-display font-bold text-xl text-navy-900 mb-4 capitalize">
-                      {role} Details
-                    </h2>
-                    <DetailsForm
-                      role={role}
-                      batches={batches}
-                      onSubmit={handleRegister}
-                      loading={loading}
-                      onBatchChange={handleBatchChange}
-                      batchSubjects={batchSubjects}
-                      form={form}
-                      setForm={setForm}
-                      errors={errors}
-                      setErrors={setErrors}
+
+                    <div className="mb-2">
+                      <h2 className="font-display font-bold text-xl text-navy-900">Batch & Enrollment</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">Select your course details</p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="batch_id" className="label-base">Batch / Class</label>
+                      <select
+                        id="batch_id"
+                        value={form.batch_id || ''}
+                        onChange={e => handleBatchChange(e.target.value)}
+                        className="input-base"
+                      >
+                        <option value="">Select your batch…</option>
+                        {batches.map(b => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {batchSubjects.length > 0 && (
+                      <div>
+                        <label className="label-base">Subjects</label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {batchSubjects.map(sub => {
+                            const chosen = (form.subjects || []).includes(sub)
+                            return (
+                              <button
+                                key={sub}
+                                type="button"
+                                onClick={() => toggleSubject(sub)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-colors
+                                  ${chosen
+                                    ? 'border-navy-800 bg-amber-50 text-navy-900'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:border-navy-300'}`}
+                              >
+                                {chosen ? '✓ ' : ''}{sub}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-400">Choose the subjects you will study in this batch.</p>
+                      </div>
+                    )}
+
+                    <Field
+                      name="parent_phone"
+                      label="Parent's Phone"
+                      placeholder="+91 9876543210"
+                      value={form.parent_phone}
+                      error={errors.parent_phone}
+                      onChange={e => set('parent_phone', e.target.value)}
                     />
-                  </>
+                    <Field
+                      name="date_of_birth"
+                      label="Date of Birth"
+                      type="date"
+                      max={today}
+                      value={form.date_of_birth}
+                      error={errors.date_of_birth}
+                      onChange={e => set('date_of_birth', e.target.value)}
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="btn-primary w-full mt-4"
+                    >
+                      {loading ? <LoadingSpinner size="sm" /> : 'Complete Registration'}
+                    </button>
+                  </form>
                 )}
               </motion.div>
             </AnimatePresence>
           </div>
 
-          <p className="text-center text-sm text-gray-500 pb-6 px-6">
-            Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-navy-800 hover:underline">Log in</Link>
-          </p>
+          <div className="p-4 bg-gray-50 border-t border-gray-100 text-center space-y-2">
+            <p className="text-xs text-gray-500">
+              Faculty / Staff account? Teacher credentials are provided directly by institute administration.
+            </p>
+            <p className="text-sm text-gray-500">
+              Already have an account?{' '}
+              <Link to="/login" className="font-semibold text-navy-800 hover:underline">Log in</Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   )
 }
-

@@ -3,100 +3,80 @@ import { useParams, useSearchParams, useNavigate, useLocation, Link } from 'reac
 import {
   ArrowLeft, BookOpen, Heart, Maximize2, Minimize2,
   ListVideo, Sparkles, PlayCircle, ExternalLink,
-  ChevronRight, ChevronLeft, ChevronDown, Layers, Clock, Search, Radio,
-  Share2
+  ChevronRight, Layers, Clock, Search, Radio,
+  ShieldCheck, CheckCircle2, Send, HelpCircle,
+  FileText, Keyboard, X, LogIn
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
+import {
+  getYTPlaylistId,
+  getYTVideoId,
+  resolveYouTubeMedia,
+  fetchPlaylistItems,
+  getLectureProgress
+} from '../../utils/youtube'
+import ProtectedVideoPlayer from '../../components/shared/ProtectedVideoPlayer'
 
-// ─── Helper Functions ─────────────────────────────────────────────────────────
-
-function getYTVideoId(url) {
-  if (!url) return null
-  const match = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([^#&?/]{11})/)
-  return match?.[1] ?? null
-}
-
-function getYTPlaylistId(url) {
-  if (!url) return null
-  const match = url.match(/[?&]list=([^&]+)/)
-  return match?.[1] ?? null
-}
-
-function getCardTypeTag(type) {
-  if (type === 'youtube_playlist') return { label: 'Playlist Course', color: 'text-sky-700 bg-sky-50 border-sky-200' }
-  if (type === 'drive') return { label: 'Study Notes', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
-  if (type === 'external_link') return { label: 'External Resource', color: 'text-purple-700 bg-purple-50 border-purple-200' }
-  return { label: 'Video Lecture', color: 'text-indigo-700 bg-indigo-50 border-indigo-200' }
-}
-
-// Fetch YouTube Playlist RSS Feed to parse playlist items natively
-async function fetchYouTubePlaylistVideos(listId) {
-  if (!listId) return []
-  const rssUrl = `https://www.youtube.com/feeds/videos.xml?playlist_id=${listId}`
-  
-  const proxies = [
-    `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`
-  ]
-
-  for (const proxyUrl of proxies) {
-    try {
-      const res = await fetch(proxyUrl, { cache: 'force-cache' })
-      if (!res.ok) continue
-      const text = await res.text()
-      const xml = new DOMParser().parseFromString(text, 'text/xml')
-      const entries = Array.from(xml.querySelectorAll('entry'))
-      
-      if (entries.length > 0) {
-        return entries.map((entry, idx) => {
-          const videoId = entry.querySelector('videoId')?.textContent || 
-                          entry.getElementsByTagName('yt:videoId')[0]?.textContent || 
-                          ''
-          const title = entry.querySelector('title')?.textContent || `Lecture ${idx + 1}`
-          const thumb = entry.querySelector('thumbnail')?.getAttribute('url') || 
-                        (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '')
-          return { index: idx, videoId, title, thumb }
-        })
-      }
-    } catch {
-      // Continue to next proxy fallback
-    }
+function formatSeconds(seconds) {
+  if (!seconds || isNaN(seconds) || seconds < 0) return '0:00'
+  const s = Math.floor(seconds)
+  const hrs = Math.floor(s / 3600)
+  const mins = Math.floor((s % 3600) / 60)
+  const secs = s % 60
+  if (hrs > 0) {
+    return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`
   }
-  return []
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
 
 export default function WatchLecture() {
   const { cardId: paramCardId } = useParams()
   const [searchParams] = useSearchParams()
   const cardId = paramCardId || searchParams.get('cardId') || searchParams.get('id')
-  
+
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile } = useAuth()
   const rolePrefix = profile?.role === 'admin' ? '/admin' : profile?.role === 'teacher' ? '/teacher' : '/student'
 
-  const playerContainerRef = useRef(null)
+  const cinemaStageRef = useRef(null)
+  const queueScrollRef = useRef(null)
 
   const [card, setCard] = useState(location.state?.card || null)
   const [loading, setLoading] = useState(!location.state?.card)
   const [relatedCards, setRelatedCards] = useState([])
+  const [notesResources, setNotesResources] = useState([])
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+
+  // Current Video Playback Time for Timestamps & Doubts
+  const [playbackTime, setPlaybackTime] = useState(0)
+  const [videoDuration, setVideoDuration] = useState(0)
+
+  // Active Classroom Tab: 'curriculum' | 'notes' | 'doubts' | 'shortcuts'
+  const [activeTab, setActiveTab] = useState('curriculum')
+
+  // Doubt submission states
+  const [doubtText, setDoubtText] = useState('')
+  const [doubtSending, setDoubtSending] = useState(false)
+  const [recentDoubts, setRecentDoubts] = useState([])
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
 
   // Playlist State
   const [playlistItems, setPlaylistItems] = useState([])
   const [playlistLoading, setPlaylistLoading] = useState(false)
   const [activeVideoIndex, setActiveVideoIndex] = useState(0)
   const [playlistSearch, setPlaylistSearch] = useState('')
-  const [isPlaylistExpanded, setIsPlaylistExpanded] = useState(true)
+  const [dynamicTitle, setDynamicTitle] = useState('')
+  const [discoveredListId, setDiscoveredListId] = useState(null)
 
-  // Fetch card details if not passed in state
+  // Fetch card details if not passed in navigation state
   useEffect(() => {
-    if (!cardId) return
+    if (!cardId || location.state?.card) return
     let active = true
 
     setLoading(true)
@@ -113,25 +93,122 @@ export default function WatchLecture() {
       })
 
     return () => { active = false }
-  }, [cardId])
+  }, [cardId, location.state?.card])
 
-  // Fetch playlist videos if card is a youtube_playlist
+  // Multi-tier playlist hydration on card load
   useEffect(() => {
     if (!card) return
-    const listId = getYTPlaylistId(card.url)
+    const { isPlaylist: isPl, playlistId: lId, videoId: initVid } = resolveYouTubeMedia(card.url, card.thumbnail_url, card.type)
 
-    if (card.type === 'youtube_playlist' || listId) {
+    if (isPl || lId || card.type === 'youtube_playlist') {
       setPlaylistLoading(true)
-      fetchYouTubePlaylistVideos(listId).then(items => {
-        setPlaylistItems(items)
+      fetchPlaylistItems(lId, initVid, card.title).then((result) => {
+        const items = Array.isArray(result) ? result : []
+        const discoveredId = result?.discoveredListId || items.discoveredListId || null
+        if (discoveredId && !lId) {
+          setDiscoveredListId(discoveredId)
+        }
+        if (items && items.length > 0) {
+          setPlaylistItems(items)
+        }
         setPlaylistLoading(false)
-        setActiveVideoIndex(0)
+      }).catch(() => {
+        setPlaylistLoading(false)
       })
     } else {
       setPlaylistItems([])
       setPlaylistLoading(false)
     }
   }, [card])
+
+  // Fetch subject notes & PDFs
+  useEffect(() => {
+    if (!card?.subject) return
+    supabase
+      .from('study_cards')
+      .select('*')
+      .eq('is_active', true)
+      .eq('subject', card.subject)
+      .in('type', ['google_drive', 'external_link'])
+      .limit(6)
+      .then(({ data }) => {
+        setNotesResources(data ?? [])
+      })
+  }, [card?.subject])
+
+  // Fetch recent doubts sent by this student
+  useEffect(() => {
+    if (!user?.id) return
+    supabase
+      .from('messages')
+      .select('id, content, created_at, is_read, receiver_id, profiles!receiver_id(full_name)')
+      .eq('sender_id', user.id)
+      .ilike('content', '%[Doubt%')
+      .order('created_at', { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        setRecentDoubts(data ?? [])
+      })
+  }, [user?.id])
+
+  // Synchronize full playlist if discovered directly by in-app player instance
+  const handlePlaylistSync = useCallback((discoveredVideoIds) => {
+    if (!Array.isArray(discoveredVideoIds) || discoveredVideoIds.length === 0) return
+    setPlaylistItems((prev) => {
+      if (prev.length >= discoveredVideoIds.length && prev.some(p => p.title && !p.title.startsWith('Lecture #'))) {
+        return prev
+      }
+      return discoveredVideoIds.map((vid, idx) => {
+        const existing = prev.find(p => p.videoId === vid || p.index === idx)
+        if (existing && existing.title && !existing.title.startsWith('Lecture #')) {
+          return existing
+        }
+        return {
+          index: idx,
+          videoId: vid,
+          title: existing?.title || `Lecture #${idx + 1}`,
+          thumb: existing?.thumb || `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+        }
+      })
+    })
+  }, [])
+
+  // Synchronize index when YouTube player auto-advances
+  const handleIndexChange = useCallback((newIndex) => {
+    if (typeof newIndex === 'number' && newIndex >= 0) {
+      setActiveVideoIndex((prev) => (prev === newIndex ? prev : newIndex))
+    }
+  }, [])
+
+  // Synchronize dynamic title when player reports active video title
+  const handleVideoTitleChange = useCallback((title, vid) => {
+    if (title) {
+      setDynamicTitle((prev) => (prev === title ? prev : title))
+      setPlaylistItems((prev) => {
+        const existing = prev.find((item) => item.videoId === vid)
+        if (existing && existing.title === title) return prev
+        if (!existing) return prev
+        return prev.map((item) =>
+          item.videoId === vid ? { ...item, title } : item
+        )
+      })
+    }
+  }, [])
+
+  // Time tracker from player
+  const handleTimeUpdate = useCallback((cur, dur) => {
+    if (typeof cur === 'number') setPlaybackTime(cur)
+    if (typeof dur === 'number' && dur > 0) setVideoDuration(dur)
+  }, [])
+
+  // Auto-scroll active lecture into view in queue drawer
+  useEffect(() => {
+    if (!queueScrollRef.current) return
+    const activeEl = queueScrollRef.current.querySelector(`[data-queue-index="${activeVideoIndex}"]`)
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [activeVideoIndex])
 
   // Fetch bookmark status for current user
   useEffect(() => {
@@ -145,7 +222,7 @@ export default function WatchLecture() {
       .then(({ data }) => setIsBookmarked(!!data))
   }, [user, cardId])
 
-  // Fetch related video lectures from same subject/batch
+  // Fetch related video lectures from same subject
   useEffect(() => {
     if (!card?.subject) return
     supabase
@@ -158,6 +235,40 @@ export default function WatchLecture() {
       .limit(6)
       .then(({ data }) => setRelatedCards(data ?? []))
   }, [card?.subject, card?.id])
+
+  // Landscape Cinema Fullscreen Toggle
+  const handleFullscreen = useCallback(async () => {
+    const el = cinemaStageRef.current
+    if (!el) return
+
+    if (!document.fullscreenElement) {
+      try {
+        await el.requestFullscreen()
+        try {
+          await screen.orientation?.lock?.('landscape')
+        } catch { /* Fallback */ }
+      } catch { /* Fallback */ }
+    } else {
+      try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
+      document.exitFullscreen?.().catch(() => {})
+    }
+  }, [])
+
+  // Sync fullscreen state
+  useEffect(() => {
+    const handler = () => {
+      const isFull = !!document.fullscreenElement
+      setIsFullscreen(isFull)
+      if (!isFull) {
+        try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
+      }
+    }
+    document.addEventListener('fullscreenchange', handler)
+    return () => {
+      document.removeEventListener('fullscreenchange', handler)
+      try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
+    }
+  }, [])
 
   // Toggle Bookmark
   const toggleBookmark = async () => {
@@ -195,39 +306,79 @@ export default function WatchLecture() {
     setBookmarkLoading(false)
   }
 
-  // Landscape Cinema Fullscreen Toggle
-  const handleFullscreen = useCallback(async () => {
-    const el = playerContainerRef.current
-    if (!el) return
+  // Submit Doubt to Educator
+  const handleSendDoubt = async (e) => {
+    e.preventDefault()
+    if (!user) {
+      toast.error('Please log in to submit doubts to your teacher.')
+      return
+    }
+    if (!doubtText.trim()) {
+      toast.error('Please type your question or doubt.')
+      return
+    }
 
-    if (!document.fullscreenElement) {
-      try {
-        await el.requestFullscreen()
-        try {
-          await screen.orientation?.lock?.('landscape')
-        } catch (err) { void err }
-      } catch (err) { void err }
-    } else {
-      try { screen.orientation?.unlock?.() } catch (err) { void err }
+    setDoubtSending(true)
+    try {
+      // Find the teacher: either card added_by, or first teacher/admin in profiles
+      let recipientId = card.added_by
+      if (!recipientId) {
+        const { data: teachers } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('role', ['teacher', 'admin'])
+          .eq('is_active', true)
+          .limit(1)
+        recipientId = teachers?.[0]?.id
+      }
+
+      if (!recipientId) {
+        toast.error('Could not find an educator to assign this doubt.')
+        setDoubtSending(false)
+        return
+      }
+
+      const timestampTag = formatSeconds(playbackTime)
+      const lectureTitle = dynamicTitle || card.title
+      const formattedContent = `❓ [Doubt at ${timestampTag} in "${lectureTitle}"]: ${doubtText.trim()}`
+
+      const { data, error } = await supabase.from('messages').insert({
+        sender_id: user.id,
+        receiver_id: recipientId,
+        content: formattedContent,
+        is_read: false,
+      }).select('id, content, created_at, is_read, receiver_id').single()
+
+      if (error) throw error
+
+      toast.success(`Doubt sent to educator at ${timestampTag}!`)
+      setDoubtText('')
+      if (data) {
+        setRecentDoubts(prev => [data, ...prev])
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to send doubt.')
+    } finally {
+      setDoubtSending(false)
+    }
+  }
+
+  const handleGoBack = () => {
+    if (document.fullscreenElement) {
+      try { screen.orientation?.unlock?.() } catch { /* Fallback */ }
       document.exitFullscreen?.().catch(() => {})
     }
-  }, [])
-
-  // Sync fullscreen state
-  useEffect(() => {
-    const handler = () => {
-      const isFull = !!document.fullscreenElement
-      setIsFullscreen(isFull)
-      if (!isFull) {
-        try { screen.orientation?.unlock?.() } catch (err) { void err }
-      }
+    const returnSubject = location.state?.returnSubject || searchParams.get('returnSubject') || card?.subject || ''
+    if (window.history.length > 1 && window.history.state?.idx > 0) {
+      navigate(-1)
+    } else if (user && returnSubject) {
+      navigate(`${rolePrefix}/study?subject=${encodeURIComponent(returnSubject)}&category=video`, { replace: true })
+    } else if (user) {
+      navigate(`${rolePrefix}/study`, { replace: true })
+    } else {
+      navigate('/', { replace: true })
     }
-    document.addEventListener('fullscreenchange', handler)
-    return () => {
-      document.removeEventListener('fullscreenchange', handler)
-      try { screen.orientation?.unlock?.() } catch (err) { void err }
-    }
-  }, [])
+  }
 
   if (loading) {
     return (
@@ -239,14 +390,42 @@ export default function WatchLecture() {
   }
 
   if (!card) {
+    if (!user) {
+      return (
+        <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center">
+          <div className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm mb-3">
+            <ShieldCheck className="h-10 w-10 text-indigo-600" />
+          </div>
+          <h2 className="text-lg font-black text-slate-900">Enrolled Student Access Required</h2>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mb-5">
+            This lecture is reserved for enrolled students. Please sign in to verify your enrollment and access the classroom.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)}
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+            >
+              <LogIn className="h-4 w-4" /> Sign In to Watch
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Home
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center">
         <div className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm mb-3">
           <BookOpen className="h-10 w-10 text-slate-400" />
         </div>
-        <h2 className="text-lg font-black text-slate-900">Lecture Not Found</h2>
+        <h2 className="text-lg font-black text-slate-900">Lecture Not Found or Restricted</h2>
         <p className="text-xs text-slate-500 mt-1 max-w-sm mb-5">
-          The requested video lecture could not be loaded or is no longer available.
+          The requested video lecture could not be loaded or is restricted to other enrolled batches.
         </p>
         <button
           onClick={() => navigate(`${rolePrefix}/study`)}
@@ -258,114 +437,102 @@ export default function WatchLecture() {
     )
   }
 
-  const isPlaylist = card.type === 'youtube_playlist' || !!getYTPlaylistId(card.url)
-  const listId = getYTPlaylistId(card.url)
-  const lockParams = 'autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1'
-
-  // Construct active embed URL
-  let embedUrl = ''
-  if (isPlaylist) {
-    if (playlistItems.length > 0 && playlistItems[activeVideoIndex]?.videoId) {
-      embedUrl = `https://www.youtube.com/embed/${playlistItems[activeVideoIndex].videoId}?${lockParams}`
-    } else if (listId) {
-      embedUrl = `https://www.youtube.com/embed/videoseries?list=${listId}&index=${activeVideoIndex}&${lockParams}`
-    }
-  } else {
-    const videoId = getYTVideoId(card.url)
-    if (videoId) {
-      embedUrl = `https://www.youtube.com/embed/${videoId}?${lockParams}`
-    } else if (card.type === 'drive' || card.url?.includes('drive.google.com')) {
-      embedUrl = card.url.replace(/\/view(\?.*)?$/, '/preview').replace(/\/edit(\?.*)?$/, '/preview')
-    } else {
-      embedUrl = card.url
-    }
+  // Guard against unauthenticated viewing of private study cards passed via routing state
+  if (!card.is_public && !user) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center">
+        <div className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm mb-3">
+          <ShieldCheck className="h-10 w-10 text-indigo-600" />
+        </div>
+        <h2 className="text-lg font-black text-slate-900">Enrolled Student Access Required</h2>
+        <p className="text-xs text-slate-500 mt-1 max-w-sm mb-5">
+          This lecture is part of an enrolled batch curriculum. Please sign in with your student account to continue.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+          >
+            <LogIn className="h-4 w-4" /> Sign In to Watch
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Home
+          </button>
+        </div>
+      </div>
+    )
   }
 
-  const returnSubject = location.state?.returnSubject || searchParams.get('returnSubject') || card?.subject || ''
+  const effectivePlaylistId = getYTPlaylistId(card.url) || discoveredListId
+  const isPlaylist = card.type === 'youtube_playlist' || !!effectivePlaylistId || playlistItems.length > 1
+  const listId = effectivePlaylistId
+  const singleVideoId = getYTVideoId(card.url)
+  const isDriveDoc = card.type === 'drive' || card.type === 'google_drive' || card.url?.includes('drive.google.com')
 
-  const handleGoBack = () => {
-    if (document.fullscreenElement) {
-      try { screen.orientation?.unlock?.() } catch (err) { void err }
-      document.exitFullscreen?.().catch(() => {})
-    }
-    if (window.history.length > 1 && window.history.state?.idx > 0) {
-      navigate(-1)
-    } else if (returnSubject) {
-      navigate(`${rolePrefix}/study?subject=${encodeURIComponent(returnSubject)}&category=video`, { replace: true })
-    } else {
-      navigate(`${rolePrefix}/study`, { replace: true })
-    }
-  }
-
-  const handleShare = async () => {
-    const shareData = {
-      title: card?.title || 'Study Card',
-      text: `Watch ${card?.title} on Thoughtful's Academy`,
-      url: window.location.href,
-    }
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData)
-      } catch { /* User cancelled share */ }
-    } else {
-      try {
-        await navigator.clipboard.writeText(window.location.href)
-        toast.success('Lecture link copied to clipboard!')
-      } catch {
-        toast.error('Could not copy link')
-      }
-    }
+  // Resolve active video ID
+  let currentVideoId = singleVideoId
+  if (isPlaylist && playlistItems.length > 0 && playlistItems[activeVideoIndex]?.videoId) {
+    currentVideoId = playlistItems[activeVideoIndex].videoId
   }
 
   const activePlaylistItem = playlistItems[activeVideoIndex]
   const currentTitle = activePlaylistItem?.title || card.title
 
-  const filteredPlaylistItems = playlistItems.filter(item =>
+  const filteredPlaylistItems = playlistItems.filter((item) =>
     (item.title?.toLowerCase() || '').includes(playlistSearch.toLowerCase())
   )
 
   return (
-    // ─── STANDALONE APPLICATION CLASSROOM WITH DISTINCT PLAYLIST CONSOLE ───────
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50/80 text-slate-800 flex flex-col font-sans select-none overflow-x-hidden">
 
-      {/* ─── 1. MINIMAL SLEEK LIGHT HEADER ──────────────────────────────────── */}
-      <header className="flex-shrink-0 h-12 sm:h-14 bg-white/95 backdrop-blur-md border-b border-slate-200 px-2.5 sm:px-5 flex items-center justify-between gap-2 z-30 sticky top-0 shadow-xs">
-        
-        {/* Left Section: Back Arrow + Subject Pill + Truncated Title */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      {/* ─── 1. APPLE-GRADE MINIMAL LIGHT HEADER ─────────────────────────────── */}
+      <header className="flex-shrink-0 h-12 sm:h-14 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-3 sm:px-6 flex items-center justify-between gap-3 z-30 sticky top-0 shadow-2xs">
+        {/* Left Section: Back Arrow + Subject Badge + Title */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <button
             onClick={handleGoBack}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center shrink-0 cursor-pointer border border-slate-200"
-            title={returnSubject ? `Back to ${returnSubject}` : 'Back to Study Portal'}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center shrink-0 cursor-pointer border border-slate-200/80 active:scale-95"
+            title="Back to portal"
           >
             <ArrowLeft className="h-4 w-4 text-indigo-600" />
           </button>
 
           {card.subject && (
-            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md shrink-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-lg shrink-0">
               {card.subject}
             </span>
           )}
 
-          <h1 className="text-xs sm:text-sm font-bold text-slate-900 truncate min-w-0 flex-1 tracking-tight">
-            {card.title}
+          <h1 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate min-w-0 flex-1 tracking-tight">
+            {dynamicTitle || currentTitle}
           </h1>
         </div>
 
-        {/* Right Section: Minimal Action Buttons */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right Section: Keyboard Shortcuts, Protected Badge & Bookmark */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Keyboard Shortcuts Trigger Button */}
           <button
-            onClick={handleShare}
-            title="Share Lecture"
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-all cursor-pointer"
+            onClick={() => setShowShortcutsModal(true)}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95"
+            title="Keyboard Shortcuts"
           >
-            <Share2 className="h-4 w-4 text-indigo-600" />
+            <Keyboard className="h-3.5 w-3.5 text-slate-600" />
+            <span className="text-[11px]">Shortcuts</span>
           </button>
+
+          {/* Protected Classroom security badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-black shadow-2xs">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Protected</span>
+          </div>
 
           <button
             onClick={toggleBookmark}
             disabled={bookmarkLoading}
-            className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs transition-all border flex items-center gap-1 cursor-pointer ${
+            className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs transition-all border flex items-center gap-1 cursor-pointer active:scale-95 ${
               isBookmarked
                 ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
                 : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
@@ -378,113 +545,93 @@ export default function WatchLecture() {
         </div>
       </header>
 
-      {/* ─── 2. RESPONSIVE FLEX & GRID MAIN CONTAINER ────────────────────────── */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-3.5 lg:p-5 grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3.5 items-start">
-        
-        {/* Main Cinema Video Column (8 cols desktop if playlist, 12 if single video) */}
-        <div className={`${isPlaylist ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-2.5 sm:space-y-3`}>
-          
-          {/* Cinema Frame Container (Crisp Black Stage for Pure Video Streaming) */}
+      {/* ─── 2. RESPONSIVE MAIN WORKSPACE (PHYSICS WALLAH BENCHMARK DUAL-PANE) ── */}
+      <main className="flex-1 w-full max-w-[1600px] mx-auto p-2.5 sm:p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
+
+        {/* LEFT / MAIN COLUMN: CINEMA VIDEO STAGE (7 or 8 COLS) */}
+        <div className="lg:col-span-8 space-y-3.5">
+
+          {/* SECURE CINEMA STAGE */}
           <div
-            ref={playerContainerRef}
-            className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-800 relative group"
+            ref={cinemaStageRef}
+            className={`relative w-full ${
+              isFullscreen
+                ? 'fixed inset-0 z-[99999] w-screen h-screen bg-black flex items-center justify-center'
+                : 'aspect-video rounded-3xl overflow-hidden shadow-2xl border border-slate-800/90 bg-black flex items-center justify-center ring-1 ring-slate-900/10'
+            }`}
           >
-            {card.type === 'drive' ? (
-              /* Google Drive Document Stage */
+            {isDriveDoc ? (
               <iframe
-                src={embedUrl}
+                src={card.url.replace(/\/view(\?.*)?$/, '/preview').replace(/\/edit(\?.*)?$/, '/preview')}
                 title={card.title}
                 className="w-full h-full border-0 relative z-10 block bg-slate-900"
               />
-            ) : embedUrl ? (
-              /* Video / Playlist Clean Player */
-              <iframe
-                src={embedUrl}
-                title={currentTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
-                className="w-full h-full border-0 relative z-10 block bg-black"
-              />
             ) : (
-              <div className="flex flex-col items-center justify-center text-slate-500 gap-2 p-6 text-center h-full relative z-10">
-                <ExternalLink className="h-10 w-10 text-slate-600" />
-                <p className="text-xs font-bold text-slate-400">Video lecture stream unavailable</p>
-              </div>
+              <ProtectedVideoPlayer
+                key={card.id}
+                videoId={currentVideoId || (playlistItems[activeVideoIndex]?.videoId ?? '')}
+                playlistId={listId}
+                title={dynamicTitle || currentTitle}
+                subject={card.subject}
+                isPlaylist={isPlaylist}
+                playlistItems={playlistItems}
+                activeVideoIndex={activeVideoIndex}
+                onPrevVideo={() => setActiveVideoIndex((prev) => Math.max(0, prev - 1))}
+                onNextVideo={() => setActiveVideoIndex((prev) => Math.min(Math.max(0, playlistItems.length - 1), prev + 1))}
+                onPlaylistSync={handlePlaylistSync}
+                onIndexChange={handleIndexChange}
+                onVideoTitleChange={handleVideoTitleChange}
+                onTimeUpdate={handleTimeUpdate}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={handleFullscreen}
+              />
             )}
           </div>
 
-          {/* ─── PLAYLIST QUICK IN-APP CONTROLS (NEXT/PREV BAR) ──────────────── */}
-          {isPlaylist && (
-            <div className="bg-white rounded-2xl p-2.5 sm:p-3 border border-slate-200 shadow-xs flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="p-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 shrink-0">
-                  <ListVideo className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-sky-700 block">
-                    Playlist Video #{activeVideoIndex + 1} of {playlistItems.length || 'Series'}
-                  </span>
-                  <h3 className="text-xs font-bold text-slate-900 truncate max-w-[200px] sm:max-w-md">
-                    {currentTitle}
-                  </h3>
-                </div>
-              </div>
+          {/* CONTROLS STRIP (Full Screen + Quick Doubt Launcher) */}
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <button
+              onClick={handleFullscreen}
+              className="py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 hover:from-blue-900 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-md border border-indigo-900/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                  <span>Exit Full Screen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-4 w-4 text-amber-400 shrink-0" />
+                  <span>Landscape Cinema</span>
+                </>
+              )}
+            </button>
 
-              {/* Prev / Next Buttons */}
-              <div className="flex items-center gap-1.5 ml-auto">
-                <button
-                  disabled={activeVideoIndex === 0}
-                  onClick={() => setActiveVideoIndex(prev => Math.max(0, prev - 1))}
-                  className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-slate-700 transition-all flex items-center gap-1 cursor-pointer border border-slate-200"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Previous</span>
-                </button>
+            <button
+              onClick={() => setActiveTab('doubts')}
+              className="py-2.5 sm:py-3 px-4 bg-white hover:bg-amber-50 text-amber-900 font-extrabold text-xs sm:text-sm rounded-2xl shadow-sm border border-amber-200 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            >
+              <HelpCircle className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>Ask Doubt at {formatSeconds(playbackTime)}</span>
+            </button>
+          </div>
 
-                <button
-                  disabled={playlistItems.length > 0 && activeVideoIndex >= playlistItems.length - 1}
-                  onClick={() => setActiveVideoIndex(prev => prev + 1)}
-                  className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-700 hover:to-blue-800 text-white font-black text-xs transition-all shadow-md flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Next Video</span> <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ─── WIDE FULL SCREEN BUTTON (Directly below video panel, above title card) ─── */}
-          <button
-            onClick={handleFullscreen}
-            className="w-full py-3 px-4 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 hover:from-blue-900 hover:to-indigo-800 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-md border border-indigo-900/50 transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
-          >
-            {isFullscreen ? (
-              <>
-                <Minimize2 className="h-5 w-5 text-amber-400 shrink-0" />
-                <span>Exit Full Screen</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="h-5 w-5 text-amber-400 shrink-0" />
-                <span>Full Screen</span>
-              </>
-            )}
-          </button>
-
-          {/* Lecture Info & Notes Box */}
-          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-xs space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+          {/* LECTURE DETAILS & OVERVIEW CARD */}
+          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight">
-                  {card.title}
+                <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight leading-snug">
+                  {dynamicTitle || currentTitle}
                 </h2>
-                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 flex-wrap">
+                <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500 flex-wrap">
                   {card.created_at && (
                     <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-slate-400" />
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
                       {new Date(card.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   )}
-                  <span className="flex items-center gap-1 text-indigo-700 font-bold">
-                    <Sparkles className="h-3 w-3" /> Thoughtful&apos;s Academy Lecture
+                  <span className="flex items-center gap-1 text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Thoughtful&apos;s Academy Classroom
                   </span>
                 </div>
               </div>
@@ -494,18 +641,18 @@ export default function WatchLecture() {
                   href={normalizeUrl(card.url)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-center"
+                  className="px-3.5 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-center"
                 >
                   <ExternalLink className="h-3.5 w-3.5" /> Open Resource
                 </a>
               )}
             </div>
 
-            {/* Description / Lecture Notes */}
+            {/* Description / Summary */}
             {card.description && (
-              <div className="space-y-1 pt-0.5">
-                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Overview &amp; Notes</h4>
-                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+              <div className="space-y-1.5 pt-1">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Lecture Highlights &amp; Outline</h4>
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 font-sans">
                   {card.description}
                 </p>
               </div>
@@ -514,142 +661,326 @@ export default function WatchLecture() {
 
         </div>
 
-        {/* Right Drawer Column (4 cols desktop if playlist, 12 if single video) */}
-        <div className={`${isPlaylist ? 'lg:col-span-4' : 'lg:col-span-12'} space-y-2.5 sm:space-y-3`}>
-          
-          {/* ─── DISTINCT HIGH-CONTRAST PLAYLIST CONSOLE (COLLAPSIBLE ACCORDION) ─── */}
-          {isPlaylist && (
-            <div className={`bg-slate-950 rounded-2xl border border-slate-800/90 shadow-xl overflow-hidden flex flex-col transition-all duration-300 ${
-              isPlaylistExpanded ? 'h-[480px] lg:h-[520px]' : 'h-auto'
-            }`}>
-              
-              {/* Drawer Clickable Top Header */}
-              <button
-                type="button"
-                onClick={() => setIsPlaylistExpanded(prev => !prev)}
-                className={`w-full p-3.5 bg-slate-950 hover:bg-slate-900/90 text-left transition-colors ${isPlaylistExpanded ? 'border-b border-slate-800' : ''} space-y-2 cursor-pointer`}
-              >
+        {/* RIGHT COLUMN: MULTI-TAB ACADEMIC HUB (PW & UNACADEMY STYLE) (4 COLS) */}
+        <div className="lg:col-span-4 space-y-3.5">
+
+          {/* ACADEMIC TAB SWITCHER */}
+          <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('curriculum')}
+              className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'curriculum'
+                  ? 'bg-blue-950 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <ListVideo className="h-3.5 w-3.5" />
+              <span>Lectures</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'notes'
+                  ? 'bg-blue-950 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>Notes</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('doubts')}
+              className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'doubts'
+                  ? 'bg-amber-500 text-blue-950 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>Doubts</span>
+            </button>
+          </div>
+
+          {/* TAB 1: CURRICULUM / PLAYLIST QUEUE */}
+          {activeTab === 'curriculum' && (
+            <div className="bg-slate-950 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[520px]">
+              {/* Header */}
+              <div className="p-4 border-b border-slate-800/90 bg-slate-900/60 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 rounded-lg bg-amber-400/15 text-amber-400 border border-amber-400/30">
                       <ListVideo className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                        Playlist Video Queue
-                        <ChevronDown className={`h-3.5 w-3.5 text-amber-400 transition-transform duration-300 ${isPlaylistExpanded ? 'rotate-180' : ''}`} />
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                        Course Curriculum
                       </h3>
                       <p className="text-[10px] text-slate-400 font-semibold">
-                        {isPlaylistExpanded
-                          ? (playlistItems.length > 0 ? `${playlistItems.length} Lectures in Playlist` : 'Course Console')
-                          : 'Tap to expand playlist queue'}
+                        {playlistItems.length > 0 ? `${playlistItems.length} lectures in syllabus` : 'Single Topic Lecture'}
                       </p>
                     </div>
                   </div>
                   <span className="text-[10px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
-                    {activeVideoIndex + 1} / {playlistItems.length || '—'}
+                    {activeVideoIndex + 1} / {playlistItems.length || 1}
                   </span>
                 </div>
 
-                {/* Filter Input */}
-                {isPlaylistExpanded && playlistItems.length > 3 && (
-                  <div className="relative pt-1" onClick={e => e.stopPropagation()}>
+                {/* Search */}
+                {playlistItems.length > 3 && (
+                  <div className="relative pt-1">
                     <Search className="h-3.5 w-3.5 absolute left-2.5 top-[calc(50%+2px)] -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
                       value={playlistSearch}
-                      onChange={e => setPlaylistSearch(e.target.value)}
-                      placeholder="Search playlist lectures..."
-                      className="w-full bg-slate-900 text-xs text-white placeholder-slate-500 pl-7 pr-2.5 py-1.5 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                      onChange={(e) => setPlaylistSearch(e.target.value)}
+                      placeholder="Search lecture name or topic..."
+                      className="w-full bg-slate-900 text-xs text-white placeholder-slate-500 pl-7 pr-2.5 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-400"
                     />
                   </div>
                 )}
-              </button>
+              </div>
 
-              {/* Scrollable Video Queue List */}
-              {isPlaylistExpanded && (
-                <div className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
-                  {playlistLoading ? (
-                    <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                      <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-[11px] font-semibold">Loading Playlist Videos…</p>
-                    </div>
-                  ) : filteredPlaylistItems.length > 0 ? (
-                    filteredPlaylistItems.map(item => {
-                      const isActive = item.index === activeVideoIndex
-                      return (
-                        <button
-                          key={item.index}
-                          onClick={() => setActiveVideoIndex(item.index)}
-                          className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center gap-3 group cursor-pointer border ${
-                            isActive
-                              ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-amber-400 shadow-xl ring-2 ring-amber-400/30 scale-[1.01]'
-                              : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 hover:border-slate-600 hover:scale-[1.01]'
-                          }`}
-                        >
-                          {/* Thumbnail / Index Badge */}
-                          <div className="relative w-18 h-11 rounded-lg overflow-hidden bg-slate-950 shrink-0 border border-slate-700 group-hover:scale-105 transition-transform">
-                            {item.thumb ? (
-                              <img src={item.thumb} alt={item.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-[10px] font-black">
-                                #{item.index + 1}
-                              </div>
-                            )}
-                            <span className={`absolute bottom-0.5 left-0.5 text-[8px] font-black px-1 rounded ${
-                              isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-950/90 text-white'
-                            }`}>
+              {/* Lecture List */}
+              <div ref={queueScrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
+                {playlistLoading ? (
+                  <div className="p-8 text-center text-xs text-slate-400 space-y-2">
+                    <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-[11px] font-semibold">Loading lectures…</p>
+                  </div>
+                ) : filteredPlaylistItems.length > 0 ? (
+                  filteredPlaylistItems.map((item) => {
+                    const isActive = item.index === activeVideoIndex
+                    const progress = item.videoId ? getLectureProgress(item.videoId) : null
+                    const isCompleted = progress?.completed
+                    return (
+                      <button
+                        key={item.index}
+                        data-queue-index={item.index}
+                        onClick={() => setActiveVideoIndex(item.index)}
+                        className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-center gap-3 group cursor-pointer border ${
+                          isActive
+                            ? 'bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-amber-400 shadow-xl ring-2 ring-amber-400/30 scale-[1.01]'
+                            : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800/80 hover:border-slate-700'
+                        }`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-700">
+                          {item.thumb ? (
+                            <img src={item.thumb} alt={item.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-[10px] font-black">
                               #{item.index + 1}
-                            </span>
-                            {isActive && (
-                              <div className="absolute inset-0 bg-amber-400/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
-                                <Radio className="h-4 w-4 animate-pulse text-amber-400" />
-                              </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
+                          <span
+                            className={`absolute bottom-0.5 left-0.5 text-[8px] font-black px-1 rounded ${
+                              isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-950/90 text-white'
+                            }`}
+                          >
+                            #{item.index + 1}
+                          </span>
+                          {isActive && (
+                            <div className="absolute inset-0 bg-amber-400/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
+                              <Radio className="h-3.5 w-3.5 animate-pulse text-amber-400" />
+                            </div>
+                          )}
+                        </div>
 
-                          {/* Title & Playing Status */}
-                          <div className="min-w-0 flex-1">
-                            <h4 className={`text-xs font-bold line-clamp-2 transition-colors ${
+                        {/* Details */}
+                        <div className="min-w-0 flex-1">
+                          <h4
+                            className={`text-xs font-bold line-clamp-2 transition-colors ${
                               isActive ? 'text-amber-300 font-extrabold' : 'text-slate-200 group-hover:text-amber-300'
-                            }`}>
-                              {item.title}
-                            </h4>
-                            {isActive ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-400 mt-1 bg-amber-400/10 px-1.5 py-0.2 rounded border border-amber-400/20">
-                                <Radio className="h-2 w-2 animate-spin" /> Playing Now
-                              </span>
-                            ) : (
-                              <span className="text-[9px] text-slate-400 mt-0.5 block group-hover:text-slate-300">
-                                Tap to stream video
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })
-                  ) : (
-                    <div className="p-4 text-center">
-                      <p className="text-xs text-slate-400">
-                        Use the <strong>Next Video</strong> and <strong>Previous</strong> buttons above to switch playlist videos.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                            }`}
+                          >
+                            {item.title}
+                          </h4>
+                          {isActive ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-amber-400 mt-0.5 bg-amber-400/10 px-1.5 py-0.2 rounded">
+                              <Radio className="h-2 w-2 animate-spin" /> Playing Now
+                            </span>
+                          ) : isCompleted ? (
+                            <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5 mt-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Completed
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-400 mt-0.5 block">
+                              {progress?.time ? `Resume at ${Math.floor(progress.time / 60)}m` : 'Tap to watch'}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <div className="p-6 text-center text-xs text-slate-400 space-y-2">
+                    <PlayCircle className="h-8 w-8 text-slate-600 mx-auto" />
+                    <p className="font-semibold text-slate-300">{card.title}</p>
+                    <p className="text-[11px] text-slate-500">Standalone Lecture. All controls and notes are active.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
+          {/* TAB 2: CLASS NOTES & FORMULAS (PW STYLE) */}
+          {activeTab === 'notes' && (
+            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Chapter Notes &amp; Formulas
+                  </h3>
+                  <p className="text-[10px] text-slate-500">
+                    Handwritten notes &amp; reference sheets for {card.subject || 'this lecture'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Lecture Description / Notes */}
+              {card.description ? (
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Class Brief</span>
+                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-sans">
+                    {card.description}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* Downloadable / Cloud Drive Notes in this Subject */}
+              <div className="space-y-2 pt-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Subject Materials ({notesResources.length})
+                </span>
+
+                {notesResources.length > 0 ? (
+                  notesResources.map(n => (
+                    <a
+                      key={n.id}
+                      href={normalizeUrl(n.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-2xl transition-all flex items-center justify-between gap-3 group cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-[8px] font-black uppercase text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                          {n.type === 'google_drive' ? 'PDF NOTES' : 'RESOURCE'}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-800 truncate mt-0.5 group-hover:text-emerald-800">
+                          {n.title}
+                        </h4>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                    </a>
+                  ))
+                ) : (
+                  <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 p-4">
+                    <FileText className="h-7 w-7 text-slate-300 mx-auto mb-1.5" />
+                    <p className="text-xs font-bold text-slate-600">Notes will be uploaded shortly</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Your educator uploads handwritten notes after lecture delivery.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: TIMESTAMPED DOUBT ASKING (PHYSICS WALLAH BENCHMARK) */}
+          {activeTab === 'doubts' && (
+            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+                    <HelpCircle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      Doubt Resolution Hub
+                    </h3>
+                    <p className="text-[10px] text-slate-500">
+                      Ask your educator directly at this exact lecture timestamp
+                    </p>
+                  </div>
+                </div>
+
+                {/* Current Timestamp Indicator */}
+                <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-600" />
+                    <span className="text-xs font-extrabold text-amber-900">Current Playback Time:</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 bg-amber-400 text-blue-950 font-black text-xs rounded-full shadow-2xs">
+                    {formatSeconds(playbackTime)}{videoDuration > 0 ? ` / ${formatSeconds(videoDuration)}` : ''}
+                  </span>
+                </div>
+
+                {/* Doubt Form */}
+                <form onSubmit={handleSendDoubt} className="space-y-2.5">
+                  <label htmlFor="doubt-textarea" className="block text-[11px] font-extrabold text-slate-700">
+                    Your Question / Doubt:
+                  </label>
+                  <textarea
+                    id="doubt-textarea"
+                    rows={4}
+                    value={doubtText}
+                    onChange={(e) => setDoubtText(e.target.value)}
+                    placeholder={`e.g., At ${formatSeconds(playbackTime)}, why did we take this formula step? Please explain...`}
+                    className="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all placeholder-slate-400 resize-none font-sans"
+                  />
+                  <button
+                    type="submit"
+                    disabled={doubtSending || !doubtText.trim()}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-blue-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
+                  >
+                    {doubtSending ? (
+                      <span>Sending to Educator…</span>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        <span>Send Doubt at {formatSeconds(playbackTime)}</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Recent Doubts List */}
+                {recentDoubts.length > 0 && (
+                  <div className="pt-2 space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                      Your Recent Doubts ({recentDoubts.length})
+                    </span>
+                    <div className="space-y-1.5">
+                      {recentDoubts.map(d => (
+                        <div key={d.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                          <p className="font-semibold text-slate-800 line-clamp-2">{d.content}</p>
+                          <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
+                            <span>{new Date(d.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                            <span className={d.is_read ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
+                              {d.is_read ? '✓ Answered' : 'Pending Review'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* MORE LECTURES IN SAME SUBJECT */}
           {relatedCards.length > 0 && (
-            <div className="bg-gradient-to-br from-slate-200/90 via-indigo-100/85 to-blue-100/90 rounded-2xl p-3.5 border border-indigo-300/70 shadow-sm space-y-2.5">
-              <div className="flex items-center justify-between border-b border-indigo-200/80 pb-2">
+            <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5 text-indigo-700" /> More Lectures in {card.subject}
+                  <Layers className="h-3.5 w-3.5 text-indigo-700" /> Related in {card.subject}
                 </h3>
                 <Link
-                  to={`/student/study?subject=${encodeURIComponent(card.subject || '')}&category=video`}
+                  to={`${rolePrefix}/study?subject=${encodeURIComponent(card.subject || '')}&category=video`}
                   className="text-[10px] text-indigo-700 hover:underline flex items-center gap-0.5 font-bold"
                 >
                   View all <ChevronRight className="h-3 w-3" />
@@ -657,29 +988,21 @@ export default function WatchLecture() {
               </div>
 
               <div className="space-y-1.5">
-                {relatedCards.slice(0, 4).map(rc => (
+                {relatedCards.slice(0, 3).map((rc) => (
                   <button
                     key={rc.id}
                     onClick={() => {
                       setCard(rc)
                       navigate(`${rolePrefix}/watch/${rc.id}`, { state: { card: rc }, replace: true })
                     }}
-                    className="w-full p-2.5 bg-white hover:bg-indigo-100/70 border border-slate-200/90 hover:border-indigo-300 transition-all rounded-xl text-left flex items-center justify-between gap-2.5 group cursor-pointer shadow-2xs"
+                    className="w-full p-2.5 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/80 hover:border-indigo-200 transition-all rounded-xl text-left flex items-center justify-between gap-2.5 group cursor-pointer"
                   >
                     <div className="min-w-0">
-                      {(() => {
-                        const tag = getCardTypeTag(rc.type)
-                        return (
-                          <span className={`text-[8px] font-black uppercase border px-1.5 py-0.2 rounded ${tag.color}`}>
-                            {tag.label}
-                          </span>
-                        )
-                      })()}
-                      <h4 className="text-xs font-bold text-slate-800 truncate mt-0.5 group-hover:text-indigo-600 transition-colors">
+                      <h4 className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600">
                         {rc.title}
                       </h4>
                     </div>
-                    <PlayCircle className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 shrink-0 transition-colors" />
+                    <PlayCircle className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 shrink-0" />
                   </button>
                 ))}
               </div>
@@ -689,6 +1012,54 @@ export default function WatchLecture() {
         </div>
 
       </main>
+
+      {/* ─── 3. APPLE-GRADE KEYBOARD SHORTCUTS MODAL ───────────────────────── */}
+      {showShortcutsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                  <Keyboard className="h-4 w-4" />
+                </div>
+                <h3 className="font-extrabold text-sm text-slate-900">Player Keyboard Shortcuts</h3>
+              </div>
+              <button
+                onClick={() => setShowShortcutsModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              {[
+                { key: 'Space / K', action: 'Play / Pause Video' },
+                { key: 'J / ←',     action: 'Rewind 10 seconds' },
+                { key: 'L / →',     action: 'Forward 10 seconds' },
+                { key: 'F',         action: 'Toggle Landscape Fullscreen' },
+                { key: 'M',         action: 'Mute / Unmute Audio' },
+                { key: '< / >',     action: 'Decrease / Increase Speed' },
+                { key: '0 - 9',     action: 'Jump to 0% - 90% of lecture' },
+              ].map(s => (
+                <div key={s.key} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <kbd className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono text-[11px] font-bold text-slate-800 shadow-2xs">
+                    {s.key}
+                  </kbd>
+                  <span className="text-slate-600 font-medium">{s.action}</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowShortcutsModal(false)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   )

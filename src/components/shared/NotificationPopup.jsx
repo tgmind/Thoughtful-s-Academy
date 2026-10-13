@@ -187,135 +187,80 @@ export default function NotificationPopup() {
     load()
   }, [user?.id, profile?.role]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Realtime: new published notifications (students + teachers) ──────────
+  // ── Consolidated Realtime Popup Channel (1 multiplexed channel per user) ──
 
   useEffect(() => {
-    if (!user || !profile || profile.role === 'admin') return
+    if (!user || !profile) return
     const role = profile.role
 
-    const channel = supabase
-      .channel(`notif_popup_${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' },
-        async (payload) => {
-          const n = payload.new
-          if (!n.is_active) return
-          const now = new Date()
-          if (n.scheduled_at && new Date(n.scheduled_at) > now) return
-          if (n.expires_at   && new Date(n.expires_at)   < now) return
-          const roleOk = n.target_role === 'all' || n.target_role === role
-          if (!roleOk) return
-          if (role === 'student' && n.target_batch_id) {
-            const { data: sp } = await supabase
-              .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
-            if (sp?.batch_id !== n.target_batch_id) return
-          }
-          if (role === 'teacher' && n.target_batch_id) return
-          enqueue([{ ...n, id: `notif_${n.id}`, notifId: n.id, itemType: 'notification' }])
+    let channel = supabase.channel(`popup_channel_${user.id}`)
+
+    // 1. Incoming messages (all roles)
+    channel = channel.on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: `receiver_id=eq.${user.id}`,
+    }, async (payload) => {
+      const msg = payload.new
+      const { data: sender } = await supabase
+        .from('profiles').select('full_name').eq('id', msg.sender_id).maybeSingle()
+      enqueue([{
+        id:         `msg_rt_${msg.id}`,
+        itemType:   'message',
+        senderId:   msg.sender_id,
+        senderName: sender?.full_name || 'Someone',
+        content:    msg.content,
+        count:      1,
+      }])
+    })
+
+    // 2. New published notifications (students + teachers)
+    if (role !== 'admin') {
+      channel = channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'notifications'
+      }, async (payload) => {
+        const n = payload.new
+        if (!n.is_active) return
+        const now = new Date()
+        if (n.scheduled_at && new Date(n.scheduled_at) > now) return
+        if (n.expires_at   && new Date(n.expires_at)   < now) return
+        const roleOk = n.target_role === 'all' || n.target_role === role
+        if (!roleOk) return
+        if (role === 'student' && n.target_batch_id) {
+          const { data: sp } = await supabase
+            .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
+          if (sp?.batch_id !== n.target_batch_id) return
         }
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [user?.id, profile?.role]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Unread messages on login (all roles) ─────────────────────────────────
-
-  useEffect(() => {
-    if (!user || !profile) return
-
-    const loadMsgs = async () => {
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('id, sender_id, content, created_at')
-        .eq('receiver_id', user.id)
-        .eq('is_read', false)
-        .order('created_at', { ascending: false })
-        .limit(100)
-      if (!msgs?.length) return
-
-      // Group by sender, keep latest message + count
-      const bySender = {}
-      msgs.forEach(m => {
-        if (!bySender[m.sender_id]) bySender[m.sender_id] = { latest: m, count: 0 }
-        bySender[m.sender_id].count++
+        if (role === 'teacher' && n.target_batch_id) return
+        enqueue([{ ...n, id: `notif_${n.id}`, notifId: n.id, itemType: 'notification' }])
       })
-
-      const senderIds = Object.keys(bySender)
-      const { data: senderProfiles } = await supabase
-        .from('profiles').select('id, full_name').in('id', senderIds)
-      const nameMap = {}
-      ;(senderProfiles ?? []).forEach(p => { nameMap[p.id] = p.full_name })
-
-      enqueue(
-        Object.entries(bySender).map(([senderId, { latest, count }]) => ({
-          id:         `msg_login_${senderId}`,
-          itemType:   'message',
-          senderId,
-          senderName: nameMap[senderId] || 'Someone',
-          content:    latest.content,
-          count,
-        }))
-      )
     }
 
-    loadMsgs()
-  }, [user?.id, profile?.role]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Realtime: incoming messages (all roles) ───────────────────────────────
-
-  useEffect(() => {
-    if (!user || !profile) return
-
-    const channel = supabase
-      .channel(`msg_popup_${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `receiver_id=eq.${user.id}`,
-      }, async (payload) => {
-        const msg = payload.new
-        const { data: sender } = await supabase
-          .from('profiles').select('full_name').eq('id', msg.sender_id).maybeSingle()
+    // 3. Live classes (students only)
+    if (role === 'student') {
+      channel = channel.on('postgres_changes', {
+        event: '*', schema: 'public', table: 'live_classes'
+      }, (payload) => {
+        if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return
+        const lc = payload.new
+        if (!lc || !lc.is_active) return
+        // Skip batch-restricted classes that aren't for this student's batch.
+        if (lc.batch_id && lc.batch_id !== batchIdRef.current) return
         enqueue([{
-          id:         `msg_rt_${msg.id}`,
-          itemType:   'message',
-          senderId:   msg.sender_id,
-          senderName: sender?.full_name || 'Someone',
-          content:    msg.content,
-          count:      1,
+          id:       `lc_${lc.id}`,
+          itemType: 'live_class',
+          title:    lc.title,
+          join_url: lc.join_url,
+          password: lc.password || null,
+          platform: lc.platform,
         }])
       })
-      .subscribe()
+    }
 
-    return () => supabase.removeChannel(channel)
-  }, [user?.id, profile?.role]) // eslint-disable-line react-hooks/exhaustive-deps
+    channel.subscribe()
 
-  // ── Realtime: teacher goes live (students only) ───────────────────────────
-
-  useEffect(() => {
-    if (!user || !profile || profile.role !== 'student') return
-
-    const channel = supabase
-      .channel(`lc_popup_${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_classes' },
-        (payload) => {
-          if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return
-          const lc = payload.new
-          if (!lc || !lc.is_active) return
-          // Skip batch-restricted classes that aren't for this student's batch.
-          if (lc.batch_id && lc.batch_id !== batchIdRef.current) return
-          enqueue([{
-            id:       `lc_${lc.id}`,
-            itemType: 'live_class',
-            title:    lc.title,
-            join_url: lc.join_url,
-            password: lc.password || null,
-            platform: lc.platform,
-          }])
-        }
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user?.id, profile?.role, enqueue]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-dismiss timers ───────────────────────────────────────────────────

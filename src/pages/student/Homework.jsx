@@ -132,7 +132,22 @@ export default function StudentHomework() {
 
   const list = tab === 'To Do' ? todo : submitted
 
-  if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+  if (loading) {
+    return (
+      <div className="space-y-6 pb-20 lg:pb-0 max-w-2xl animate-pulse">
+        <div className="h-6 w-36 bg-slate-200 rounded-lg" />
+        <div className="flex gap-2">
+          <div className="h-9 w-24 bg-slate-200 rounded-xl" />
+          <div className="h-9 w-24 bg-slate-200 rounded-xl" />
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 h-28" />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   // No batch assigned → nothing to show.
   if (!batchId) return (

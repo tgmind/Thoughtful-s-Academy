@@ -1,0 +1,41 @@
+================================================================================
+AUDIT EXECUTION LOG: SUPABASE REST API & ROW LEVEL SECURITY PROBING
+Endpoint: Supabase Cloud PostgREST REST API
+Auth Context: Unauthenticated Client (Anon Key only)
+Timestamp: 2026-10-13T14:19:36Z
+Status: VERIFIED
+================================================================================
+
+1. PUBLIC RESOURCE QUERY TEST:
+--------------------------------------------------------------------------------
+GET /rest/v1/batches?select=id,name
+HTTP Status: 200 OK
+Payload Returned:
+[
+  {"id":"7273c358-9f50-480f-b050-42c4d7df1fae","name":"Class 9 Marathon"},
+  {"id":"d973f5cb-afee-49ff-87a3-072f50ed2300","name":"Class 10"}
+]
+RLS Evaluation: Expected behavior (batches policy "batches: all read" allows public read).
+
+GET /rest/v1/study_cards?select=id,title,type,is_featured,is_public
+HTTP Status: 200 OK
+Count: 3 cards returned (Motion, Sound by PW, R Shankar)
+RLS Evaluation: Expected behavior (public study cards accessible to unauthenticated visitors).
+
+2. SENSITIVE RESOURCE RLS ENFORCEMENT TEST (ANON KEY):
+--------------------------------------------------------------------------------
+Table: profiles               Status: 200 | Records Returned: 0 (Enforced)
+Table: messages               Status: 200 | Records Returned: 0 (Enforced)
+Table: fee_records            Status: 200 | Records Returned: 0 (Enforced)
+Table: salary_records         Status: 200 | Records Returned: 0 (Enforced)
+Table: homework               Status: 200 | Records Returned: 0 (Enforced)
+Table: homework_submissions   Status: 200 | Records Returned: 0 (Enforced)
+Table: attendance             Status: 200 | Records Returned: 0 (Enforced)
+Table: qr_settings            Status: 200 | Records Returned: 0 (Enforced/Empty)
+Table: live_classes           Status: 200 | Records Returned: 0 (Enforced)
+Table: notifications          Status: 200 | Records Returned: 0 (Enforced)
+Table: activity_logs          Status: 200 | Records Returned: 0 (Enforced)
+
+Audit Conclusion:
+Row Level Security is actively enabled across all 11 sensitive tables in the PostgreSQL database. Unauthenticated queries via PostgREST do not leak student records, messages, or salary details.
+However, static code inspection of migrations revealed that authenticated users have unconstrained column updates on `profiles` and `teacher_profiles`, allowing self-privilege escalation (Findings SEC-001 & SEC-003).
