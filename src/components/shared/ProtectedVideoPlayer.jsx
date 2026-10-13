@@ -32,13 +32,15 @@ const QUALITY_OPTIONS = [
   { id: 'auto', label: 'Auto (Adaptive)', short: 'Auto', badge: 'Auto', desc: 'Adapts to network speed', ytQuality: 'default' },
 ]
 
+const DEFAULT_PLAYLIST_ITEMS = []
+
 export default function ProtectedVideoPlayer({
   videoId,
   playlistId,
   title = 'Lecture Video',
   subject = '',
   isPlaylist = false,
-  playlistItems = [],
+  playlistItems = DEFAULT_PLAYLIST_ITEMS,
   activeVideoIndex = 0,
   onPrevVideo,
   onNextVideo,
@@ -528,8 +530,22 @@ export default function ProtectedVideoPlayer({
     }
   }, [currentTime, duration, isPlaying, isReady, videoId, playlistItems, activeVideoIndex])
 
+  // Saved Progress Resume Controller
+  const [resumeDismissed, setResumeDismissed] = useState(false)
+
+  // Reset dismissal when video changes
+  useEffect(() => {
+    setResumeDismissed(false)
+  }, [videoId, activeVideoIndex])
+
   // Check saved progress to offer resume when lecture changes
   useEffect(() => {
+    // If an initial seek is specifically requested (e.g. doubt deep-link) or user dismissed, skip saved resume prompt
+    if (initialSeekSeconds > 0 || resumeDismissed) {
+      setResumeData(null)
+      return
+    }
+
     const currentVid = videoId || playlistItems[activeVideoIndex]?.videoId
     if (!currentVid) return
     const saved = getLectureProgress(currentVid)
@@ -545,14 +561,27 @@ export default function ProtectedVideoPlayer({
     return () => {
       if (resumePromptTimerRef.current) clearTimeout(resumePromptTimerRef.current)
     }
-  }, [videoId, activeVideoIndex, playlistItems])
+  }, [videoId, activeVideoIndex, playlistItems, initialSeekSeconds, resumeDismissed])
+
+  const handleDismissResume = useCallback(() => {
+    setResumeDismissed(true)
+    setResumeData(null)
+    if (resumePromptTimerRef.current) clearTimeout(resumePromptTimerRef.current)
+  }, [])
 
   const handleResumePlayback = useCallback(() => {
-    if (resumeData && playerRef.current?.seekTo) {
+    setResumeDismissed(true)
+    const targetTime = resumeData?.time
+    setResumeData(null)
+    if (typeof targetTime === 'number') {
       try {
-        playerRef.current.seekTo(resumeData.time, true)
-        setCurrentTime(resumeData.time)
-        setResumeData(null)
+        if (playerRef.current?.seekTo) {
+          playerRef.current.seekTo(targetTime, true)
+        }
+        setCurrentTime(targetTime)
+        if (typeof playerRef.current?.playVideo === 'function') {
+          playerRef.current.playVideo()
+        }
       } catch { /* Ignore */ }
     }
   }, [resumeData])
@@ -1165,23 +1194,36 @@ export default function ProtectedVideoPlayer({
           </div>
         )}
 
-        {/* ─── RESUME PLAYBACK PROMPT ────────────────────────────────────────── */}
-        {resumeData && !isPlaying && currentTime === 0 && (
-          <div className="absolute bottom-14 left-4 z-35 pointer-events-auto bg-slate-950/95 border border-amber-400/60 rounded-xl p-2.5 shadow-2xl flex items-center gap-3 backdrop-blur-md animate-fade-in max-w-xs">
-            <div className="text-left">
-              <p className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Saved Progress</p>
-              <p className="text-xs text-white font-medium">Resume from {formatTime(resumeData.time)}?</p>
+        {/* ─── RESUME PLAYBACK PROMPT (TOP-FLOATING GLASSMORPHIC BANNER, ZERO CONTROLS INTERFERENCE) ── */}
+        {resumeData && !isPlaying && !resumeDismissed && currentTime < 2 && !initialSeekSeconds && (
+          <div
+            className={`absolute top-3.5 z-40 pointer-events-auto bg-slate-950/92 border border-amber-400/40 rounded-2xl p-2.5 sm:p-3 shadow-2xl flex items-center gap-2.5 sm:gap-3 backdrop-blur-md animate-fade-in max-w-[92%] sm:max-w-sm ring-1 ring-amber-500/20 transition-all ${
+              isFullscreen ? 'left-12 sm:left-14' : 'left-3.5 sm:left-4'
+            }`}
+          >
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
+              <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="text-left min-w-0 flex-1">
+              <p className="text-[10px] text-amber-300 font-extrabold uppercase tracking-wider truncate">
+                Saved Progress
+              </p>
+              <p className="text-xs text-white font-semibold truncate">
+                Resume from <span className="font-mono text-amber-300">{formatTime(resumeData.time)}</span>?
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
+                type="button"
                 onClick={handleResumePlayback}
-                className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-lg transition-colors cursor-pointer"
+                className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
               >
-                Resume
+                <span>Resume</span>
               </button>
               <button
-                onClick={() => setResumeData(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                type="button"
+                onClick={handleDismissResume}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
                 aria-label="Dismiss resume prompt"
               >
                 <X className="h-3.5 w-3.5" />

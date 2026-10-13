@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   UserCheck,
   AlertCircle,
+  X,
+  ChevronsUpDown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
@@ -166,12 +168,17 @@ export default function AdminDoubts() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4 min-w-0">
         <div>
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-blue-950 text-amber-400 rounded-2xl shadow-xs shrink-0">
+            <div className="p-2 bg-gradient-to-br from-blue-950 to-slate-900 text-amber-400 rounded-2xl border border-amber-400/30 shadow-2xs shrink-0">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Doubt Resolution Central
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Doubt Resolution Central
+              </h1>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200/80 hidden xs:inline-block">
+                Administrative Audit
+              </span>
+            </div>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Complete institutional audit of student doubts with dual Teacher-wise and Subject/Batch views.
@@ -182,9 +189,9 @@ export default function AdminDoubts() {
           type="button"
           onClick={loadDoubts}
           disabled={loading}
-          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-2xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-amber-600' : 'text-slate-500'}`} />
           <span>Refresh Records</span>
         </button>
       </div>
@@ -194,8 +201,8 @@ export default function AdminDoubts() {
 
       {/* ── STATS BAR ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 min-w-0">
-        {/* Total Doubts */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200/80 shadow-xs min-w-0">
+        {/* Total Inquiries */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200/80 shadow-xs min-w-0 hover:border-slate-300 transition-all">
           <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
             Total Inquiries
           </p>
@@ -205,8 +212,8 @@ export default function AdminDoubts() {
         </div>
 
         {/* Pending */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-amber-200/80 shadow-xs bg-gradient-to-br from-white to-amber-50/20 min-w-0">
-          <p className="text-[10px] sm:text-[11px] font-bold text-amber-600 uppercase tracking-wider truncate">
+        <div className="bg-gradient-to-br from-white to-amber-50/30 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-amber-200/80 shadow-xs min-w-0 hover:border-amber-300 transition-all">
+          <p className="text-[10px] sm:text-[11px] font-bold text-amber-700 uppercase tracking-wider truncate">
             Pending
           </p>
           <p className="text-lg sm:text-2xl font-black text-amber-950 mt-0.5">
@@ -215,8 +222,8 @@ export default function AdminDoubts() {
         </div>
 
         {/* Addressed */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-emerald-200/80 shadow-xs bg-gradient-to-br from-white to-emerald-50/20 min-w-0">
-          <p className="text-[10px] sm:text-[11px] font-bold text-emerald-600 uppercase tracking-wider truncate">
+        <div className="bg-gradient-to-br from-white to-emerald-50/30 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-emerald-200/80 shadow-xs min-w-0 hover:border-emerald-300 transition-all">
+          <p className="text-[10px] sm:text-[11px] font-bold text-emerald-700 uppercase tracking-wider truncate">
             Addressed
           </p>
           <p className="text-lg sm:text-2xl font-black text-emerald-950 mt-0.5">
@@ -225,8 +232,8 @@ export default function AdminDoubts() {
         </div>
 
         {/* Unassigned */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-rose-200/80 shadow-xs bg-gradient-to-br from-white to-rose-50/20 min-w-0">
-          <p className="text-[10px] sm:text-[11px] font-bold text-rose-600 uppercase tracking-wider truncate">
+        <div className="bg-gradient-to-br from-white to-rose-50/30 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-rose-200/80 shadow-xs min-w-0 hover:border-rose-300 transition-all">
+          <p className="text-[10px] sm:text-[11px] font-bold text-rose-700 uppercase tracking-wider truncate">
             Unassigned
           </p>
           <p className="text-lg sm:text-2xl font-black text-rose-950 mt-0.5">
@@ -238,13 +245,13 @@ export default function AdminDoubts() {
       {/* ── VIEW MODE SELECTOR (DUAL VIEW TOGGLE) ────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-3xl border border-slate-200/80 shadow-xs">
         {/* View Toggle Tabs */}
-        <div className="inline-flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl shrink-0">
+        <div className="inline-flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl shrink-0 overflow-x-auto min-w-0">
           <button
             type="button"
             onClick={() => setViewMode('teacher')}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               viewMode === 'teacher'
-                ? 'bg-blue-950 text-white shadow-xs'
+                ? 'bg-blue-950 text-white shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -254,9 +261,9 @@ export default function AdminDoubts() {
           <button
             type="button"
             onClick={() => setViewMode('subjectBatch')}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               viewMode === 'subjectBatch'
-                ? 'bg-blue-950 text-white shadow-xs'
+                ? 'bg-blue-950 text-white shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -266,13 +273,13 @@ export default function AdminDoubts() {
         </div>
 
         {/* Status Filter */}
-        <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl shrink-0">
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs'
+                ? 'bg-white text-slate-900 shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -281,9 +288,9 @@ export default function AdminDoubts() {
           <button
             type="button"
             onClick={() => setStatusFilter('pending')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'pending'
-                ? 'bg-white text-amber-900 shadow-2xs'
+                ? 'bg-white text-amber-900 shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -292,9 +299,9 @@ export default function AdminDoubts() {
           <button
             type="button"
             onClick={() => setStatusFilter('addressed')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'addressed'
-                ? 'bg-white text-emerald-900 shadow-2xs'
+                ? 'bg-white text-emerald-900 shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -305,16 +312,26 @@ export default function AdminDoubts() {
 
       {/* ── SEARCH & ATTRIBUTE FILTERS ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
-        {/* Search */}
+        {/* Search with Clear Button */}
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by student name, roll number, question, or lecture…"
-            className="w-full pl-9 pr-3 py-2 rounded-xl text-xs bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all placeholder-slate-400"
+            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all placeholder-slate-400"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-md transition-colors cursor-pointer"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Subject Filter */}
@@ -326,7 +343,7 @@ export default function AdminDoubts() {
             <select
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              className="text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 w-full sm:w-auto"
+              className="text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 w-full sm:w-auto cursor-pointer"
             >
               <option value="all">All Subjects</option>
               {availableSubjects.map((s) => (
@@ -347,7 +364,7 @@ export default function AdminDoubts() {
             <select
               value={selectedTeacherId}
               onChange={(e) => setSelectedTeacherId(e.target.value)}
-              className="text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 w-full sm:w-auto"
+              className="text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 w-full sm:w-auto cursor-pointer"
             >
               <option value="all">All Faculty</option>
               {teachers.map((t) => (
@@ -363,25 +380,25 @@ export default function AdminDoubts() {
 
       {/* ── MAIN CONTENT ACCORDION PANELS ───────────────────────────────── */}
       {loading ? (
-        <div className="p-12 text-center text-xs text-slate-400 space-y-2">
+        <div className="p-12 text-center text-xs text-slate-400 space-y-2 bg-white rounded-3xl border border-slate-200/80">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto text-amber-500" />
-          <p>Compiling institutional doubt data…</p>
+          <p className="font-semibold text-slate-600">Compiling institutional doubt data…</p>
         </div>
       ) : doubts.length === 0 ? (
         <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border border-slate-200/80 shadow-xs space-y-3">
-          <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-700 mx-auto flex items-center justify-center">
+          <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-700 mx-auto flex items-center justify-center border border-amber-200/60 shadow-2xs">
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
             Zero Inquiries in System
           </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
             No doubts have been submitted by students yet across all academy batches.
           </p>
         </div>
       ) : viewMode === 'teacher' ? (
         /* ══════════════ VIEW A: TEACHER-WISE GROUPING ══════════════ */
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
           {/* Loop over teachers */}
           {teachers
             .filter((t) => selectedTeacherId === 'all' || selectedTeacherId === t.id)
@@ -393,33 +410,33 @@ export default function AdminDoubts() {
               return (
                 <div
                   key={teacher.id}
-                  className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden"
+                  className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden transition-all hover:border-slate-300"
                 >
                   {/* Teacher Header */}
                   <button
                     type="button"
                     onClick={() => toggleSection(`teacher_${teacher.id}`)}
-                    className="w-full px-5 py-4 bg-slate-50/80 hover:bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
+                    className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-slate-50/80 hover:bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs border border-indigo-200/80">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs border border-indigo-200/80 shrink-0 shadow-2xs">
                         {teacher.full_name ? teacher.full_name.slice(0, 2).toUpperCase() : 'T'}
                       </div>
-                      <div>
-                        <h2 className="font-black text-sm text-slate-900 tracking-tight">
+                      <div className="min-w-0">
+                        <h2 className="font-black text-sm text-slate-900 tracking-tight truncate">
                           {teacher.full_name}
                         </h2>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[11px] text-slate-500 truncate">
                           {teacher.email || 'Assigned Educator'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-200/70">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100/80 text-amber-900 border border-amber-200/80 shadow-2xs">
                         {grp.pendingCount} Pending
                       </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200/70">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100/80 text-emerald-900 border border-emerald-200/80 shadow-2xs">
                         {grp.addressedCount} Addressed
                       </span>
                       {isCollapsed ? (
@@ -432,7 +449,7 @@ export default function AdminDoubts() {
 
                   {/* Doubts List */}
                   {!isCollapsed && (
-                    <div className="p-4 sm:p-5 space-y-4">
+                    <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
                       {filteredItems.length === 0 ? (
                         <p className="text-xs text-slate-400 italic text-center py-4">
                           No doubts for this educator matching active filters.
@@ -458,28 +475,28 @@ export default function AdminDoubts() {
 
           {/* Unassigned Section */}
           {(selectedTeacherId === 'all' || selectedTeacherId === 'unassigned') && (
-            <div className="bg-white rounded-3xl border border-rose-200/80 shadow-xs overflow-hidden">
+            <div className="bg-white rounded-3xl border border-rose-200/80 shadow-xs overflow-hidden transition-all hover:border-rose-300">
               <button
                 type="button"
                 onClick={() => toggleSection('unassigned')}
-                className="w-full px-5 py-4 bg-rose-50/60 hover:bg-rose-100/60 border-b border-rose-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
+                className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-rose-50/60 hover:bg-rose-100/60 border-b border-rose-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs border border-rose-300">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs border border-rose-300 shrink-0 shadow-2xs">
                     <AlertCircle className="h-4 w-4" />
                   </div>
-                  <div>
-                    <h2 className="font-black text-sm text-rose-950 tracking-tight">
+                  <div className="min-w-0">
+                    <h2 className="font-black text-sm text-rose-950 tracking-tight truncate">
                       Unassigned Doubts Queue
                     </h2>
-                    <p className="text-[11px] text-rose-700">
+                    <p className="text-[11px] text-rose-700 truncate">
                       Doubts without an assigned batch teacher
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-200 text-rose-900">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-200 text-rose-900 shadow-2xs">
                     {unassignedGroup.items.length} Total
                   </span>
                   {collapsedSections['unassigned'] ? (
@@ -491,7 +508,7 @@ export default function AdminDoubts() {
               </button>
 
               {!collapsedSections['unassigned'] && (
-                <div className="p-4 sm:p-5 space-y-4">
+                <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
                   {unassignedGroup.items.filter(filterDoubt).length === 0 ? (
                     <p className="text-xs text-slate-400 italic text-center py-4">
                       No unassigned doubts in queue.
@@ -516,7 +533,7 @@ export default function AdminDoubts() {
         </div>
       ) : (
         /* ══════════════ VIEW B: SUBJECT & BATCH-WISE GROUPING ══════════════ */
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
           {Object.keys(subjectBatchGroups).map((key) => {
             const grp = subjectBatchGroups[key]
             const filteredItems = grp.items.filter(filterDoubt)
@@ -529,19 +546,19 @@ export default function AdminDoubts() {
             return (
               <div
                 key={key}
-                className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden"
+                className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden transition-all hover:border-slate-300"
               >
                 <button
                   type="button"
                   onClick={() => toggleSection(`sb_${key}`)}
-                  className="w-full px-5 py-4 bg-slate-50/80 hover:bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
+                  className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-slate-50/80 hover:bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-xl">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100/80 shrink-0">
                       <Layers className="h-4 w-4" />
                     </div>
-                    <div>
-                      <h2 className="font-black text-sm text-slate-900 tracking-tight">
+                    <div className="min-w-0">
+                      <h2 className="font-black text-sm text-slate-900 tracking-tight truncate">
                         {grp.subject}{' '}
                         <span className="text-slate-400 font-normal">/</span>{' '}
                         <span className="text-slate-700">{grp.batchName}</span>
@@ -549,11 +566,11 @@ export default function AdminDoubts() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-200/70">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100/80 text-amber-900 border border-amber-200/80 shadow-2xs">
                       {grp.pendingCount} Pending
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-200/70">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100/80 text-emerald-900 border border-emerald-200/80 shadow-2xs">
                       {grp.addressedCount} Addressed
                     </span>
                     {isCollapsed ? (
@@ -565,7 +582,7 @@ export default function AdminDoubts() {
                 </button>
 
                 {!isCollapsed && (
-                  <div className="p-4 sm:p-5 space-y-4">
+                  <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
                     {filteredItems.length === 0 ? (
                       <p className="text-xs text-slate-400 italic text-center py-4">
                         No doubts matching current status or search query.
