@@ -18,7 +18,7 @@ Platform: Thoughtful's Academy
 | **FEAT-007** | Public Video Lecture Preview | **VERIFIED WORKING** (Content Leak) | `src/pages/student/WatchLecture.jsx` | Renders player on `/watch/:cardId`, but allows unauthenticated access to private cards if ID is known ([BUG-001](../FINDINGS/FUNCTIONAL_DEFECTS.md#BUG-001)). |
 | **FEAT-008** | Study Cards & Batch Workspaces | **VERIFIED WORKING** | `StudySection.jsx` | Full CRUD for video, playlist, drive links. Multi-batch assignment supported. |
 | **FEAT-009** | Protected Video Classroom Player | **VERIFIED WORKING** | `ProtectedVideoPlayer.jsx` | Custom controls, quality menu, speed controls, screen lock, and progress save work. |
-| **FEAT-010** | Lecture Doubt Submission & Notes | **VERIFIED WORKING** | `WatchLecture.jsx` | Submits timestamped doubts to `messages` table, adds student bookmarks. |
+| **FEAT-010** | Lecture Doubt Submission & Notes | **VERIFIED WORKING** | `WatchLecture.jsx`, `doubtService.js` | Authoritative in-video doubt creation stored in `doubts` table with role-based controls, single-video tab vanishing, and description deduplication. |
 | **FEAT-011** | Live Class Broadcast & Chime | **VERIFIED WORKING** | `LiveClass.jsx`, `useRealtime.js` | Realtime broadcast works; 880Hz Web Audio chime sounds upon new class. |
 | **FEAT-012** | Self-Attendance & Streaks | **VERIFIED WORKING** | `Attendance.jsx`, `StudentDashboard.jsx` | Daily check-in button, streak counter, SVG ring, and monthly heatmap work. |
 | **FEAT-013** | Homework Assignment & Submission | **PARTIALLY WORKING** | `Homework.jsx` (Student/Teacher) | Drive link submission and grading work; auto-notifications trigger on update. |
@@ -31,3 +31,5 @@ Platform: Thoughtful's Academy
 | **FEAT-020** | Faculty Salary Payroll | **IMPLEMENTED / UNVERIFIED LIVE** | `SalaryManager.jsx`, `SalaryStatus.jsx` | Flow works; QR image storage depends on `teacher-qr` bucket policies. |
 | **FEAT-021** | Attendance & Fee Analytics | **VERIFIED WORKING** | `Analytics.jsx`, `AttendanceChart.jsx` | Recharts bar and line graphs calculate 30-day attendance and 6-month fees. |
 | **FEAT-022** | Destructive System Reset | **BROKEN / DEFECTIVE** | `src/pages/admin/AdminSettings.jsx` | Deletes `public.profiles` but leaves `auth.users`, locking emails from re-signup ([DATA-001](../DATABASE/DATA_INTEGRITY_AUDIT.md#DATA-001)). |
+| **FEAT-023** | Cross-Portal Doubt Resolution Hub | **VERIFIED WORKING** | `doubtService.js`, `DoubtCard.jsx`, `StudentDoubts.jsx`, `TeacherDoubts.jsx`, `AdminDoubts.jsx` | First-class doubt management with role-tailored portals, self-study clearing, subject/batch accordions, dual admin views, and realtime badges. |
+| **FEAT-024** | Saved Playback Progress & Resume | **VERIFIED WORKING** | `ProtectedVideoPlayer.jsx` | Top-left floating glassmorphic resume prompt without timeline collisions, auto-play seek, and deep-link suppression. |

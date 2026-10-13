@@ -2,7 +2,7 @@
 
 Audit Date: 2026-10-13  
 Platform: Thoughtful's Academy  
-Total Discovered Routes: **27**
+Total Discovered Routes: **30**
 
 ---
 
@@ -26,12 +26,14 @@ Total Discovered Routes: **27**
 | `/student/homework` | `student` | `src/pages/student/Homework.jsx` | `Homework-BxTGmOgc.js` | Pending assignments & Google Drive submissions |
 | `/student/live-class`| `student` | `src/pages/student/LiveClass.jsx` | `LiveClass-BJxOjd_L.js` | Live class join room (Zoom / Google Meet) |
 | `/student/messages` | `student` | `src/pages/student/Messages.jsx` | `Messages-BrCC5ze2.js` | Direct messaging with assigned faculty |
+| `/student/doubts` | `student` | `src/pages/student/StudentDoubts.jsx` | `StudentDoubts-DE_ZS3X4.js` | Student Doubt Hub: stats, filterable doubts, self-study resolution |
 | `/student/pay-fee` | `student` | `src/pages/student/PayFee.jsx` | `PayFee-DIoy_RbK.js` | Monthly fee payment guide & UTR submission form |
 | `/student/notifications`| `student` | `src/pages/student/Notifications.jsx` | `Notifications-DNyG0tTA.js` | Student notification inbox |
 | `/teacher/watch/:cardId?`| `teacher` | `src/pages/student/WatchLecture.jsx` | `WatchLecture-xoHNfcm4.js` | Teacher standalone watch room |
 | `/teacher/dashboard` | `teacher` | `src/pages/teacher/TeacherHome.jsx` | `TeacherHome-5VFI18RL.js` | Teacher overview & assigned batch cards |
 | `/teacher/study` | `teacher` | `src/pages/teacher/StudySection.jsx` | `StudySection-DUZz8-aR.js` | Batch study workspace & card CRUD management |
 | `/teacher/study-cards`| `teacher` | `src/pages/teacher/StudySection.jsx` | `StudySection-DUZz8-aR.js` | Alias to teacher study workspace |
+| `/teacher/doubts` | `teacher` | `src/pages/teacher/TeacherDoubts.jsx` | `TeacherDoubts-VyloMdnV.js` | Teacher Doubt Hub: subject & batch accordions, educator action queue |
 | `/teacher/homework` | `teacher` | `src/pages/teacher/Homework.jsx` | `Homework-CsJrqAR1.js` | Homework assignment creator & submission grading |
 | `/teacher/live-class`| `teacher` | `src/pages/teacher/LiveClass.jsx` | `LiveClass-i4hvYFYl.js` | Live class launcher & meeting manager |
 | `/teacher/messages` | `teacher` | `src/pages/teacher/Messages.jsx` | `Messages-G2F48aAg.js` | Faculty student messaging interface |
@@ -46,6 +48,7 @@ Total Discovered Routes: **27**
 | `/admin/batches` | `admin` | `src/pages/admin/BatchManager.jsx` | `BatchManager-CgKM8a0M.js` | Batch CRUD & multi-teacher assignment |
 | `/admin/batch-details` | `admin` | `src/pages/admin/AdminBatchDetails.jsx` | `AdminBatchDetails-4pczvibp.js` | Batch curriculum details & RichText syllabus editor |
 | `/admin/study` | `admin` | `src/pages/teacher/StudySection.jsx` | `StudySection-DUZz8-aR.js` | Study Section with `isAdmin={true}` |
+| `/admin/doubts` | `admin` | `src/pages/admin/AdminDoubts.jsx` | `AdminDoubts-H_Cx2d6l.js` | Admin Doubt Central: dual views (teacher vs subject/batch), KPI stats |
 | `/admin/homework` | `admin` | `src/pages/teacher/Homework.jsx` | `Homework-CsJrqAR1.js` | Homework Manager with `isAdmin={true}` |
 | `/admin/live-class`| `admin` | `src/pages/teacher/LiveClass.jsx` | `LiveClass-i4hvYFYl.js` | Live Class Launcher with `isAdmin={true}` |
 | `/admin/qr` | `admin` | `src/pages/admin/QRManager.jsx` | `QRManager-DOmMJFnb.js` | Institute payment QR image uploader |

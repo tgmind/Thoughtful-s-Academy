@@ -14,7 +14,7 @@
 The backend architecture departs from traditional monolithic Node/Express REST APIs by employing a **Backend-as-a-Service (BaaS)** model. Client applications interact directly with the database through **Supabase PostgREST**, where Row Level Security (RLS) policies serve as the primary API authorization gateway.
 
 Backend computational interfaces are grouped into:
-1. **PostgREST Table Interfaces (18 Data Entities):** CRUD operations filtered and shaped via URL query parameters (`select`, `order`, `filter`).
+1. **PostgREST Table Interfaces (19 Data Entities):** CRUD operations filtered and shaped via URL query parameters (`select`, `order`, `filter`).
 2. **Serverless Edge Function (`send-push`):** Webhook-triggered background push notification dispatcher running on Deno.
 3. **Netlify Serverless Function (`youtube-playlist`):** Server-side HTTP proxy parsing YouTube XML/HTML feeds to bypass CORS restrictions.
 4. **Supabase Realtime WebSockets:** Bidirectional WebSocket subscription channels listening to database write-ahead log (WAL) change streams.
@@ -34,7 +34,7 @@ Backend computational interfaces are grouped into:
 | `/rest/v1/subjects` | GET, POST, PATCH, DELETE | Student, Teacher, Admin | Batch subject categorization |
 | `/rest/v1/chapters` | GET, POST, PATCH, DELETE | Student, Teacher, Admin | Curriculum chapter ordering |
 | `/rest/v1/study_cards` | GET, POST, PATCH, DELETE | Public/Student/Teacher/Admin| Lecture video cards, duration, notes links |
-| `/rest/v1/study_doubts` | GET, POST, PATCH | Student, Teacher, Admin | In-video timestamped student questions & replies |
+| `/rest/v1/doubts` | GET, POST, PATCH, DELETE | Student, Teacher, Admin | Timestamped lecture doubts lifecycle, resolution actions, self-study delete |
 | `/rest/v1/attendance` | GET, POST, PATCH | Student (GET), Teacher/Admin | Daily attendance records, presence tracking |
 | `/rest/v1/homework` | GET, POST, PATCH, DELETE | Student (GET), Teacher/Admin | Assignments, due dates, file attachments |
 | `/rest/v1/homework_submissions` | GET, POST, PATCH | Student, Teacher, Admin | Student assignment submissions & grading |

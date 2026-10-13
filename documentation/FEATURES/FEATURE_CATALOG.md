@@ -7,7 +7,7 @@ Platform: Thoughtful's Academy
 
 ## 1. Feature Identification & Catalog
 
-The platform encompasses **22 distinct functional features** grouped across 6 functional domains:
+The platform encompasses **24 distinct functional features** grouped across 7 functional domains:
 
 | Feature ID | Domain | Feature Name | Primary Component(s) | Primary User Persona |
 |---|---|---|---|---|
@@ -33,6 +33,8 @@ The platform encompasses **22 distinct functional features** grouped across 6 fu
 | **FEAT-020** | Financial | Faculty Salary Payroll & Teacher QR Codes | `SalaryManager.jsx`, `SalaryStatus.jsx` | Admin, Teacher |
 | **FEAT-021** | Analytics | Batch Attendance & Fee Analytics Charts | `Analytics.jsx`, `AttendanceChart.jsx`, `FeeChart.jsx` | Admin |
 | **FEAT-022** | Admin | Destructive System Reset & Student Purge | `AdminSettings.jsx` | Admin |
+| **FEAT-023** | Academic / Ops | Cross-Portal Doubt Resolution Hub | `doubtService.js`, `DoubtCard.jsx`, `StudentDoubts.jsx`, `TeacherDoubts.jsx`, `AdminDoubts.jsx` | Student, Teacher, Admin |
+| **FEAT-024** | Video Core | Saved Playback Progress & Resume Mechanism | `ProtectedVideoPlayer.jsx`, `youtube.js` | All Video Consumers |
 
 ---
 
@@ -44,14 +46,17 @@ Covers multi-step account creation with dynamic role selection (Student, Teacher
 ### Domain 2: Public Presentation & Discovery (FEAT-005 - FEAT-007)
 Provides a high-conversion landing page with founder credentials, admissions open alerts, dynamic responsive posters for running batches, filtered study card feeds, and public trial video viewing routes.
 
-### Domain 3: Core Academic Delivery (FEAT-008 - FEAT-011)
-Delivers batch-restricted learning resources: YouTube playlist ingestion, shielded video streaming without distracting YouTube recommendations, 2x long-press speed accelerators, in-video doubt submission with exact timestamps, and live class broadcasting with instant audio notifications.
+### Domain 3: Core Academic Delivery (FEAT-008 - FEAT-011, FEAT-024)
+Delivers batch-restricted learning resources: YouTube playlist ingestion, shielded video streaming without distracting YouTube recommendations, 2x long-press speed accelerators, in-video doubt submission with exact timestamps, live class broadcasting with instant audio notifications, and top-floating non-intrusive saved progress resume with deep-link seeking.
 
 ### Domain 4: Consistency & Accountability (FEAT-012 - FEAT-013)
 Encourages daily engagement through one-click self-attendance marking, dynamic streak calculation (fire flame badge), monthly attendance heatmaps, circular SVG progress rings, and Google Drive homework submission with teacher grading.
 
 ### Domain 5: Communication & Notifications (FEAT-014, FEAT-016)
-Facilitates direct academic doubt resolution through real-time 1-on-1 chat threads, unread badge counters, VAPID Web Push notifications for closed browser sessions, and floating announcement popups.
+Facilitates direct academic interaction through real-time 1-on-1 chat threads, unread badge counters, VAPID Web Push notifications for closed browser sessions, and floating announcement popups.
 
 ### Domain 6: Institute Governance & Operations (FEAT-015, FEAT-017 - FEAT-022)
 Empowers institute management: offline UPI payment reconciliation (pending, verified, rejected), fee defaulter tracking, teacher permission toggles, multi-teacher batch assignment, payroll disbursement, Recharts analytics, and database reset controls.
+
+### Domain 7: Doubt Resolution Lifecycle (FEAT-023)
+Authoritative, first-class doubt management across the institute: timestamped in-video doubt submission, student personal doubt tracker with self-study resolution, subject/batch grouped educator queue with one-click resolution and messaging, and institutional administrative oversight with educator tracking and unassigned queues.

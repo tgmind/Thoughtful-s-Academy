@@ -2,8 +2,8 @@
 
 **Platform:** Thoughtful's Academy (Coaching Institute Management System)  
 **Scope:** Complete inventory of all React/JSX components across layouts, shared widgets, pages, modals, and charts.  
-**Total Source Files:** 73 UI components/pages  
-**Total Frontend Lines of Code:** 25,284 LOC  
+**Total Source Files:** 78 UI components/pages  
+**Total Frontend Lines of Code:** 26,800+ LOC  
 
 ---
 
@@ -56,10 +56,28 @@ The frontend UI is structured into modular layers built on **React 18.3.1**, sty
   - **YouTube Iframe API Hook:** Uses dynamic script injection (`src/utils/youtubeApiLoader.js`) to attach to `YT.Player`.
   - **Anti-Piracy Dynamic Watermarking:** Renders an HTML5 `<canvas>` layered directly over the video (`z-20`, `pointer-events-none`). Generates moving text containing user's Full Name, Roll Number, and IP/Timestamp bouncing across screen coordinates every 8 seconds via `requestAnimationFrame` to deter screen recording.
   - **Overlay Click Hijack Protection:** Invisible click interceptor prevents users from right-clicking or tapping "Watch on YouTube" to extract unlisted URLs.
-  - **In-Video Doubt Drawer:** Slide-in panel allowing students to post timestamped doubts (`current_timestamp_seconds`) directly linking to `study_doubts` table.
+  - **Saved Playback Progress & Resume Mechanism (FEAT-024):** Non-intrusive floating glassmorphic banner at top-left (`top-3.5 left-3.5 sm:left-4 z-40`) preventing scrubber collisions, auto-plays on resume, and suppresses prompt on doubt deep-link seeking (`initialSeekSeconds > 0`).
+  - **In-Video Doubt Drawer:** Integrates with `src/services/doubtService.js` to create structured doubts stored in `public.doubts`.
 - **Defects & Technical Debt:** Megalithic code volume. Houses YouTube player lifecycle, canvas animation engine, custom controls bar, keyboard shortcuts, and doubt messaging panel in a single file. Should be decomposed into `VideoCanvasWatermark.jsx`, `VideoCustomControls.jsx`, and `VideoDoubtPanel.jsx`.
 
-### 3.2 `src/components/shared/LiveClassBanner.jsx`
+### 3.2 `src/components/doubts/DoubtCard.jsx`
+- **Lines of Code:** 350+ LOC
+- **Props Accepted:**
+  - `doubt`: Object containing `{ id, student_name, roll_number, subject, batch_name, lecture_title, timestamp_seconds, question, status, addressed_by_name, addressed_at }`
+  - `currentUserId`: UUID of authenticated user
+  - `role`: `'student' | 'teacher' | 'admin'`
+  - `onPlayVideo`: Callback function `(doubt) => void`
+  - `onMessage`: Callback function `(doubt) => void`
+  - `onMarkAddressed`: Callback function `(doubt) => void`
+  - `onDelete`: Callback function `(doubt) => void`
+- **Features:** Reusable, minimalist doubt card with gradient avatar initials, roll number chip, editorial accent rails (`amber` for pending, `emerald` for addressed), prominent timestamp badge, dark navy `Play at MM:SS`, direct `Message Student`, one-click `Mark Addressed in Class`, and inline two-step confirmation for self-study delete.
+
+### 3.3 `src/components/doubts/DoubtSchemaAlert.jsx`
+- **Lines of Code:** 120+ LOC
+- **Props:** `error: any`, `onRetry?: () => void`
+- **Features:** Graceful schema cache warning banner displayed when `public.doubts` is missing or unmigrated (`PGRST205`), with one-click DDL copying and reconnect retry button.
+
+### 3.4 `src/components/shared/LiveClassBanner.jsx`
 - **Lines of Code:** 88 LOC
 - **Props:** None (Subscribes directly to `live_classes` table via Supabase Realtime).
 - **Features:** Floating banner across top of dashboard when an instructor initiates a live class. Plays an audio chime (Web Audio API synthetic 880Hz sine wave tone) on state transition to active broadcast.
@@ -118,10 +136,12 @@ The frontend UI is structured into modular layers built on **React 18.3.1**, sty
 | `src/pages/student/Attendance.jsx` | 444 | Student | Monthly calendar attendance heat map, streak tracker, leave request form | High |
 | `src/pages/student/PayFee.jsx` | 222 | Student | Institute QR code display, pending fee invoice breakdown, UTR transaction number submission form | Medium |
 | `src/pages/student/Messages.jsx` | 379 | Student | Direct 1-on-1 chat interface between student and batch teachers, message history, unread counters | High |
+| `src/pages/student/StudentDoubts.jsx` | 320 | Student | Student Doubt Hub: stats overview cards, status filtering tabs, keyword search, self-study delete | High |
 | `src/pages/student/Notifications.jsx` | 424 | Student | Broadcast announcements and personal alerts stream with filter tabs | Medium |
 | `src/pages/teacher/TeacherHome.jsx` | 214 | Faculty | Instructor command center: batch schedule, upcoming live class trigger, unread doubt alerts | Medium |
 | `src/pages/teacher/StudySection.jsx` | 1,948 | Faculty | **Largest file in codebase:** Full curriculum CRUD, subject/chapter hierarchy builder, study card editor, YouTube playlist importer, lecture notes publisher | Critical |
 | `src/pages/teacher/StudyCards.jsx` | 412 | Faculty | Card-level management view, ordering, publication toggle (draft vs published), analytics | High |
+| `src/pages/teacher/TeacherDoubts.jsx` | 440 | Faculty | Teacher Doubt Hub: subject & batch accordions, toggle all groups, active pending queue, resolved history toggle | High |
 | `src/pages/teacher/LiveClass.jsx` | 299 | Faculty | Live broadcast broadcast studio: start/stop class, stream link broadcast, live attendee counter | Medium |
 | `src/pages/teacher/Homework.jsx` | 375 | Faculty | Assignment authoring, deadline scheduling, student submission evaluation & grading | High |
 | `src/pages/teacher/FeeRecords.jsx` | 169 | Faculty | Read-only fee collection status view for assigned batch students | Medium |
@@ -135,6 +155,7 @@ The frontend UI is structured into modular layers built on **React 18.3.1**, sty
 | `src/pages/admin/TeacherManager.jsx` | 509 | Admin | Faculty directory, subject specialization mapping, base salary configuration, account status | High |
 | `src/pages/admin/FeeManager.jsx` | 817 | Admin | Fee verification workbench: UTR manual matching, pending submission approvals/rejections, receipt generation | Very High |
 | `src/pages/admin/SalaryManager.jsx` | 491 | Admin | Payroll disbursement console: monthly salary computation, bonus/deduction line items, payout confirmation | High |
+| `src/pages/admin/AdminDoubts.jsx` | 490 | Admin | Admin Doubt Central: dual views (teacher-wise vs subject/batch-wise), institutional KPI cards, unassigned doubt queue | High |
 | `src/pages/admin/Announcements.jsx` | 385 | Admin | Institute-wide announcement broadcast builder with push notification delivery triggers | High |
 | `src/pages/admin/Analytics.jsx` | 240 | Admin | Historical revenue reports, batch attendance distributions, enrollment growth trajectories | High |
 | `src/pages/admin/QRManager.jsx` | 145 | Admin | Institute UPI QR code image and VPA identifier configuration editor | Medium |

@@ -44,6 +44,7 @@
   - `public:live_classes`: Broadcasts class start/stop events across student portals.
   - `public:notifications`: Dispatches real-time broadcast alerts.
   - `public:messages`: In-app chat synchronization.
+  - `public:doubts`: Real-time doubt status, resolution, and badge counters across Student, Teacher, and Admin portals.
 - **Reliability:** Built on Phoenix Channels (Elixir). Automatically reconnects on mobile network handover (WiFi to 4G/5G).
 
 ### 2.4 Supabase Edge Function (`send-push`)
@@ -56,3 +57,13 @@
 - **Runtime:** Node.js 18 ESM on AWS Lambda (via Netlify).
 - **Architecture:** Zero dependency HTTP handler using native `fetch`.
 - **Caching:** Sets `Cache-Control: public, max-age=900` (15-minute edge caching) to prevent excessive requests to YouTube servers.
+
+### 2.6 Client-Side Service Layer: Doubt Resolution Service (`src/services/doubtService.js`)
+- **Runtime:** Client-side JavaScript / ES Module interfacing directly with Supabase PostgREST.
+- **Responsibilities:**
+  - `createDoubt`: Input validation, string sanitization, and structured insert into `public.doubts`.
+  - `fetchStudentDoubts`, `fetchTeacherDoubts`, `fetchAdminDoubts`: Role-authorized query builders with batch and subject filtering.
+  - `markDoubtAddressed`: Transitioning doubt status to `addressed` with resolving educator metadata.
+  - `deleteDoubt`: Self-study doubt resolution by students and moderation deletion by administrators.
+  - `countPendingDoubts`: Aggregates active doubt load for realtime navigation badges (`useNavBadges.js`).
+  - `isMissingTableError`: Catches PostgREST schema cache exceptions (`PGRST205`) for graceful degraded operation without application crashes.

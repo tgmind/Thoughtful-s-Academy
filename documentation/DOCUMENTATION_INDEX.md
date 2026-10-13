@@ -69,12 +69,13 @@ Coverage: 100% of discovered files, routes, tables, APIs, and findings
 
 ## 3. Features & User Journeys (`FEATURES/`)
 
-- [FEATURE_CATALOG.md](./FEATURES/FEATURE_CATALOG.md) — Master catalog of 22 identified features (FEAT-001 through FEAT-022)
+- [FEATURE_CATALOG.md](./FEATURES/FEATURE_CATALOG.md) — Master catalog of 24 identified features (FEAT-001 through FEAT-024)
 - [FEATURE_STATUS_MATRIX.md](./FEATURES/FEATURE_STATUS_MATRIX.md) — Detailed status matrix with evidence and verification states
+- [DOUBT_RESOLUTION_HUB.md](./FEATURES/DOUBT_RESOLUTION_HUB.md) — Authoritative system architecture, schema, role workflows, and verification for the Doubt Resolution Hub (FEAT-023)
 - [USER_ROLES_AND_PERMISSIONS.md](./FEATURES/USER_ROLES_AND_PERMISSIONS.md) — Role definitions, matrix, and DB permission flags
 - [USER_JOURNEYS.md](./FEATURES/USER_JOURNEYS.md) — Step-by-step journeys for Student, Teacher, Admin, and Guest
 - [AUTHENTICATION_AND_ONBOARDING.md](./FEATURES/AUTHENTICATION_AND_ONBOARDING.md) — Deep dive into Sign-up, Sign-in, Password Reset, and Trial
-- [STUDY_CARDS_AND_LECTURE_ROOM.md](./FEATURES/STUDY_CARDS_AND_LECTURE_ROOM.md) — Deep dive into Video Classroom, Playlists, and Cards
+- [STUDY_CARDS_AND_LECTURE_ROOM.md](./FEATURES/STUDY_CARDS_AND_LECTURE_ROOM.md) — Deep dive into Video Classroom, Saved Progress Resume, Playlists, and Doubts (FEAT-008, FEAT-009, FEAT-010, FEAT-024)
 - [LIVE_CLASSES_AND_ATTENDANCE.md](./FEATURES/LIVE_CLASSES_AND_ATTENDANCE.md) — Deep dive into Live alerts, Self-check-in, Streaks, and Gauges
 - [FEES_SALARIES_AND_ADMIN.md](./FEATURES/FEES_SALARIES_AND_ADMIN.md) — Deep dive into Manual UPI reconciliation and Payroll
 

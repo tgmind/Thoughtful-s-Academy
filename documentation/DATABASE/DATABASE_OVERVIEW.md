@@ -5,8 +5,8 @@
 **Primary Region:** AWS Mumbai (`ap-south-1`)  
 **Access Layer:** PostgREST 12+ RESTful Data Gateway & Elixir Realtime Engine  
 **Security Model:** 100% Table Row Level Security (RLS) Enforcement  
-**Schema Count:** 18 Core Relational Tables  
-**Total Migrations:** 24 Version-Controlled SQL Migrations (`001` - `024`)  
+**Schema Count:** 19 Core Relational Tables  
+**Total Migrations:** 28 Version-Controlled SQL Migrations (`001` - `028`)  
 
 ---
 
@@ -17,8 +17,8 @@ The database layer serves as the single source of truth and the ultimate securit
 Key architectural characteristics include:
 1. **Strict Relational Normalization:** User identities reside in `profiles` (keyed to `auth.users(id)`), while role-specific metadata is cleanly partitioned into `student_profiles` and `teacher_profiles` via 1-to-1 foreign keys.
 2. **Defensive RLS Authorization:** Data isolation is enforced at the PostgreSQL kernel level. Unauthenticated queries or unauthorized role tokens return 0 rows or trigger policy rejection errors (`42501`).
-3. **Database-Level Side Effects:** Critical domain logic (automated student roll number computation and user profile initialization) executes within transactional database triggers (`handle_new_user()`).
-4. **Realtime CDC (Change Data Capture):** Tables supporting live collaboration (`live_classes`, `notifications`, `messages`) are published to the `supabase_realtime` replication slot for WebSocket streaming.
+3. **Database-Level Side Effects:** Critical domain logic (automated student roll number computation, user profile initialization, and doubt author anti-forgery validation) executes within transactional database triggers (`handle_new_user()`, `trg_doubts_insert_integrity()`).
+4. **Realtime CDC (Change Data Capture):** Tables supporting live collaboration (`live_classes`, `notifications`, `messages`, `doubts`) are published to the `supabase_realtime` replication slot for WebSocket streaming.
 
 ---
 
@@ -44,6 +44,7 @@ Key architectural characteristics include:
 | 16 | `salary_records` | Monthly faculty payroll disbursements | Medium | `id` (UUID) | `profiles(id)` (teacher) |
 | 17 | `push_subscriptions` | Browser VAPID endpoints & encryption keys | Medium | `id` (UUID) | `profiles(id)` |
 | 18 | `activity_logs` | Audit trail of administrative/faculty actions | High (Audit log) | `id` (UUID) | `batches(id)`, `profiles(id)` |
+| 19 | `doubts` | Timestamped lecture doubt lifecycle & actions | High (Active Q&A) | `id` (UUID) | `profiles(id)` (student/educator), `batches(id)`, `study_cards(id)` |
 
 ---
 

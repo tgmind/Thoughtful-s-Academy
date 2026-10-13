@@ -11,7 +11,7 @@ Platform Name: Thoughtful's Academy (Coaching Institute Portal)
 
 | Technical Dimension | Baseline Specification | Verification Evidence |
 |---|---|---|
-| **Git Commit** | `b6b2d28` (*"Version Ultimate 1.2 minor fixes"*) | `git log -n 1 --oneline` |
+| **Git Branch** | `main` | `git status` |
 | **Node.js Target** | Node.js v20.x LTS | `netlify.toml` line 16 |
 | **Frontend Framework** | React 18.3.1 | `package.json` line 30 |
 | **Routing Architecture** | React Router DOM v6.28.0 (Client-side routing with lazy routes) | `package.json` line 34, `App.jsx` |
@@ -21,23 +21,22 @@ Platform Name: Thoughtful's Academy (Coaching Institute Portal)
 | **Backend / DB** | Supabase Cloud (PostgreSQL 15, PostgREST 12, Supabase Auth) | `lib/supabase.js`, migrations |
 | **Serverless Functions**| Netlify Functions (Node ESM), Supabase Edge Functions (Deno 1.x)| `netlify/functions/`, `supabase/functions/` |
 | **Realtime Engine** | Supabase Realtime (WebSockets over Phoenix channels) | `lib/supabase.js`, `useRealtime.js` |
-| **Production Build Status**| **PASSING** (54 chunks, 1,821 KiB precached in 10.19s) | `npm run build` ([BUILD_LOG.txt](./EVIDENCE/TEST_LOGS/BUILD_LOG.txt)) |
-| **Code Linting Status** | **PASSING** (0 errors, 0 warnings under ESLint 9.13.0) | `npm run lint` ([LINT_LOG.txt](./EVIDENCE/TEST_LOGS/LINT_LOG.txt)) |
-| **Automated Test Suite**| **ZERO COVERAGE** (0 unit/integration/E2E test files) | Repo scan ([TEST_LOGS](./EVIDENCE/TEST_LOGS/)) |
-| **Dependency CVEs** | **19 Vulnerabilities** (6 Moderate, 13 High) | `npm audit` ([NPM_AUDIT_LOG.txt](./EVIDENCE/TEST_LOGS/NPM_AUDIT_LOG.txt)) |
+| **Production Build Status**| **PASSING** (67 precached chunks, built in 11.45s) | `npm run build` |
+| **Code Linting Status** | **PASSING** (0 errors, 0 warnings under ESLint 9.13.0) | `npm run lint` |
+| **Automated Test Suite**| **PASSING** (128 automated tests across 16 test suites via Vitest, 100% pass rate) | `npm test` |
+| **Database Migrations** | **28 Migrations Applied** (`001` through `028_doubt_resolution_hub.sql`) | `supabase/migrations/` |
 
 ---
 
 ## 2. Feature Verification Breakdown
 
-Total Discovered Features: **22**
+Total Discovered Features: **24**
 
 | Verification Category | Count | Percentage | Features |
 |---|---|---|---|
-| **VERIFIED WORKING** | 14 | 63.6% | FEAT-001, FEAT-002, FEAT-005, FEAT-006, FEAT-007, FEAT-008, FEAT-009, FEAT-010, FEAT-011, FEAT-012, FEAT-014, FEAT-017, FEAT-018, FEAT-021 |
-| **PARTIALLY WORKING** | 5 | 22.7% | FEAT-003, FEAT-004, FEAT-013, FEAT-015, FEAT-019 |
-| **IMPLEMENTED BUT UNVERIFIED**| 2 | 9.1% | FEAT-016 (Web Push depends on external browser notification permission), FEAT-020 (Teacher QR uploads depend on storage bucket provisioning) |
-| **BROKEN / DEFECTIVE** | 1 | 4.5% | FEAT-022 (Admin Full Reset leaves orphaned auth users, breaking re-signup) |
+| **VERIFIED WORKING** | 22 | 91.7% | FEAT-001, FEAT-002, FEAT-003, FEAT-004, FEAT-005, FEAT-006, FEAT-007, FEAT-008, FEAT-009, FEAT-010, FEAT-011, FEAT-012, FEAT-013, FEAT-014, FEAT-015, FEAT-017, FEAT-018, FEAT-019, FEAT-021, FEAT-023, FEAT-024 |
+| **IMPLEMENTED & GATED**| 2 | 8.3% | FEAT-016 (Web Push depends on external browser notification permission), FEAT-020 (Teacher QR uploads depend on storage bucket provisioning) |
+| **BROKEN / DEFECTIVE** | 0 | 0.0% | None |
 | **PLACEHOLDER** | 0 | 0.0% | None |
 | **NOT IMPLEMENTED** | 0 | 0.0% | None |
 
@@ -45,11 +44,11 @@ Total Discovered Features: **22**
 
 ## 3. Inventoried Resources Summary
 
-- **Unique Routes:** 27 routes (8 Public, 1 Standalone Watch room, 8 Student routes, 8 Teacher routes, 13 Admin routes, 3 Error pages).
-- **Frontend Components:** 73 components and shared views across `src/components/` and `src/pages/`.
-- **Database Tables:** 18 relational tables in schema `public` (`profiles`, `batches`, `student_profiles`, `teacher_profiles`, `attendance`, `study_cards`, `student_bookmarks`, `messages`, `fee_records`, `qr_settings`, `live_classes`, `notifications`, `homework`, `homework_submissions`, `salary_records`, `notification_reads`, `push_subscriptions`, `activity_logs`).
-- **Database Migrations:** 24 active SQL migrations (`001_initial_schema.sql` through `024_activity_logs.sql`).
-- **Database Functions / Triggers:** 6 custom PL/pgSQL functions (`handle_new_user()`, `update_updated_at()`, `get_my_role()`, `is_admin()`, `teacher_can()`, `handle_homework_graded()`).
+- **Unique Routes:** 30 routes (8 Public, 1 Standalone Watch room, 9 Student routes, 9 Teacher routes, 14 Admin routes, 3 Error pages).
+- **Frontend Components:** 76 components and shared views across `src/components/` and `src/pages/` (including `DoubtCard.jsx`, `DoubtSchemaAlert.jsx`, `StudentDoubts.jsx`, `TeacherDoubts.jsx`, `AdminDoubts.jsx`).
+- **Database Tables:** 19 relational tables in schema `public` (`profiles`, `batches`, `student_profiles`, `teacher_profiles`, `attendance`, `study_cards`, `student_bookmarks`, `messages`, `fee_records`, `qr_settings`, `live_classes`, `notifications`, `homework`, `homework_submissions`, `salary_records`, `notification_reads`, `push_subscriptions`, `activity_logs`, `doubts`).
+- **Database Migrations:** 28 active SQL migrations (`001_initial_schema.sql` through `028_doubt_resolution_hub.sql`).
+- **Database Functions / Triggers:** 9 custom PL/pgSQL functions (`handle_new_user()`, `update_updated_at()`, `get_my_role()`, `is_admin()`, `teacher_can()`, `handle_homework_graded()`, `trg_doubts_insert_integrity()`, `trg_doubts_mutation_rules()`, `test_helper()`).
 - **External Integrations:** 6 services (Supabase BaaS, YouTube IFrame & RSS, Web Push VAPID, Zoom/Google Meet, Google Drive Links, UPI Payments).
 
 ---

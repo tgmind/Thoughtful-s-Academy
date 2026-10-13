@@ -3,7 +3,7 @@
 **Platform:** Thoughtful's Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Migration Directory:** `supabase/migrations/`  
-**Total Migrations:** 24 SQL Migration Files (`001` through `024`)  
+**Total Migrations:** 28 SQL Migration Files (`001` through `028`)  
 
 ---
 
@@ -35,6 +35,10 @@
 | `022` | `022_clean_teacher_global_permissions.sql` | Cleanup redundant global policies | Tightens teacher permissions to batch-assigned contexts | YES |
 | `023` | `023_multi_teacher_batches.sql` | Co-teaching multi-faculty support | Adds `teacher_ids UUID[]` array to `batches` | YES |
 | `024` | `024_activity_logs.sql` | Audit logging subsystem | Creates `activity_logs` table, batch index, and RLS | YES |
+| `025` | `025_tests.sql` | Automated test suite helper schema | Test assertion helpers and regression verification tables | YES |
+| `026` | `026_security_and_integrity_hardening.sql` | SEC-001/002/003 & DATA-001 fixes | Hardened `handle_new_user()`, column immutability triggers, RLS update locks | YES |
+| `027` | `027_capacity_and_realtime_optimizations.sql` | Realtime channel & index optimization | 11 composite and partial performance indexes, realtime filter optimization | YES |
+| `028` | `028_doubt_resolution_hub.sql` | Doubt Resolution Hub lifecycle | Creates `public.doubts`, 6 composite indexes, RLS, mutation triggers, realtime | YES |
 
 ---
 

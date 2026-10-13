@@ -2,7 +2,7 @@
 
 **Platform:** Thoughtful's Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
-**Total Entities Documented:** 18 Core Relational Tables  
+**Total Entities Documented:** 19 Core Relational Tables  
 
 ---
 
@@ -193,3 +193,24 @@ Saved study cards per student account.
 - `upi_id` (TEXT, NOT NULL): Institute VPA ID (e.g. `institute@upi`).
 - `account_name` (TEXT, NOT NULL): Account holder name.
 - `updated_at` (TIMESTAMPTZ, DEFAULT NOW()).
+
+### 3.12 `public.doubts` (Migration `028_doubt_resolution_hub.sql`)
+Authoritative lecture doubt lifecycle, student identity snapshot, timestamped seek, and educator resolution tracking.
+- `id` (UUID, PK, DEFAULT `gen_random_uuid()`).
+- `student_id` (UUID, NOT NULL): References `profiles(id)` ON DELETE CASCADE.
+- `student_name` (TEXT, NOT NULL): Student legal display name snapshot.
+- `roll_number` (TEXT, NULL): Student official roll number snapshot.
+- `batch_id` (UUID, NULL): References `batches(id)` ON DELETE SET NULL.
+- `batch_name` (TEXT, NULL): Batch cohort title snapshot.
+- `subject` (TEXT, NOT NULL): Academic subject category (e.g. Physics, Chemistry).
+- `study_card_id` (UUID, NULL): References `study_cards(id)` ON DELETE SET NULL.
+- `lecture_title` (TEXT, NOT NULL): Title of the lecture video.
+- `video_url` (TEXT, NULL): Direct or embedded video URL.
+- `timestamp_seconds` (INTEGER, NOT NULL, DEFAULT 0): Exact video seek time offset in seconds.
+- `question` (TEXT, NOT NULL): Formatted doubt question text.
+- `status` (TEXT, NOT NULL, DEFAULT 'pending'): Enum check `CHECK (status IN ('pending', 'addressed'))`.
+- `addressed_by` (UUID, NULL): References `profiles(id)` ON DELETE SET NULL (educator who addressed the doubt).
+- `addressed_by_name` (TEXT, NULL): Educator display name snapshot.
+- `addressed_at` (TIMESTAMPTZ, NULL): Timestamp when marked addressed.
+- `created_at` (TIMESTAMPTZ, DEFAULT NOW()): Submission timestamp.
+- `updated_at` (TIMESTAMPTZ, DEFAULT NOW()): Last modification timestamp.

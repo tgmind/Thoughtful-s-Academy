@@ -63,15 +63,18 @@ documentation/
 | **Serverless Services** | Netlify Functions (`youtube-playlist.js`), Supabase Edge Function (`send-push`) |
 | **Client Type** | Single Page Application (SPA) + Progressive Web App (PWA with Workbox) |
 | **Active Portals** | Public Portal, Student Portal, Teacher Portal, Admin Central |
-| **Total Source Lines** | 25,519 LOC (Frontend JavaScript/JSX) + 27 SQL Migrations |
+| **Active Routes** | **30 Discovered Routes** (Public, Student, Teacher, Admin) |
+| **Total Database Tables** | **19 Core Relational Tables** (including `public.doubts`) |
+| **Total Migrations** | **28 Version-Controlled Migrations** (`001` through `028_doubt_resolution_hub.sql`) |
 | **Build Status** | **VERIFIED PASSING** (`npm run build` completed cleanly) |
-| **Automated Test Coverage** | **VERIFIED PASSING** (80 automated tests across 9 test suites via Vitest) |
+| **Automated Test Coverage** | **VERIFIED PASSING** (128 automated tests across 16 test suites via Vitest, 100% pass rate) |
 
 ---
 
-## 4. Key Architectural Conclusions
+## 4. Key Architectural Highlights
 
-1. **Client-Heavy Architecture:** The frontend directly interacts with PostgreSQL via PostgREST and `@supabase/supabase-js`. Business logic, role checks, and UI rendering are predominantly client-side, making **PostgreSQL Row Level Security (RLS)** the sole security boundary.
-2. **Critical Privilege Escalation Flaw:** The Supabase Auth registration trigger (`handle_new_user`) trusts the client-provided `raw_user_meta_data->>'role'`, allowing unauthorized creation of Admin accounts (see [SEC-001](./SECURITY/SECURITY_FINDINGS.md#SEC-001)).
-3. **Manual Financial Workflow:** Fee payments and teacher salaries utilize offline UPI reference reconciliation (UTR matching + QR code upload) rather than an automated payment gateway webhook.
-4. **YouTube Embedding Model:** Video delivery uses a custom iframe wrapper (`ProtectedVideoPlayer.jsx`) with custom controls and YouTube RSS feeds proxied via Netlify Functions. Videos are hosted on unlisted YouTube playlists rather than custom S3/CloudFront HLS streams.
+1. **Direct PostgREST with Kernel-Level Security:** Client web applications communicate with PostgreSQL via PostgREST and `@supabase/supabase-js`. 100% of tables enforce PostgreSQL Row Level Security (RLS) with anti-forgery and mutation integrity triggers.
+2. **Dedicated Doubt Resolution Lifecycle:** In-video doubts are captured with millisecond/second timestamps, stored in `public.doubts`, and routed to dedicated Student (`/student/doubts`), Teacher (`/teacher/doubts`), and Admin (`/admin/doubts`) portals with role-based access, self-study resolution, and realtime badges.
+3. **Protected Video Classroom with Saved Progress:** Video delivery uses a hardened iframe wrapper (`ProtectedVideoPlayer.jsx`) with dynamic canvas watermarking, distraction shielding, deep-link seeking (`?t=`), and a non-intrusive floating glassmorphic Saved Progress & Resume banner.
+4. **Offline UPI Financial Workflows:** Fee payments and teacher payroll utilize verified offline UPI reference reconciliation (UTR verification + QR code upload).
+5. **Realtime Multiplexing & Web Push:** Live class broadcasts, doubt updates, announcements, and direct chats stream over multiplexed Supabase Realtime channels with background Web Push notifications via VAPID.

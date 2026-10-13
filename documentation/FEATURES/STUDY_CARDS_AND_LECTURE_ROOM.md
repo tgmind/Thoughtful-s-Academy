@@ -20,9 +20,9 @@ Feature IDs: FEAT-008, FEAT-009, FEAT-010
 
 ---
 
-## 2. Protected Video Classroom Player (FEAT-009)
+## 2. Protected Video Classroom Player (FEAT-009, FEAT-024)
 
-- **Component:** `src/components/shared/ProtectedVideoPlayer.jsx` (1,607 LOC)
+- **Component:** `src/components/shared/ProtectedVideoPlayer.jsx`
 - **Engine:** Custom integration of YouTube's IFrame API (`window.YT.Player`).
 - **Core Video Protection & Learning Controls:**
   * **Distraction Shielding:** Hides YouTube's default controls, player branding, annotations, and recommendations using absolute CSS overlays and iframe clipping.
@@ -31,19 +31,33 @@ Feature IDs: FEAT-008, FEAT-009, FEAT-010
   * **Quality Selector:** Allows toggling between `480p` (Data Saver, saves ~65% mobile data), `720p` (Balanced formulas), `1080p` (Full HD notes), and `Auto`.
   * **Clean Mode:** Removes all secondary UI elements and darkens backgrounds for immersive study.
   * **Screen Lock:** Locks on-screen buttons to prevent accidental palm taps on mobile devices.
-  * **Progress Persistence:** Debounces and saves playback progress to `localStorage` key `ta_lecture_progress_v1`, allowing students to resume lectures from where they stopped.
+  * **Saved Playback Progress & Resume Mechanism (FEAT-024):**
+    - Automatically saves lecture progress to `localStorage` under `ta_lecture_progress_v1`.
+    - **Top-Floating Glassmorphic Banner:** Positioned at `top-3.5 left-3.5 sm:left-4 z-40` (with fullscreen-aware offset `left-12 sm:left-14`) so it never occludes the interactive seek timeline scrubber, play/pause controls, or time labels.
+    - **Instant Resume Action:** Tapping "Resume" automatically seeks to `saved.time` and triggers immediate playback (`playVideo()`).
+    - **Deep-Link Suppression:** When navigating via a Doubt timestamp deep-link (`initialSeekSeconds > 0`), the resume prompt is completely suppressed to prevent conflicting seeks.
+    - **Stable Dismissal:** Prevents infinite re-render cycles using memoized default collections and explicit dismiss tracking.
 
 ---
 
-## 3. In-Video Doubts & Bookmarks (FEAT-010)
+## 3. In-Video Doubts, Tabs & Bookmarks (FEAT-010, FEAT-023)
 
 - **Component:** `src/pages/student/WatchLecture.jsx`
-- **Doubt Submission Workflow:**
-  * Right-hand classroom sidebar includes a "Doubts" tab.
-  * While playing a video, clicking "Ask Doubt" captures `currentTime` (e.g. `12:45`).
-  * When submitted, it creates a row in `messages` sent to the batch teacher with body:
-    `[Timestamp: 12:45] "Sir, why did we take g = 9.8 instead of 10 here?"`
-  * The teacher can click the timestamp link in their messaging portal to jump directly to that video moment.
+- **Authoritative Doubt Architecture:**
+  * In-video doubts are **never sent as ordinary chat messages**. Instead, doubts are authoritatively recorded in `public.doubts` via `src/services/doubtService.js` (Migration `028_doubt_resolution_hub.sql`).
+  * Captures `currentTime` integer seconds (e.g. `11:43` -> `703s`), snapshotting `student_name`, `roll_number`, `batch_id`, `batch_name`, `subject`, and `lecture_title`.
+  * Routed dynamically to dedicated hubs:
+    - **Student Doubts Hub** (`/student/doubts`): Personal tracker, status filters, and instant self-study deletion.
+    - **Teacher Doubts Hub** (`/teacher/doubts`): Subject/batch accordions with one-click resolution.
+    - **Admin Doubts Central** (`/admin/doubts`): Teacher-wise and Subject/Batch-wise management.
+- **Role-Based Interactive Classroom Visibility:**
+  * **Enrolled Students:** See the "Ask Doubt at MM:SS" button and doubt creation modal. The classroom sidebar displays recent doubts with live status badges and quick self-study delete.
+  * **Faculty & Administrators:** Never see student doubt creation forms. Instead, they see a "Manage Doubts Hub" button and an in-player **Educator Review Queue** with direct "Mark Addressed" and "Message Student" quick actions.
+  * **Public / Demo Visitors:** "Landscape Cinema" view expands to full width (`w-full`) with doubt buttons hidden. The doubts tab renders an **Enrolled Feature Showcase** explaining exclusive enrolled benefits.
+- **Single-Video Tab Optimization & Deduplication:**
+  * For study cards with a single external/YouTube link (`!hasMultipleLectures`), the `Lectures` tab vanishes automatically; only `Notes` and `Doubts` tabs are displayed.
+  * Redundant "Class Brief & Objectives" cards are removed; the description is anchored cleanly once in "Lecture Highlights & Outline".
 - **Student Bookmarking:**
   * Clicking the bookmark heart icon inserts a record into `student_bookmarks` (`student_id`, `study_card_id`).
   * Bookmarked resources appear pinned at the top of the student's study section for fast revision.
+- **Deep Reference:** See [Doubt Resolution Hub Specification](./DOUBT_RESOLUTION_HUB.md) for full architecture and RLS rules.
