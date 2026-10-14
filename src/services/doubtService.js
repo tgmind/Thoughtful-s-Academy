@@ -1,6 +1,98 @@
 import { supabase } from '../lib/supabase'
 
 /**
+ * Canonical Doubt Resolution Hub Eligibility States
+ */
+export const DOUBT_ELIGIBILITY_STATUS = {
+  INITIALIZING: 'INITIALIZING',
+  LOADING_ENROLLMENT: 'LOADING_ENROLLMENT',
+  EDUCATOR: 'EDUCATOR',
+  STUDENT_ELIGIBLE: 'STUDENT_ELIGIBLE',
+  STUDENT_NOT_ENROLLED: 'STUDENT_NOT_ENROLLED',
+  UNAUTHENTICATED: 'UNAUTHENTICATED',
+  ERROR: 'ERROR',
+}
+
+/**
+ * Authoritative Doubt Resolution Hub Eligibility Decision Machine.
+ * Resolves user authentication, student profile, batch enrollment, and lecture association.
+ *
+ * @param {object} params
+ * @param {boolean} [params.authLoading=false] - Whether AuthContext is currently resolving session
+ * @param {object|null} [params.user=null] - Authenticated Supabase user object
+ * @param {object|null} [params.profile=null] - Authenticated user profile (role, full_name, etc.)
+ * @param {object|null} [params.studentProfile=null] - Loaded student_profiles record (batch_id, roll_number, subjects, batches)
+ * @param {boolean} [params.studentProfileLoading=false] - Whether student_profiles is currently fetching
+ * @param {Error|null} [params.studentProfileError=null] - Any error encountered while fetching student_profiles
+ * @param {object|null} [params.card=null] - The current study_card record
+ * @param {boolean} [params.cardLoading=false] - Whether the card is currently being fetched
+ * @returns {string} One of DOUBT_ELIGIBILITY_STATUS values
+ */
+export function getDoubtEligibility({
+  authLoading = false,
+  user = null,
+  profile = null,
+  studentProfile = null,
+  studentProfileLoading = false,
+  studentProfileError = null,
+  card = null,
+  cardLoading = false,
+}) {
+  // 1. While auth or card is loading, state is INITIALIZING
+  if (authLoading || cardLoading) {
+    return DOUBT_ELIGIBILITY_STATUS.INITIALIZING
+  }
+
+  // 2. Educators (Teacher or Admin) always access Educator Doubts Queue
+  if (user && (profile?.role === 'teacher' || profile?.role === 'admin')) {
+    return DOUBT_ELIGIBILITY_STATUS.EDUCATOR
+  }
+
+  // 3. Unauthenticated visitor
+  if (!user) {
+    return DOUBT_ELIGIBILITY_STATUS.UNAUTHENTICATED
+  }
+
+  // 4. Authenticated Student flow
+  if (profile?.role === 'student') {
+    if (studentProfileError) {
+      return DOUBT_ELIGIBILITY_STATUS.ERROR
+    }
+
+    if (studentProfileLoading || !studentProfile) {
+      return DOUBT_ELIGIBILITY_STATUS.LOADING_ENROLLMENT
+    }
+
+    // Authoritative batch enrollment check
+    const studentBatchId = studentProfile.batch_id ? String(studentProfile.batch_id).trim() : null
+    if (!studentBatchId) {
+      return DOUBT_ELIGIBILITY_STATUS.STUDENT_NOT_ENROLLED
+    }
+
+    // Card batch association: card.batch_id OR card.batch_ids array
+    const cardBatchId = card?.batch_id ? String(card.batch_id).trim() : null
+    const cardBatchIds = Array.isArray(card?.batch_ids)
+      ? card.batch_ids.map((b) => (b ? String(b).trim() : null)).filter(Boolean)
+      : []
+
+    const hasCardBatchConstraint = Boolean(cardBatchId || cardBatchIds.length > 0)
+    const isBatchEnrolled =
+      !hasCardBatchConstraint ||
+      (cardBatchId && cardBatchId === studentBatchId) ||
+      cardBatchIds.includes(studentBatchId)
+
+    if (isBatchEnrolled) {
+      return DOUBT_ELIGIBILITY_STATUS.STUDENT_ELIGIBLE
+    }
+
+    return DOUBT_ELIGIBILITY_STATUS.STUDENT_NOT_ENROLLED
+  }
+
+  // Fallback for any unknown / unassigned role
+  return DOUBT_ELIGIBILITY_STATUS.UNAUTHENTICATED
+}
+
+/**
  * Standard error helper to detect if the database migration 028 has not been applied yet.
  * PostgREST returns code 'PGRST205' when a table is missing from schema cache.
  */
@@ -168,7 +260,7 @@ export async function fetchTeacherDoubts(teacherId) {
 
   const assignedBatches = batchesRes.data ?? []
   const assignedBatchIds = assignedBatches.map((b) => b.id)
-  const teacherSubject = profileRes.data?.subject?.trim()
+  const _teacherSubject = profileRes.data?.subject?.trim()
 
   // 2. Query doubts table: strictly scoped to assigned batches (never unbound across academy)
   if (assignedBatchIds.length === 0) {
@@ -445,6 +537,10 @@ export async function deleteDoubt(doubtId, userId, isAdmin = false) {
  * Preserves clean single-channel lifecycle and unmount cleanup.
  */
 export function subscribeToDoubts(onEvent) {
+  if (!supabase || typeof supabase.channel !== 'function') {
+    return () => {}
+  }
+
   const channelId = `doubts_realtime_${Math.random().toString(36).substring(2, 9)}`
 
   const channel = supabase
@@ -461,7 +557,9 @@ export function subscribeToDoubts(onEvent) {
     .subscribe()
 
   return () => {
-    supabase.removeChannel(channel)
+    if (typeof supabase.removeChannel === 'function') {
+      supabase.removeChannel(channel)
+    }
   }
 }
 

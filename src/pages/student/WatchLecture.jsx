@@ -5,7 +5,8 @@ import {
   ListVideo, Sparkles, PlayCircle, ExternalLink,
   ChevronRight, Layers, Clock, Search, Radio,
   ShieldCheck, CheckCircle2, Send, HelpCircle,
-  FileText, Keyboard, X, LogIn, Trash2
+  FileText, Keyboard, X, LogIn, Trash2,
+  AlertCircle, RefreshCw
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -19,7 +20,14 @@ import {
   getLectureProgress
 } from '../../utils/youtube'
 import ProtectedVideoPlayer from '../../components/shared/ProtectedVideoPlayer'
-import { createDoubt, fetchStudentDoubtsForLecture, deleteDoubt } from '../../services/doubtService'
+import {
+  createDoubt,
+  fetchStudentDoubtsForLecture,
+  deleteDoubt,
+  subscribeToDoubts,
+  getDoubtEligibility,
+  DOUBT_ELIGIBILITY_STATUS,
+} from '../../services/doubtService'
 
 function formatSeconds(seconds) {
   if (!seconds || isNaN(seconds) || seconds < 0) return '0:00'
@@ -42,11 +50,13 @@ export default function WatchLecture() {
 
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, profile } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const rolePrefix = profile?.role === 'admin' ? '/admin' : profile?.role === 'teacher' ? '/teacher' : '/student'
   const isTeacherOrAdmin = profile?.role === 'teacher' || profile?.role === 'admin'
-  const isPublicRoute = location.pathname.startsWith('/watch') && !location.pathname.startsWith('/student/watch') && !location.pathname.startsWith('/teacher/watch') && !location.pathname.startsWith('/admin/watch')
   const [studentProfile, setStudentProfile] = useState(null)
+  const [studentProfileLoading, setStudentProfileLoading] = useState(false)
+  const [studentProfileError, setStudentProfileError] = useState(null)
+  const [cardBatchName, setCardBatchName] = useState(location.state?.card?.batches?.name || '')
 
   const cinemaStageRef = useRef(null)
   const queueScrollRef = useRef(null)
@@ -84,14 +94,18 @@ export default function WatchLecture() {
   const [dynamicTitle, setDynamicTitle] = useState('')
   const [discoveredListId, setDiscoveredListId] = useState(null)
 
-  // Context-based doubt and single-video detection
-  const isDemoOrPublicVideo = Boolean(
-    card?.is_public ||
-    card?.is_demo ||
-    isPublicRoute ||
-    (card?.title && /demo\s+lecture/i.test(card.title))
-  )
-  const canAskDoubt = Boolean(user && profile?.role === 'student' && !isTeacherOrAdmin && !isDemoOrPublicVideo)
+  // Authoritative Doubt Eligibility State Machine
+  const eligibilityStatus = getDoubtEligibility({
+    authLoading,
+    user,
+    profile,
+    studentProfile,
+    studentProfileLoading,
+    studentProfileError,
+    card,
+    cardLoading: loading,
+  })
+  const canAskDoubt = eligibilityStatus === DOUBT_ELIGIBILITY_STATUS.STUDENT_ELIGIBLE
 
   const effectivePlaylistId = card?.url ? (getYTPlaylistId(card.url) || discoveredListId) : discoveredListId
   const hasMultipleLectures = Boolean(
@@ -126,7 +140,7 @@ export default function WatchLecture() {
     setLoading(true)
     supabase
       .from('study_cards')
-      .select('*')
+      .select('*, batches:batch_id(name)')
       .eq('id', cardId)
       .maybeSingle()
       .then(({ data }) => {
@@ -141,6 +155,33 @@ export default function WatchLecture() {
 
     return () => { active = false }
   }, [cardId, location.state?.card])
+
+  // Synchronize authoritative batch name for current card
+  useEffect(() => {
+    if (card?.batches?.name) {
+      setCardBatchName(card.batches.name)
+    } else if (card?.batch_id) {
+      supabase
+        .from('batches')
+        .select('name')
+        .eq('id', card.batch_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.name) setCardBatchName(data.name)
+        })
+    } else if (Array.isArray(card?.batch_ids) && card.batch_ids[0]) {
+      supabase
+        .from('batches')
+        .select('name')
+        .eq('id', card.batch_ids[0])
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.name) setCardBatchName(data.name)
+        })
+    } else {
+      setCardBatchName('')
+    }
+  }, [card?.batch_id, card?.batch_ids, card?.batches?.name])
 
   // Multi-tier playlist hydration on card load
   useEffect(() => {
@@ -184,56 +225,115 @@ export default function WatchLecture() {
   }, [card?.subject])
 
   // Fetch student profile for authoritative batch and roll number
+  const fetchStudentProfile = useCallback(async (uid) => {
+    if (!uid) {
+      setStudentProfile(null)
+      setStudentProfileLoading(false)
+      setStudentProfileError(null)
+      return
+    }
+
+    setStudentProfileLoading(true)
+    setStudentProfileError(null)
+
+    try {
+      const { data, error } = await supabase
+        .from('student_profiles')
+        .select('roll_number, batch_id, subjects, batches(id, name)')
+        .eq('id', uid)
+        .maybeSingle()
+
+      if (error) throw error
+      setStudentProfile(data ?? { batch_id: null, roll_number: null, batches: null, subjects: [] })
+    } catch (err) {
+      setStudentProfileError(err)
+    } finally {
+      setStudentProfileLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    if (!user?.id) return
-    supabase
-      .from('student_profiles')
-      .select('roll_number, batch_id, batches(name)')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setStudentProfile(data)
-      })
-  }, [user?.id])
+    if (user?.id && profile?.role === 'student') {
+      fetchStudentProfile(user.id)
+    } else {
+      setStudentProfile(null)
+      setStudentProfileLoading(false)
+      setStudentProfileError(null)
+    }
+  }, [user?.id, profile?.role, fetchStudentProfile])
 
   // Fetch recent doubts for this lecture & student via doubtService (only for enrolled students)
   useEffect(() => {
-    if (!user?.id || !card?.id || !canAskDoubt) return
-    fetchStudentDoubtsForLecture(user.id, card.id)
-      .then((data) => {
-        setRecentDoubts(data ?? [])
-      })
-      .catch(() => {
-        setRecentDoubts([])
-      })
+    if (!user?.id || !card?.id || !canAskDoubt) {
+      setRecentDoubts([])
+      return
+    }
+
+    let active = true
+    const loadStudentDoubts = () => {
+      fetchStudentDoubtsForLecture(user.id, card.id)
+        .then((data) => {
+          if (active) setRecentDoubts(data ?? [])
+        })
+        .catch(() => {
+          if (active) setRecentDoubts([])
+        })
+    }
+
+    loadStudentDoubts()
+
+    const unsubscribe = subscribeToDoubts((payload) => {
+      if (!active) return
+      if (payload?.new?.study_card_id === card.id || payload?.old?.study_card_id === card.id) {
+        loadStudentDoubts()
+      }
+    })
+
+    return () => {
+      active = false
+      unsubscribe()
+    }
   }, [user?.id, card?.id, canAskDoubt])
 
   // Fetch educator doubts for this lecture (for teachers and admins)
   useEffect(() => {
-    if (!user?.id || !card?.id || !isTeacherOrAdmin) return
+    if (!user?.id || !card?.id || !isTeacherOrAdmin) {
+      setEducatorLectureDoubts([])
+      return
+    }
     let active = true
-    setEducatorDoubtsLoading(true)
 
-    supabase
-      .from('doubts')
-      .select('*')
-      .eq('study_card_id', card.id)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (active) {
-          if (!error && data) {
-            setEducatorLectureDoubts(data)
-          } else {
-            setEducatorLectureDoubts([])
+    const loadEducatorDoubts = () => {
+      setEducatorDoubtsLoading(true)
+      supabase
+        .from('doubts')
+        .select('*')
+        .eq('study_card_id', card.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (active) {
+            setEducatorLectureDoubts(!error && data ? data : [])
+            setEducatorDoubtsLoading(false)
           }
-          setEducatorDoubtsLoading(false)
-        }
-      })
-      .catch(() => {
-        if (active) setEducatorDoubtsLoading(false)
-      })
+        })
+        .catch(() => {
+          if (active) setEducatorDoubtsLoading(false)
+        })
+    }
 
-    return () => { active = false }
+    loadEducatorDoubts()
+
+    const unsubscribe = subscribeToDoubts((payload) => {
+      if (!active) return
+      if (payload?.new?.study_card_id === card.id || payload?.old?.study_card_id === card.id) {
+        loadEducatorDoubts()
+      }
+    })
+
+    return () => {
+      active = false
+      unsubscribe()
+    }
   }, [user?.id, card?.id, isTeacherOrAdmin])
 
   // Educator resolve doubt handler
@@ -475,7 +575,7 @@ export default function WatchLecture() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3 shadow-md" />
@@ -561,7 +661,6 @@ export default function WatchLecture() {
     )
   }
 
-  const isPlaylist = hasMultipleLectures
   const listId = hasMultipleLectures ? effectivePlaylistId : null
   const singleVideoId = card?.url ? getYTVideoId(card.url) : null
   const isDriveDoc = card?.type === 'drive' || card?.type === 'google_drive' || card?.url?.includes('drive.google.com')
@@ -1034,8 +1133,34 @@ export default function WatchLecture() {
 
           {/* TAB 3: DOUBT RESOLUTION HUB (ROLE & CONTEXT SPECIFIC) */}
           {activeTab === 'doubts' && (
-            isTeacherOrAdmin ? (
-              /* A. EDUCATOR VIEW (TEACHER & ADMIN REVIEW QUEUE) */
+            eligibilityStatus === DOUBT_ELIGIBILITY_STATUS.INITIALIZING ||
+            eligibilityStatus === DOUBT_ELIGIBILITY_STATUS.LOADING_ENROLLMENT ? (
+              /* 1. INITIALIZING / LOADING ENROLLMENT STATE */
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 h-[520px] flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs font-bold text-slate-700">Verifying Classroom Credentials…</p>
+                <p className="text-[10px] text-slate-400">Loading student profile and batch authorization</p>
+              </div>
+            ) : eligibilityStatus === DOUBT_ELIGIBILITY_STATUS.ERROR ? (
+              /* 2. RECOVERABLE ENROLLMENT VERIFICATION ERROR */
+              <div className="bg-white rounded-3xl border border-rose-200 shadow-md p-6 h-[520px] flex flex-col items-center justify-center text-center space-y-3">
+                <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+                <p className="text-xs font-black text-slate-900">Unable to Verify Enrollment</p>
+                <p className="text-[11px] text-slate-500 max-w-xs">
+                  {studentProfileError?.message || 'A network error occurred while verifying your batch enrollment.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => user?.id && fetchStudentProfile(user.id)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Retry Verification
+                </button>
+              </div>
+            ) : isTeacherOrAdmin ? (
+              /* 3. EDUCATOR VIEW (TEACHER & ADMIN REVIEW QUEUE) */
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1236,8 +1361,71 @@ export default function WatchLecture() {
                   )}
                 </div>
               </div>
+            ) : eligibilityStatus === DOUBT_ELIGIBILITY_STATUS.STUDENT_NOT_ENROLLED ? (
+              /* 5. AUTHENTICATED STUDENT NOT ENROLLED IN LECTURE BATCH */
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+                        <HelpCircle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Doubt Resolution Hub
+                        </h3>
+                        <p className="text-[10px] text-slate-500">
+                          Interactive Timestamped Q&amp;A with Educators
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
+                      Batch Feature
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl border border-slate-800 shadow-md space-y-3">
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="text-xs font-extrabold uppercase tracking-wide">Reserved for Batch Students</span>
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                      Direct doubt clearance with expert faculty at exact video timestamps is exclusively available for students enrolled in this lecture&apos;s batch curriculum.
+                    </p>
+                    <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-1 text-[11px] text-slate-300">
+                      <p><strong className="text-white">Your Enrolled Batch:</strong> {studentProfile?.batches?.name || 'No batch currently assigned'}</p>
+                      {cardBatchName && <p><strong className="text-amber-300">Lecture Batch:</strong> {cardBatchName}</p>}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/70 text-center space-y-2">
+                    <p className="text-xs font-extrabold text-amber-950">
+                      Want doubt solving in your batch?
+                    </p>
+                    <p className="text-[10px] text-amber-800 leading-tight">
+                      You can explore your enrolled curriculum in the Study Portal or view existing doubts in your Doubt Hub.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/student/study')}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-xs transition-all cursor-pointer"
+                      >
+                        My Study Portal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/student/doubts')}
+                        className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-black rounded-xl transition-all cursor-pointer"
+                      >
+                        My Doubts Hub
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
-              /* C. PUBLIC & DEMO VISITOR VIEW (ENROLLED SHOWCASE WITH NO DOUBT ASKING FORM) */
+              /* 6. UNAUTHENTICATED PUBLIC & DEMO VISITOR PROMOTIONAL GATE */
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">

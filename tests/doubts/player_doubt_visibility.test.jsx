@@ -21,10 +21,20 @@ function createChainableQueryBuilder(defaultData = []) {
   return new Proxy({}, handler)
 }
 
+let mockTableData = {}
+
 // Mock supabase client
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
-    from: vi.fn(() => createChainableQueryBuilder([])),
+    from: vi.fn((table) => {
+      const data = mockTableData[table] !== undefined ? mockTableData[table] : []
+      return createChainableQueryBuilder(data)
+    }),
+    channel: vi.fn(() => ({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+    })),
+    removeChannel: vi.fn(),
   },
 }))
 
@@ -80,6 +90,7 @@ describe('Interactive Player: Doubt Visibility, Tab Vanishing & Deduplication', 
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockTableData = {}
   })
 
   it('1. Public/Demo viewer from landing page cannot ask doubt and Lectures tab vanishes on single video', async () => {
@@ -180,6 +191,17 @@ describe('Interactive Player: Doubt Visibility, Tab Vanishing & Deduplication', 
   it('4. Enrolled student watching course video has full Ask Doubt option and clean single-video tabs', async () => {
     mockAuthState.user = { id: 'student-rahul-123' }
     mockAuthState.profile = { id: 'student-rahul-123', role: 'student', full_name: 'Rahul Sharma' }
+    mockTableData = {
+      student_profiles: [
+        {
+          id: 'student-rahul-123',
+          batch_id: 'batch-jee-2026',
+          roll_number: '2026-JEE-001',
+          batches: { id: 'batch-jee-2026', name: 'JEE Advanced' },
+          subjects: ['Physics', 'Chemistry', 'Mathematics'],
+        },
+      ],
+    }
 
     render(
       <MemoryRouter initialEntries={[{ pathname: '/student/watch/private-video-01', state: { card: enrolledPrivateCard } }]}>
@@ -192,7 +214,7 @@ describe('Interactive Player: Doubt Visibility, Tab Vanishing & Deduplication', 
     expect(await screen.findByTestId('protected-video-player')).toBeInTheDocument()
 
     // 1. Enrolled student gets "Ask Doubt at 0:00" below video
-    expect(screen.getByText(/Ask Doubt at/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Ask Doubt at/i)).toBeInTheDocument()
 
     // 2. Lectures tab vanishes on single video
     expect(screen.queryByRole('button', { name: /^Lectures$/i })).not.toBeInTheDocument()
