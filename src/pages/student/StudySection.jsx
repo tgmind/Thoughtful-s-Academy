@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen, PlayCircle, Heart, Youtube,
-  Link as LinkIcon, ChevronLeft, BookMarked, GraduationCap,
+  Link as LinkIcon, ChevronLeft, ChevronRight, BookMarked, GraduationCap,
   Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
   Dna, Calculator, ArrowRight, Play, School, FileText, Video
 } from 'lucide-react'
@@ -90,7 +90,7 @@ function getSubjectTheme(subjectName = '') {
 }
 
 
-function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpenMaterial, onOpenNotes }) {
+function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpenMaterial, onOpenNotes, className = '' }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const isVideo = card.type?.startsWith('youtube')
   const hasAttachedNotes = Array.isArray(card.attached_notes) && card.attached_notes.length > 0
@@ -125,7 +125,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
   return (
     <div
       id={`card-${card.id}`}
-      className={`group relative bg-white rounded-2xl border transition-all duration-300 flex flex-col overflow-hidden shadow-2xs hover:shadow-lg hover:shadow-slate-900/5 hover:-translate-y-0.5 ${
+      className={`group relative bg-white rounded-2xl border transition-all duration-300 flex flex-col overflow-hidden shadow-2xs hover:shadow-lg hover:shadow-slate-900/5 hover:-translate-y-0.5 ${className} ${
         isHighlighted
           ? 'border-indigo-400 ring-2 ring-indigo-400/30 shadow-indigo-500/10 shadow-lg scale-[1.01] bg-indigo-50/10'
           : 'border-slate-200/80 hover:border-slate-300'
@@ -727,6 +727,32 @@ export default function StudySection() {
     return subjectCards
   }, [subjectCards, selectedCategory, bookmarks])
 
+  // Horizontal shelf ref and navigation for compact Recent Batch Uploads
+  const recentShelfRef = useRef(null)
+
+  const scrollShelf = (direction) => {
+    if (recentShelfRef.current) {
+      const scrollAmount = direction === 'left' ? -300 : 300
+      recentShelfRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+    }
+  }
+
+  // Strictly the latest top 10 batch uploads of the enrolled batch (sorted by created_at DESC)
+  const recentBatchCards = useMemo(() => {
+    if (!cards || cards.length === 0) return []
+    const batchOnly = batchId
+      ? cards.filter(c => c.batch_id === batchId || (Array.isArray(c.batch_ids) && c.batch_ids.includes(batchId)))
+      : cards
+    const sorted = [...batchOnly].sort((a, b) => {
+      if (a.created_at && b.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at)
+      }
+      if (a.id && b.id) return String(b.id).localeCompare(String(a.id))
+      return 0
+    })
+    return sorted.slice(0, 10)
+  }, [cards, batchId])
+
   // Reset subject and category selection when switching away from My Batch tab
   useEffect(() => {
     if (tab !== 'My Batch') {
@@ -1024,42 +1050,93 @@ export default function StudySection() {
                 </div>
               )}
 
-              {/* Distinct Feed Container for Recent Uploads */}
-              {cards.length > 0 && (
-                <div className="bg-white rounded-3xl p-4 sm:p-6 text-slate-900 space-y-3.5 sm:space-y-4 shadow-sm border border-slate-200/90 relative overflow-hidden bg-gradient-to-b from-slate-50/50 via-white to-white">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2">
+              {/* ─── SHOWCASE THEATRE: RECENT BATCH UPLOADS (TOP 10 COMPACT REEL) ─── */}
+              {recentBatchCards.length > 0 && (
+                <section
+                  aria-label="Recent Batch Uploads"
+                  className="rounded-3xl p-4 sm:p-5 text-white shadow-xl shadow-black/25 border border-white/10 relative overflow-hidden bg-gradient-to-br from-[#121316] via-[#1a1b20] to-[#141518]"
+                >
+                  {/* Subtle atmospheric ambient glow (Google & Instagram inspired) */}
+                  <div className="absolute -top-16 -right-16 w-56 h-56 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  {/* Header */}
+                  <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3 gap-2">
                     <div className="min-w-0">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60 text-[9px] sm:text-[9.5px] font-black uppercase tracking-wider mb-1">
-                        <Sparkles className="h-3 w-3 fill-current text-indigo-600" />
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400/15 to-orange-400/15 border border-amber-400/30 text-amber-300 text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider mb-1 shadow-2xs">
+                        <Sparkles className="h-3 w-3 fill-current text-amber-400" />
                         <span>Latest for your Batch</span>
                       </div>
-                      <h3 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate">
+                      <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
                         Recent Batch Uploads
                       </h3>
-                      <p className="text-[11px] sm:text-xs text-slate-500 font-medium line-clamp-1 sm:line-clamp-none">
-                        Lectures, chapter notes & materials uploaded for your batch
+                      <p className="text-[11px] sm:text-xs text-slate-400 font-normal line-clamp-1">
+                        Latest lessons, chapter notes & materials for your batch
                       </p>
                     </div>
-                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full shrink-0">
-                      {cards.length} {cards.length === 1 ? 'Upload' : 'Uploads'}
-                    </span>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-bold text-slate-300 bg-white/10 border border-white/15 px-2.5 py-0.5 rounded-full">
+                        {recentBatchCards.length} {recentBatchCards.length === 1 ? 'Upload' : 'Uploads'}
+                      </span>
+
+                      {/* Desktop Navigation Chevrons */}
+                      <div className="hidden sm:flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => scrollShelf('left')}
+                          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
+                          title="Previous uploads"
+                          aria-label="Scroll left"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => scrollShelf('right')}
+                          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
+                          title="Next uploads"
+                          aria-label="Scroll right"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
-                    {cards.slice(0, 8).map(c => (
-                      <StudyCard
-                        key={c.id}
-                        card={c}
-                        bookmarked={bookmarks.has(c.id)}
-                        onBookmark={toggleBookmark}
-                        isHighlighted={c.id === highlightedCardId}
-                        onWatch={handleWatchCard}
-                        onOpenMaterial={setViewingMaterial}
-                        onOpenNotes={handleOpenNotes}
-                      />
-                    ))}
+                  {/* Horizontal Snap Reel: Compact, Never Stretches Vertically */}
+                  <div className="relative z-10 pt-3">
+                    <div
+                      ref={recentShelfRef}
+                      className="flex gap-3 overflow-x-auto snap-x snap-mandatory py-1 px-0.5 scrollbar-none scroll-smooth -mx-1 sm:mx-0"
+                    >
+                      {recentBatchCards.map(c => (
+                        <div
+                          key={c.id}
+                          className="w-[165px] sm:w-[195px] md:w-[220px] shrink-0 snap-start flex flex-col"
+                        >
+                          <StudyCard
+                            card={c}
+                            bookmarked={bookmarks.has(c.id)}
+                            onBookmark={toggleBookmark}
+                            isHighlighted={c.id === highlightedCardId}
+                            onWatch={handleWatchCard}
+                            onOpenMaterial={setViewingMaterial}
+                            onOpenNotes={handleOpenNotes}
+                            className="h-full"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Subtle Mobile Swipe Cue */}
+                    <div className="sm:hidden text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1.5 pt-2 select-none">
+                      <ChevronLeft className="h-2.5 w-2.5 text-slate-500" />
+                      <span>Swipe horizontally to view all {recentBatchCards.length} uploads</span>
+                      <ChevronRight className="h-2.5 w-2.5 text-slate-500" />
+                    </div>
                   </div>
-                </div>
+                </section>
               )}
 
             </div>
