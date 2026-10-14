@@ -143,28 +143,37 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
             loading="lazy"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-        ) : card.type === 'google_drive' ? (
-          /* Apple Books / High-End Digital Document Cover */
-          <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 relative flex items-center justify-center p-3 select-none overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-28 h-28 bg-indigo-500/15 rounded-full blur-xl pointer-events-none" />
-            <div className="relative z-10 bg-white dark:bg-slate-900 rounded-xl shadow-md p-2.5 border border-slate-200/80 dark:border-slate-700 w-[88%] max-w-[210px] h-[82%] max-h-[115px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+        ) : card.type === 'google_drive' || !isVideo ? (
+          /* Soothing EdTech Study Notebook Cover Design */
+          <div className="w-full h-full bg-gradient-to-br from-amber-200 via-amber-100 to-yellow-200 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden select-none">
+            {/* Subtle background ambient glow */}
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/40 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/30 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Clean Floating Study Notebook Sheet */}
+            <div className="relative z-10 bg-white rounded-xl shadow-md p-2.5 sm:p-3 border border-amber-200/90 w-[84%] max-w-[220px] h-[80%] max-h-[120px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+              {/* Paper Header */}
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/30 text-[8px] font-black uppercase tracking-wider">
-                  <FileText className="h-2.5 w-2.5 text-amber-600" />
-                  <span>PDF NOTES</span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
+                  <FileText className="h-2.5 w-2.5" />
+                  <span>CHAPTER NOTES</span>
                 </span>
                 {card.subject && (
-                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tight truncate max-w-[80px]">
+                  <span className="text-[8px] font-bold text-amber-800/80 uppercase tracking-tight truncate max-w-[80px]">
                     {card.subject}
                   </span>
                 )}
               </div>
-              <h4 className="text-[10px] sm:text-[11px] font-black text-slate-900 dark:text-white tracking-tight leading-snug line-clamp-2 my-0.5">
+
+              {/* Document Title (Clear, bold, prominent) */}
+              <h4 className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight leading-snug line-clamp-2 my-0.5">
                 {card.title}
               </h4>
+
+              {/* Notebook Ruled Lines */}
               <div className="space-y-1">
-                <div className="h-0.5 bg-slate-200 dark:bg-slate-700 rounded-full w-full" />
-                <div className="h-0.5 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4" />
+                <div className="h-0.5 bg-amber-100 rounded-full w-full" />
+                <div className="h-0.5 bg-amber-100 rounded-full w-2/3" />
               </div>
             </div>
           </div>
@@ -187,7 +196,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
         )}
 
         {/* Subject Label Overlaid Top-Left */}
-        {card.subject && (
+        {isVideo && card.subject && (
           <span className="absolute top-2 left-2 z-20 bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md border border-white/10 select-none">
             {card.subject}
           </span>
@@ -212,10 +221,12 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
         </button>
 
         {/* Format Chip Bottom-Right */}
-        <span className="absolute bottom-2 right-2 z-20 bg-black/75 backdrop-blur-md text-white text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-white/10 select-none flex items-center gap-1">
-          {isPlaylist ? <Youtube className="h-2.5 w-2.5 text-red-400" /> : isVideo ? <Play className="h-2.5 w-2.5 text-red-400 fill-current" /> : <FileText className="h-2.5 w-2.5 text-amber-400" />}
-          <span>{isPlaylist ? 'PLAYLIST' : isVideo ? 'VIDEO' : 'PDF'}</span>
-        </span>
+        {isVideo && (
+          <span className="absolute bottom-2 right-2 z-20 bg-black/75 backdrop-blur-md text-white text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-white/10 select-none flex items-center gap-1">
+            {isPlaylist ? <Youtube className="h-2.5 w-2.5 text-red-400" /> : <Play className="h-2.5 w-2.5 text-red-400 fill-current" />}
+            <span>{isPlaylist ? 'PLAYLIST' : 'VIDEO'}</span>
+          </span>
+        )}
       </div>
 
       {/* ─── 2. CARD CONTENT AREA ─── */}
