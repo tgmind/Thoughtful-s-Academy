@@ -498,22 +498,37 @@ function ManageableStudyCard({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out brightness-95 group-hover:brightness-100"
           />
         ) : isDrive ? (
-          <div className="w-full h-full bg-gradient-to-br from-amber-950 via-amber-900 to-slate-950 relative flex items-center justify-center p-3 overflow-hidden">
-            <div className="absolute -top-8 -right-8 w-24 h-24 bg-amber-500/20 rounded-full blur-xl pointer-events-none" />
-            <div className="relative z-0 bg-gradient-to-b from-amber-50 to-amber-100 rounded-xl shadow-lg p-2.5 border border-amber-300/60 w-[85%] max-w-[210px] h-[85%] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+          <div className="w-full h-full bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-100 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden select-none">
+            {/* Ambient soft warm glow */}
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/35 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/25 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Clean Floating Study Notebook Sheet */}
+            <div className="relative z-10 bg-white rounded-xl shadow-md shadow-amber-950/10 p-2.5 sm:p-3 border border-amber-200/90 w-[85%] max-w-[220px] h-[82%] max-h-[125px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+              {/* Paper Header */}
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-900 text-amber-200 text-[7px] font-black uppercase tracking-widest">
-                  <FileText className="h-2 w-2 text-amber-400" />
-                  <span>STUDY NOTES</span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
+                  <FileText className="h-2.5 w-2.5" />
+                  <span>CHAPTER NOTES</span>
                 </span>
-                <span className="text-[8px] font-black text-amber-900/60">PDF</span>
+                {card.subject && (
+                  <span className="text-[8.5px] font-bold text-amber-900/80 uppercase tracking-tight truncate max-w-[80px]">
+                    {card.subject}
+                  </span>
+                )}
               </div>
-              <h4 className="text-[10px] sm:text-xs font-black text-slate-900 tracking-tight leading-tight line-clamp-2 my-0.5">
-                {card.title}
-              </h4>
+
+              {/* Document Title (Clear, bold, prominent with stationery margin guide) */}
+              <div className="my-0.5 pl-1.5 border-l-2 border-amber-400/80">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 tracking-tight leading-snug line-clamp-2">
+                  {card.title}
+                </h4>
+              </div>
+
+              {/* Notebook Ruled Lines */}
               <div className="space-y-1">
-                <div className="h-0.5 bg-amber-300/60 rounded-full w-full" />
-                <div className="h-0.5 bg-amber-300/60 rounded-full w-2/3" />
+                <div className="h-0.5 bg-amber-100/90 rounded-full w-full" />
+                <div className="h-0.5 bg-amber-100/90 rounded-full w-3/4" />
               </div>
             </div>
           </div>

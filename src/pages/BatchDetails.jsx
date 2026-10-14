@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   GraduationCap, PlayCircle, ArrowRight, BookOpen, Video,
-  Users, ChevronLeft, ChevronRight, X, Sparkles, UserCheck, Maximize2, Download, Share2, Home as HomeIcon, ChevronDown, Check, Search, LogIn
+  Users, ChevronLeft, ChevronRight, X, Sparkles, UserCheck, Maximize2, Download, Share2, Home as HomeIcon, ChevronDown, Check, Search, LogIn, FileText
 } from 'lucide-react'
 
 import toast from 'react-hot-toast'
@@ -676,18 +676,40 @@ export default function BatchDetails() {
                         <div className="relative aspect-video bg-gray-900 overflow-hidden">
                           {thumb ? (
                             <img src={thumb} alt={card.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : card.type === 'google_drive' ? (
+                            <div className="w-full h-full bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-100 flex items-center justify-center p-3 select-none">
+                              <div className="bg-white rounded-xl shadow-md p-2.5 border border-amber-200/90 w-[85%] h-[82%] flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider">
+                                    <FileText className="h-2.5 w-2.5" />
+                                    <span>CHAPTER NOTES</span>
+                                  </span>
+                                  {card.subject && (
+                                    <span className="text-[8px] font-bold text-amber-800/80 uppercase truncate">
+                                      {card.subject}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-xs font-bold text-slate-900 line-clamp-2 my-0.5 pl-1.5 border-l-2 border-amber-400">
+                                  {card.title}
+                                </h4>
+                                <div className="h-0.5 bg-amber-100 rounded-full w-full" />
+                              </div>
+                            </div>
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-red-900 to-indigo-950 flex items-center justify-center">
                               <Video className="h-12 w-12 text-white/40" />
                             </div>
                           )}
 
-                          {/* Play Button Overlay */}
-                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <PlayCircle className="h-7 w-7" />
+                          {/* Play Button Overlay (Videos only) */}
+                          {card.type !== 'google_drive' && (
+                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <PlayCircle className="h-7 w-7" />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
 
                         {/* Card Info */}
@@ -703,7 +725,7 @@ export default function BatchDetails() {
                             </h3>
                           </div>
                           <p className="text-xs font-semibold text-gray-500 flex items-center gap-1 pt-1">
-                            Click to play lecture <ArrowRight className="h-3 w-3" />
+                            {card.type === 'google_drive' ? 'Click to view material' : 'Click to play lecture'} <ArrowRight className="h-3 w-3" />
                           </p>
                         </div>
                       </div>

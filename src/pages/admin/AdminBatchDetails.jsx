@@ -548,6 +548,10 @@ export default function AdminBatchDetails() {
                   <div className="w-20 h-12 bg-gray-900 rounded-lg overflow-hidden flex-shrink-0 relative">
                     {thumb ? (
                       <img src={thumb} alt={card.title} className="w-full h-full object-cover" />
+                    ) : card.type === 'google_drive' ? (
+                      <div className="w-full h-full bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-amber-700" />
+                      </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white/50 text-[10px]">
                         Video

@@ -22,10 +22,14 @@ import {
   ChevronRight,
   ShieldCheck,
   HelpCircle,
+  FileText,
+  ExternalLink,
+  Play,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { getYTThumb } from '../../utils/youtube'
 
 function todayISO() {
   const d = new Date()
@@ -1197,33 +1201,79 @@ export default function StudentDashboard() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {recentStudyCards.map(sc => (
-                    <Link
-                      key={sc.id}
-                      to={`/student/study?subject=${encodeURIComponent(sc.subject || '')}&cardId=${sc.id}`}
-                      className="p-3.5 bg-slate-50/80 hover:bg-blue-50/70 border border-slate-100 hover:border-blue-200/80 rounded-2xl flex items-center justify-between gap-3 transition-all duration-150 group cursor-pointer"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wide text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md inline-block mb-1">
-                          {sc.subject || 'General Studies'}
-                        </span>
-                        <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-950 truncate">
-                          {sc.title}
-                        </p>
-                      </div>
+                  {recentStudyCards.map(sc => {
+                    const thumb = sc.thumbnail_url || getYTThumb(sc.url)
+                    const isVideo = sc.type === 'youtube_video' || sc.type === 'youtube_playlist'
+                    const isNotes = sc.type === 'google_drive'
 
-                      <span className="shrink-0 text-[11px] font-semibold text-slate-600 bg-white border border-slate-200/80 group-hover:border-blue-300 px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition-colors">
-                        {sc.type === 'youtube_video' || sc.type === 'youtube_playlist' ? (
-                          <><span>🎥</span><span>Video</span></>
-                        ) : sc.type === 'google_drive' ? (
-                          <><span>📁</span><span>Notes</span></>
-                        ) : (
-                          <><span>🔗</span><span>Link</span></>
-                        )}
-                        <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-blue-600" />
-                      </span>
-                    </Link>
-                  ))}
+                    return (
+                      <Link
+                        key={sc.id}
+                        to={`/student/study?subject=${encodeURIComponent(sc.subject || '')}&cardId=${sc.id}`}
+                        className="p-2.5 sm:p-3 bg-white hover:bg-slate-50/90 border border-slate-200/80 hover:border-blue-300 rounded-2xl flex items-center gap-3 transition-all duration-200 shadow-2xs hover:shadow-sm group cursor-pointer"
+                      >
+                        {/* 1. Left Media Visual Anchor */}
+                        <div className="w-14 sm:w-16 h-11 sm:h-12 rounded-xl bg-slate-950 shrink-0 overflow-hidden relative flex items-center justify-center border border-slate-200/60 shadow-2xs">
+                          {thumb ? (
+                            <img src={thumb} alt={sc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          ) : isNotes ? (
+                            <div className="w-full h-full bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-amber-700" />
+                            </div>
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-blue-900 to-slate-900 flex items-center justify-center">
+                              <Video className="h-5 w-5 text-blue-300" />
+                            </div>
+                          )}
+                          {isVideo && (
+                            <div className="absolute inset-0 bg-black/35 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                              <div className="w-5 h-5 rounded-full bg-white/90 backdrop-blur-xs flex items-center justify-center text-slate-900 group-hover:bg-red-600 group-hover:text-white transition-colors shadow-2xs">
+                                <Play className="h-2.5 w-2.5 fill-current ml-0.5" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 2. Title & Subject Meta */}
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.2 rounded-full inline-block">
+                              {sc.subject || 'General'}
+                            </span>
+                            {sc.is_featured && (
+                              <span className="text-[8.5px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded-full border border-amber-200/60 uppercase">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 truncate transition-colors">
+                            {sc.title}
+                          </p>
+                        </div>
+
+                        {/* 3. Action Indicator Badge */}
+                        <div className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-100/80 group-hover:bg-blue-50 group-hover:text-blue-700 border border-slate-200/70 group-hover:border-blue-200 px-2.5 py-1 rounded-xl transition-all">
+                          {isVideo ? (
+                            <>
+                              <Video className="h-3 w-3 text-red-500" />
+                              <span className="hidden xs:inline">Watch</span>
+                            </>
+                          ) : isNotes ? (
+                            <>
+                              <FileText className="h-3 w-3 text-amber-500" />
+                              <span className="hidden xs:inline">Notes</span>
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="h-3 w-3 text-blue-500" />
+                              <span className="hidden xs:inline">Link</span>
+                            </>
+                          )}
+                          <ArrowRight className="h-3 w-3 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
             </div>

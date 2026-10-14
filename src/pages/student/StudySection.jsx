@@ -5,7 +5,7 @@ import {
   BookOpen, PlayCircle, Heart, Youtube,
   Link as LinkIcon, ChevronLeft, BookMarked, GraduationCap,
   Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
-  Dna, Calculator, ArrowRight, Play, School, FileText
+  Dna, Calculator, ArrowRight, Play, School, FileText, Video
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -125,10 +125,10 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
   return (
     <div
       id={`card-${card.id}`}
-      className={`group relative bg-white rounded-2xl border transition-all duration-200 flex flex-col overflow-hidden shadow-2xs hover:shadow-md hover:-translate-y-0.5 ${
+      className={`group relative bg-white rounded-2xl border transition-all duration-300 flex flex-col overflow-hidden shadow-2xs hover:shadow-lg hover:shadow-slate-900/5 hover:-translate-y-0.5 ${
         isHighlighted
-          ? 'border-indigo-400 ring-2 ring-indigo-400/30 shadow-lg scale-[1.01] bg-indigo-50/10'
-          : 'border-slate-200/90 hover:border-slate-300'
+          ? 'border-indigo-400 ring-2 ring-indigo-400/30 shadow-indigo-500/10 shadow-lg scale-[1.01] bg-indigo-50/10'
+          : 'border-slate-200/80 hover:border-slate-300'
       }`}
     >
       {/* ─── 1. THUMBNAIL (16:9 HERO VIEWPORT) ─── */}
@@ -141,39 +141,41 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
             src={thumb}
             alt={card.title}
             loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out brightness-95 group-hover:brightness-100"
           />
         ) : card.type === 'google_drive' || !isVideo ? (
           /* Soothing EdTech Study Notebook Cover Design */
-          <div className="w-full h-full bg-gradient-to-br from-amber-200 via-amber-100 to-yellow-200 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden select-none">
-            {/* Subtle background ambient glow */}
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/40 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/30 rounded-full blur-2xl pointer-events-none" />
+          <div className="w-full h-full bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-100 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden select-none">
+            {/* Ambient soft warm glow */}
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/35 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/25 rounded-full blur-2xl pointer-events-none" />
 
             {/* Clean Floating Study Notebook Sheet */}
-            <div className="relative z-10 bg-white rounded-xl shadow-md p-2.5 sm:p-3 border border-amber-200/90 w-[84%] max-w-[220px] h-[80%] max-h-[120px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+            <div className="relative z-10 bg-white rounded-xl shadow-md shadow-amber-950/10 p-2.5 sm:p-3 border border-amber-200/90 w-[85%] max-w-[220px] h-[82%] max-h-[125px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
               {/* Paper Header */}
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
                   <FileText className="h-2.5 w-2.5" />
                   <span>CHAPTER NOTES</span>
                 </span>
                 {card.subject && (
-                  <span className="text-[8px] font-bold text-amber-800/80 uppercase tracking-tight truncate max-w-[80px]">
+                  <span className="text-[8.5px] font-bold text-amber-900/80 uppercase tracking-tight truncate max-w-[80px]">
                     {card.subject}
                   </span>
                 )}
               </div>
 
-              {/* Document Title (Clear, bold, prominent) */}
-              <h4 className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight leading-snug line-clamp-2 my-0.5">
-                {card.title}
-              </h4>
+              {/* Document Title (Clear, bold, prominent with stationery margin guide) */}
+              <div className="my-0.5 pl-1.5 border-l-2 border-amber-400/80">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 tracking-tight leading-snug line-clamp-2">
+                  {card.title}
+                </h4>
+              </div>
 
               {/* Notebook Ruled Lines */}
               <div className="space-y-1">
-                <div className="h-0.5 bg-amber-100 rounded-full w-full" />
-                <div className="h-0.5 bg-amber-100 rounded-full w-2/3" />
+                <div className="h-0.5 bg-amber-100/90 rounded-full w-full" />
+                <div className="h-0.5 bg-amber-100/90 rounded-full w-3/4" />
               </div>
             </div>
           </div>
@@ -186,10 +188,10 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
         {/* Video Play Overlay */}
         {isVideo && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 opacity-60 group-hover:opacity-75 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-slate-950/20 opacity-70 group-hover:opacity-85 transition-opacity duration-300" />
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-900 group-hover:scale-110 group-hover:bg-red-600 group-hover:text-white transition-all duration-200 shadow-md">
-                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current ml-0.5" />
+              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center text-slate-900 group-hover:scale-110 group-hover:bg-red-600 group-hover:text-white transition-all duration-200 shadow-md">
+                <Play className="h-4 w-4 fill-current ml-0.5" />
               </div>
             </div>
           </>
@@ -197,7 +199,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
 
         {/* Subject Label Overlaid Top-Left */}
         {isVideo && card.subject && (
-          <span className="absolute top-2 left-2 z-20 bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md border border-white/10 select-none">
+          <span className="absolute top-2 left-2 z-20 backdrop-blur-md bg-slate-950/75 border border-white/15 text-white text-[9px] font-bold px-2 py-0.5 rounded-full select-none shadow-xs">
             {card.subject}
           </span>
         )}
@@ -211,10 +213,10 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
           }}
           title={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
           aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
-          className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all z-20 cursor-pointer ${
+          className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all duration-200 z-20 cursor-pointer active:scale-95 ${
             bookmarked
-              ? 'bg-red-500 text-white shadow-md scale-105'
-              : 'bg-black/35 text-white/90 hover:bg-black/60 hover:text-white'
+              ? 'bg-rose-500 text-white shadow-md scale-105'
+              : 'bg-slate-950/45 text-white/90 hover:bg-slate-950/75 hover:text-white hover:scale-110'
           }`}
         >
           <Heart className={`h-3.5 w-3.5 ${bookmarked ? 'fill-current' : ''}`} />
@@ -222,7 +224,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
 
         {/* Format Chip Bottom-Right */}
         {isVideo && (
-          <span className="absolute bottom-2 right-2 z-20 bg-black/75 backdrop-blur-md text-white text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-white/10 select-none flex items-center gap-1">
+          <span className="absolute bottom-2 right-2 z-20 bg-slate-950/80 backdrop-blur-md text-white text-[8px] sm:text-[8.5px] font-bold px-2 py-0.5 rounded-full border border-white/15 select-none flex items-center gap-1 shadow-xs">
             {isPlaylist ? <Youtube className="h-2.5 w-2.5 text-red-400" /> : <Play className="h-2.5 w-2.5 text-red-400 fill-current" />}
             <span>{isPlaylist ? 'PLAYLIST' : 'VIDEO'}</span>
           </span>
@@ -230,16 +232,22 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
       </div>
 
       {/* ─── 2. CARD CONTENT AREA ─── */}
-      <div className="p-3 sm:p-3.5 flex flex-col flex-1 justify-between gap-2">
-        <div className="space-y-1 min-w-0">
+      <div className="p-3 sm:p-3.5 flex flex-col flex-1 justify-between gap-2.5">
+        <div className="space-y-1.5 min-w-0">
           
-          {/* Single Compact Meta Row (No double stacked badges) */}
-          <div className="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            <span className="truncate">
-              {isPlaylist ? 'Playlist' : isVideo ? 'Video Lecture' : 'Chapter Notes'}
+          {/* Single Compact Meta Row with Visual Format Indicators */}
+          <div className="flex items-center justify-between gap-1 text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="inline-flex items-center gap-1 truncate">
+              {isPlaylist ? (
+                <><Youtube className="h-3 w-3 text-red-500 shrink-0" /><span>Playlist</span></>
+              ) : isVideo ? (
+                <><Video className="h-3 w-3 text-red-500 shrink-0" /><span>Video Lecture</span></>
+              ) : (
+                <><FileText className="h-3 w-3 text-amber-500 shrink-0" /><span>Chapter Notes</span></>
+              )}
             </span>
             {card.is_featured && (
-              <span className="inline-flex items-center gap-0.5 text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded font-black text-[8px] uppercase">
+              <span className="inline-flex items-center gap-0.5 text-amber-700 bg-amber-50/90 border border-amber-200/70 px-1.5 py-0.5 rounded-full font-extrabold text-[8px] uppercase tracking-wide">
                 <Sparkles className="h-2 w-2 text-amber-500 fill-current" /> Featured
               </span>
             )}
@@ -248,7 +256,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
           {/* Title (High-contrast, never chops off) */}
           <h3
             onClick={handleCardClick}
-            className="font-black text-slate-900 text-xs sm:text-sm leading-snug line-clamp-2 min-h-[2.3rem] sm:min-h-[2.6rem] group-hover:text-indigo-600 transition-colors cursor-pointer"
+            className="font-bold text-slate-900 text-xs sm:text-sm leading-snug line-clamp-2 min-h-[2.3rem] sm:min-h-[2.6rem] group-hover:text-blue-600 transition-colors cursor-pointer"
             title={card.title}
           >
             {card.title}
@@ -271,7 +279,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
                 <button
                   type="button"
                   onClick={() => onWatch?.(card)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2 sm:px-2.5 bg-slate-900 hover:bg-indigo-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer min-w-0"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2 sm:px-2.5 bg-slate-900 hover:bg-blue-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer min-w-0"
                   title="Watch Lecture"
                 >
                   <PlayCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
@@ -298,7 +306,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
               <button
                 type="button"
                 onClick={() => onWatch?.(card)}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-900 hover:bg-indigo-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-900 hover:bg-blue-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
               >
                 <PlayCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                 <span>Watch Lecture</span>
@@ -309,7 +317,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
             <button
               type="button"
               onClick={handleCardClick}
-              className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-900 hover:bg-indigo-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-900 hover:bg-amber-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
             >
               <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <span>Open Material</span>
