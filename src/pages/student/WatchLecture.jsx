@@ -685,14 +685,16 @@ export default function WatchLecture() {
     )
   }
 
-  const listId = hasMultipleLectures ? effectivePlaylistId : null
+  const listId = effectivePlaylistId || null
   const singleVideoId = card?.url ? getYTVideoId(card.url) : null
   const isDriveDoc = card?.type === 'drive' || card?.type === 'google_drive' || card?.url?.includes('drive.google.com')
 
-  // Resolve active video ID
+  // Resolve active video ID: prefer playlist item, then singleVideoId, then thumbnail fallback
   let currentVideoId = singleVideoId
-  if (hasMultipleLectures && playlistItems.length > 0 && playlistItems[activeVideoIndex]?.videoId) {
+  if (playlistItems.length > 0 && playlistItems[activeVideoIndex]?.videoId) {
     currentVideoId = playlistItems[activeVideoIndex].videoId
+  } else if (!currentVideoId && card?.thumbnail_url) {
+    currentVideoId = getYTVideoId(card.thumbnail_url)
   }
 
   const activePlaylistItem = playlistItems[activeVideoIndex]
@@ -787,10 +789,10 @@ export default function WatchLecture() {
               <ProtectedVideoPlayer
                 key={card.id}
                 videoId={currentVideoId || (playlistItems[activeVideoIndex]?.videoId ?? '')}
-                playlistId={hasMultipleLectures ? listId : null}
+                playlistId={listId}
                 title={dynamicTitle || currentTitle}
                 subject={card.subject}
-                isPlaylist={hasMultipleLectures}
+                isPlaylist={hasMultipleLectures || Boolean(listId)}
                 playlistItems={hasMultipleLectures ? playlistItems : []}
                 activeVideoIndex={hasMultipleLectures ? activeVideoIndex : 0}
                 onPrevVideo={() => setActiveVideoIndex((prev) => Math.max(0, prev - 1))}

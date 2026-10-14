@@ -297,7 +297,6 @@ export default function ProtectedVideoPlayer({
         playsinline: 1,     // Mobile inline playback
         enablejsapi: 1,     // Enable IFrame API
         origin: window.location.origin,
-        widget_referrer: window.location.origin,
       }
 
       const currentPlId = playlistIdRef.current
@@ -310,14 +309,14 @@ export default function ProtectedVideoPlayer({
       currentLoadedVideoIdRef.current = videoIdRef.current
       currentLoadedIndexRef.current = activeIndexRef.current
 
-      // If videoId is falsy, pass empty string '' instead of undefined to prevent
-      // YouTube's internal www-widgetapi.js constructor from throwing Error("Invalid video id")
-      playerRef.current = new YT.Player(ytPlayerId, {
-        videoId: videoIdRef.current || '',
+      // Prepare options for YT.Player
+      const playerOptions = {
         playerVars,
         events: {
           onReady: (event) => {
             setIsReady(true)
+            setHasError(false)
+            setErrorMessage('')
             try {
               const dur = event.target.getDuration() || 0
               if (dur > 0) setDuration(dur)
@@ -348,9 +347,17 @@ export default function ProtectedVideoPlayer({
             const state = event.data
             const player = event.target
 
-            if (state === YT.PlayerState.PLAYING) {
+            const PlayingState = YT.PlayerState?.PLAYING ?? 1
+            const BufferingState = YT.PlayerState?.BUFFERING ?? 3
+            const CuedState = YT.PlayerState?.CUED ?? 5
+            const PausedState = YT.PlayerState?.PAUSED ?? 2
+            const EndedState = YT.PlayerState?.ENDED ?? 0
+
+            if (state === PlayingState) {
               setIsPlaying(true)
               setIsEnded(false)
+              setHasError(false)
+              setErrorMessage('')
               cancelAutoAdvance()
 
               try {
@@ -387,11 +394,13 @@ export default function ProtectedVideoPlayer({
                   }
                 }
               } catch { /* Ignore */ }
-            } else if (state === YT.PlayerState.PAUSED) {
+            } else if (state === PausedState) {
               setIsPlaying(false)
-            } else if (state === YT.PlayerState.BUFFERING) {
-              // Buffering state handled natively by stream
-            } else if (state === YT.PlayerState.ENDED) {
+            } else if (state === BufferingState) {
+              // Video is actively streaming/buffering - clear any transient errors
+              setHasError(false)
+              setErrorMessage('')
+            } else if (state === EndedState) {
               setIsPlaying(false)
               setIsEnded(true)
               setControlsVisible(true)
@@ -403,26 +412,62 @@ export default function ProtectedVideoPlayer({
                   startAutoAdvanceCountdown()
                 }
               }
-            } else if (state === YT.PlayerState.CUED) {
+            } else if (state === CuedState) {
               setIsEnded(false)
+              setHasError(false)
+              setErrorMessage('')
             }
           },
           onError: (event) => {
-            setHasError(true)
             const code = event.data
             console.warn('YouTube Player error code:', code)
+
+            // If the video is already playing or stream is active, do NOT interrupt smooth playback
+            const playerState = playerRef.current?.getPlayerState?.()
+            if (isPlayingRef.current || playerState === (YT.PlayerState?.PLAYING ?? 1)) {
+              console.log('Ignoring non-fatal error code', code, 'as stream is active/playing')
+              return
+            }
+
+            // Error code 2: Parameter warning (e.g. transient playlist cue warning or param mismatch).
+            // YouTube frequently recovers from code 2 on its own and streams smoothly.
+            // Check if playback starts before displaying an alarming warning overlay to the student.
+            if (code === 2) {
+              console.warn('Transient parameter warning (code 2); verifying if playback begins...')
+              setTimeout(() => {
+                const curState = playerRef.current?.getPlayerState?.()
+                if (
+                  curState === (YT.PlayerState?.PLAYING ?? 1) ||
+                  curState === (YT.PlayerState?.BUFFERING ?? 3) ||
+                  isPlayingRef.current
+                ) {
+                  return
+                }
+                setHasError(true)
+                setErrorMessage('Unable to start video playback. Please click retry.')
+              }, 1200)
+              return
+            }
+
+            setHasError(true)
             if (code === 100) {
               setErrorMessage('This lecture video is currently unavailable or has been removed.')
             } else if (code === 101 || code === 150) {
               setErrorMessage('Direct streaming is restricted for this video. Contact platform support.')
-            } else if (code === 2) {
-              setErrorMessage('Invalid video playback parameter.')
             } else {
               setErrorMessage('Unable to load video stream. Please check your internet connection.')
             }
           }
         }
-      })
+      }
+
+      // ONLY pass videoId if non-empty string; never pass empty string '' which causes error 2
+      const rawVid = videoIdRef.current
+      if (rawVid && typeof rawVid === 'string' && rawVid.trim().length > 0) {
+        playerOptions.videoId = rawVid.trim()
+      }
+
+      playerRef.current = new YT.Player(ytPlayerId, playerOptions)
     } catch (err) {
       console.warn('Failed to initialize YouTube Player:', err)
       setHasError(true)
@@ -484,6 +529,8 @@ export default function ProtectedVideoPlayer({
         currentLoadedIndexRef.current = activeVideoIndex
         if (targetVideoId) currentLoadedVideoIdRef.current = targetVideoId
         try {
+          setHasError(false)
+          setErrorMessage('')
           setIsEnded(false)
           player.playVideoAt(activeVideoIndex)
           applyQualityToPlayer(selectedQualityRef.current)
@@ -500,6 +547,8 @@ export default function ProtectedVideoPlayer({
         currentLoadedVideoIdRef.current = targetVideoId
         currentLoadedIndexRef.current = activeVideoIndex
         try {
+          setHasError(false)
+          setErrorMessage('')
           setIsEnded(false)
           player.loadVideoById(targetVideoId)
           applyQualityToPlayer(selectedQualityRef.current)
@@ -587,6 +636,13 @@ export default function ProtectedVideoPlayer({
           const cur = playerRef.current.getCurrentTime() || 0
           const dur = playerRef.current.getDuration() || 0
           const loaded = playerRef.current.getVideoLoadedFraction?.() || 0
+
+          if (cur > 0) {
+            setHasError(prev => {
+              if (prev) setErrorMessage('')
+              return false
+            })
+          }
 
           if (dur > 0 && dur !== duration) setDuration(dur)
           setCurrentTime(cur)
@@ -1156,7 +1212,7 @@ export default function ProtectedVideoPlayer({
 
 
         {/* ─── ERROR STATE ────────────────────────────────────────────────────── */}
-        {hasError && (
+        {hasError && !isPlaying && (
           <div className="absolute inset-0 z-35 bg-slate-950/98 flex flex-col items-center justify-center p-4 text-center space-y-2 pointer-events-auto">
             <AlertCircle className="h-7 w-7 text-red-400" />
             <p className="text-xs text-slate-300 max-w-xs">{errorMessage}</p>
