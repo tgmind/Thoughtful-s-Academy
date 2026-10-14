@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  BookOpen, PlayCircle, ExternalLink, Heart, Youtube,
+  BookOpen, PlayCircle, Heart, Youtube,
   Link as LinkIcon, ChevronLeft, BookMarked, GraduationCap,
   Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
   Dna, Calculator, ArrowRight, Play, School, FileText
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import LiveClassBanner from '../../components/shared/LiveClassBanner'
+import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 import { normalizeUrl } from '../../utils/formatters'
 import { getYTThumb } from '../../utils/youtube'
 
@@ -94,9 +95,20 @@ const TYPE_BADGES = {
   external_link:    { label: 'Link',          color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <LinkIcon className="h-3 w-3" /> },
 }
 
-function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
+function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpenMaterial }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const badge = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
+  const isVideo = card.type?.startsWith('youtube')
+
+  const handleCardClick = () => {
+    if (isVideo) {
+      onWatch?.(card)
+    } else if (onOpenMaterial) {
+      onOpenMaterial(card)
+    } else {
+      window.open(normalizeUrl(card.url), '_blank', 'noopener,noreferrer')
+    }
+  }
 
   return (
     <div
@@ -107,7 +119,10 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
           : 'border-gray-100'
       }`}
     >
-      <div className="relative overflow-hidden aspect-video bg-slate-900">
+      <div
+        className="relative overflow-hidden aspect-video bg-slate-900 cursor-pointer"
+        onClick={handleCardClick}
+      >
         {thumb ? (
           <img
             src={thumb}
@@ -151,7 +166,7 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
         )}
 
         {/* Dark overlay for videos only */}
-        {(card.type === 'youtube_video' || card.type === 'youtube_playlist') && (
+        {isVideo && (
           <>
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
             <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -163,7 +178,10 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
         )}
 
         <button
-          onClick={() => onBookmark(card.id, bookmarked)}
+          onClick={(e) => {
+            e.stopPropagation()
+            onBookmark(card.id, bookmarked)
+          }}
           title={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
           className={`absolute top-2.5 right-2.5 p-2 rounded-full backdrop-blur-md transition-all z-20 ${
             bookmarked
@@ -201,22 +219,22 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch }) {
           )}
         </div>
 
-        {card.type?.startsWith('youtube') ? (
+        {isVideo ? (
           <button
+            type="button"
             onClick={() => onWatch?.(card)}
             className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md cursor-pointer"
           >
             <PlayCircle className="h-4 w-4 text-amber-400" /> Watch Lecture
           </button>
         ) : (
-          <a
-            href={normalizeUrl(card.url)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md"
+          <button
+            type="button"
+            onClick={handleCardClick}
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md cursor-pointer"
           >
-            <ExternalLink className="h-4 w-4 text-amber-400" /> Open Material
-          </a>
+            <FileText className="h-4 w-4 text-amber-400" /> Open Material
+          </button>
         )}
       </div>
     </div>
@@ -249,6 +267,7 @@ export default function StudySection() {
   const [searchQuery,      setSearchQuery]      = useState('')
   const [highlightedCardId, setHighlightedCardId] = useState(null)
   const [showSubjectSwitcher, setShowSubjectSwitcher] = useState(false)
+  const [viewingMaterial, setViewingMaterial] = useState(null)
 
   const handleWatchCard = (card) => {
     const returnSub = selectedSubject || card.subject || ''
@@ -672,7 +691,7 @@ export default function StudySection() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredCards.map(c => (
-                <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
+                <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
               ))}
             </div>
           )}
@@ -774,7 +793,7 @@ export default function StudySection() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {cards.slice(0, 6).map(c => (
-                      <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
+                      <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
                     ))}
                   </div>
                 </div>
@@ -1019,7 +1038,7 @@ export default function StudySection() {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                       {categoryCardsToDisplay.map(c => (
-                        <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
+                        <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
                       ))}
                     </div>
                   )}
@@ -1068,7 +1087,7 @@ export default function StudySection() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredCards.map(c => (
-                  <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} />
+                  <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
                 ))}
               </div>
             )}
@@ -1182,6 +1201,14 @@ export default function StudySection() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* In-App Material Viewer Modal for Drive & External Resources */}
+      {viewingMaterial && (
+        <MaterialViewerModal
+          card={viewingMaterial}
+          onClose={() => setViewingMaterial(null)}
+        />
       )}
 
       {/* ── End of Study Section ── */}

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  BookOpen, PlayCircle, ExternalLink, Youtube,
+  BookOpen, PlayCircle, Youtube,
   Link as LinkIcon, Sparkles, Globe, Search, X, FolderOpen,
   ArrowRight, Play, School, FileText, Plus, Edit2,
   Trash2, Lock, Eye, EyeOff, ChevronDown, Check,
@@ -15,6 +15,7 @@ import { normalizeUrl } from '../../utils/formatters'
 import { getSubjectTheme, getYTVideoId, getYTPlaylistId, getYTThumb, TYPE_BADGES, EMPTY_CARD_FORM, unionSubjects } from '../../utils/studyHelpers'
 import { logActivity } from '../../lib/activityLogger'
 import ActivityLogModal from '../../components/shared/ActivityLogModal'
+import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 
 // Vibrant aesthetic themes for batch workspace cards
 const BATCH_THEMES = [
@@ -342,7 +343,8 @@ function ManageableStudyCard({
   onToggle,
   onWatch,
   deleting,
-  viewMode = 'grid'
+  viewMode = 'grid',
+  onOpenMaterial
 }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const badgeInfo = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
@@ -443,14 +445,13 @@ function ManageableStudyCard({
               <PlayCircle className="h-3.5 w-3.5 text-amber-400" /> Watch
             </button>
           ) : (
-            <a
-              href={normalizeUrl(card.url)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => onOpenMaterial ? onOpenMaterial(card) : window.open(normalizeUrl(card.url), '_blank', 'noopener,noreferrer')}
               className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer flex items-center gap-1"
             >
-              <ExternalLink className="h-3.5 w-3.5 text-amber-400" /> Open
-            </a>
+              <FileText className="h-3.5 w-3.5 text-amber-400" /> Open
+            </button>
           )}
         </div>
       </div>
@@ -612,14 +613,13 @@ function ManageableStudyCard({
               <PlayCircle className="h-3.5 w-3.5 text-amber-400" /> Watch Lecture
             </button>
           ) : (
-            <a
-              href={normalizeUrl(card.url)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => onOpenMaterial ? onOpenMaterial(card) : window.open(normalizeUrl(card.url), '_blank', 'noopener,noreferrer')}
               className="w-full inline-flex items-center justify-center gap-1.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
             >
-              <ExternalLink className="h-3.5 w-3.5 text-amber-400" /> Open Material
-            </a>
+              <FileText className="h-3.5 w-3.5 text-amber-400" /> Open Material
+            </button>
           )}
         </div>
       </div>
@@ -654,6 +654,7 @@ export default function StudySection({ isAdmin = false }) {
   const [deleting, setDeleting] = useState(null)
   const [playlistThumb, setPlaylistThumb] = useState(null)
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [viewingMaterial, setViewingMaterial] = useState(null)
 
   const rolePrefix = isAdmin ? '/admin' : '/teacher'
 
@@ -1165,6 +1166,7 @@ export default function StudySection({ isAdmin = false }) {
             onWatch={handleWatchCard}
             deleting={deleting}
             viewMode={viewMode}
+            onOpenMaterial={setViewingMaterial}
           />
         )
       })}
@@ -1940,6 +1942,14 @@ export default function StudySection({ isAdmin = false }) {
           batchId={selectedBatch.id}
           batchName={selectedBatch.name}
           onClose={() => setShowActivityLog(false)}
+        />
+      )}
+
+      {/* In-App Material Viewer Modal for Drive & External Resources */}
+      {viewingMaterial && (
+        <MaterialViewerModal
+          card={viewingMaterial}
+          onClose={() => setViewingMaterial(null)}
         />
       )}
     </div>

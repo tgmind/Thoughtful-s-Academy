@@ -14,7 +14,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  SECRETS_SCAN_OMIT_PATHS = "documentation/**"
+  SECRETS_SCAN_OMIT_PATHS = "documentation/**,.env.example"
 
 [[headers]]
   for = "/*"

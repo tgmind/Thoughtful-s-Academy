@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, X, Eye, EyeOff, ClipboardList, ExternalLink, Users, CheckCircle, Lock } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Eye, EyeOff, ClipboardList, Users, CheckCircle, Lock, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
 import CustomSelect from '../../components/ui/CustomSelect'
+import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 
 const EMPTY = { title: '', description: '', drive_link: '', batch_id: '', due_date: '' }
 
@@ -14,7 +15,7 @@ function todayISO() {
 }
 
 // ── One submission row with inline grade + feedback editing ──────────────────
-function SubmissionRow({ sub, onSave }) {
+function SubmissionRow({ sub, onSave, onOpenMaterial }) {
   const [grade, setGrade]       = useState(sub.grade ?? '')
   const [feedback, setFeedback] = useState(sub.feedback ?? '')
   const [saving, setSaving]     = useState(false)
@@ -36,10 +37,13 @@ function SubmissionRow({ sub, onSave }) {
             Submitted {new Date(sub.submitted_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
-        <a href={normalizeUrl(sub.drive_link)} target="_blank" rel="noopener noreferrer"
-          className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors">
-          <ExternalLink className="h-3.5 w-3.5" /> Open
-        </a>
+        <button
+          type="button"
+          onClick={() => onOpenMaterial ? onOpenMaterial({ title: `${sub.profiles?.full_name || 'Student'} - Homework Submission`, url: sub.drive_link, type: 'google_drive' }) : window.open(normalizeUrl(sub.drive_link), '_blank', 'noopener,noreferrer')}
+          className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+        >
+          <Eye className="h-3.5 w-3.5" /> Open
+        </button>
       </div>
       <div className="flex items-end gap-2 mt-3">
         <div className="w-24">
@@ -73,6 +77,7 @@ export default function Homework({ isAdmin = false }) {
   const [saving,   setSaving]   = useState(false)
   const [deleting, setDeleting] = useState(null)
   const [loading,  setLoading]  = useState(true)
+  const [viewingMaterial, setViewingMaterial] = useState(null)
 
   // Submissions drawer
   const [subFor,      setSubFor]      = useState(null)
@@ -257,10 +262,13 @@ export default function Homework({ isAdmin = false }) {
                     <h3 className="font-semibold text-gray-900">{h.title}</h3>
                     {h.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{h.description}</p>}
                     <div className="flex items-center gap-3 mt-2">
-                      <a href={normalizeUrl(h.drive_link)} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                        <ExternalLink className="h-3.5 w-3.5" /> Assignment link
-                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setViewingMaterial({ title: `${h.title} - Assignment`, url: h.drive_link, type: 'google_drive' })}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline cursor-pointer"
+                      >
+                        <FileText className="h-3.5 w-3.5" /> Assignment link
+                      </button>
                       <button onClick={() => openSubs(h)}
                         className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 font-medium">
                         <Users className="h-3.5 w-3.5" /> {counts[h.id] || 0} submission{(counts[h.id] || 0) !== 1 ? 's' : ''}
@@ -364,11 +372,19 @@ export default function Homework({ isAdmin = false }) {
                   <p className="text-gray-400 text-sm">No submissions yet.</p>
                 </div>
               ) : (
-                subs.map(s => <SubmissionRow key={s.id} sub={s} onSave={grade} />)
+                subs.map(s => <SubmissionRow key={s.id} sub={s} onSave={grade} onOpenMaterial={setViewingMaterial} />)
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* In-App Material Viewer Modal for Homework and Submissions */}
+      {viewingMaterial && (
+        <MaterialViewerModal
+          card={viewingMaterial}
+          onClose={() => setViewingMaterial(null)}
+        />
       )}
     </div>
   )

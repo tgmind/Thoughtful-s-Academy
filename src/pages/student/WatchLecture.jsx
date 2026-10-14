@@ -2,16 +2,15 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import {
   ArrowLeft, BookOpen, Heart, Maximize2, Minimize2,
-  ListVideo, Sparkles, PlayCircle, ExternalLink,
+  ListVideo, Sparkles, PlayCircle,
   ChevronRight, Layers, Clock, Search, Radio,
   ShieldCheck, CheckCircle2, Send, HelpCircle,
   FileText, Keyboard, X, LogIn, Trash2,
-  AlertCircle, RefreshCw
+  AlertCircle, RefreshCw, Eye
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { normalizeUrl } from '../../utils/formatters'
 import {
   getYTPlaylistId,
   getYTVideoId,
@@ -20,6 +19,7 @@ import {
   getLectureProgress
 } from '../../utils/youtube'
 import ProtectedVideoPlayer from '../../components/shared/ProtectedVideoPlayer'
+import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 import {
   createDoubt,
   fetchStudentDoubtsForLecture,
@@ -93,6 +93,7 @@ export default function WatchLecture() {
   const [playlistSearch, setPlaylistSearch] = useState('')
   const [dynamicTitle, setDynamicTitle] = useState('')
   const [discoveredListId, setDiscoveredListId] = useState(null)
+  const [viewingMaterial, setViewingMaterial] = useState(null)
 
   // Authoritative Doubt Eligibility State Machine
   const eligibilityStatus = getDoubtEligibility({
@@ -885,14 +886,13 @@ export default function WatchLecture() {
               </div>
 
               {card.type === 'external_link' && (
-                <a
-                  href={normalizeUrl(card.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3.5 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-center"
+                <button
+                  type="button"
+                  onClick={() => setViewingMaterial(card)}
+                  className="px-3.5 py-2 bg-indigo-600 text-white text-xs font-extrabold rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer"
                 >
-                  <ExternalLink className="h-3.5 w-3.5" /> Open Resource
-                </a>
+                  <FileText className="h-3.5 w-3.5 text-amber-300" /> Open Resource
+                </button>
               )}
             </div>
 
@@ -1102,12 +1102,11 @@ export default function WatchLecture() {
 
                 {notesResources.length > 0 ? (
                   notesResources.map(n => (
-                    <a
+                    <button
                       key={n.id}
-                      href={normalizeUrl(n.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-2xl transition-all flex items-center justify-between gap-3 group cursor-pointer"
+                      type="button"
+                      onClick={() => setViewingMaterial(n)}
+                      className="w-full text-left p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-2xl transition-all flex items-center justify-between gap-3 group cursor-pointer"
                     >
                       <div className="min-w-0">
                         <span className="text-[8px] font-black uppercase text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
@@ -1117,8 +1116,8 @@ export default function WatchLecture() {
                           {n.title}
                         </h4>
                       </div>
-                      <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                    </a>
+                      <Eye className="h-4 w-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                    </button>
                   ))
                 ) : (
                   <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 p-4">
@@ -1587,6 +1586,14 @@ export default function WatchLecture() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* In-App Material Viewer Modal for Attached Notes and Drive Resources */}
+      {viewingMaterial && (
+        <MaterialViewerModal
+          card={viewingMaterial}
+          onClose={() => setViewingMaterial(null)}
+        />
       )}
 
     </div>

@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ClipboardList, ExternalLink, CheckCircle2, Clock } from 'lucide-react'
+import { ClipboardList, CheckCircle2, Clock, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
+import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 
 function todayISO() {
   const d = new Date()
@@ -31,6 +32,7 @@ export default function StudentHomework() {
   const [submitting, setSubmitting] = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [tab,        setTab]        = useState('To Do')
+  const [viewingMaterial, setViewingMaterial] = useState(null)
 
   // Resolve the student's batch first.
   useEffect(() => {
@@ -205,10 +207,13 @@ export default function StudentHomework() {
                     {hw.description && <p className="text-sm text-gray-500 mt-0.5">{hw.description}</p>}
                     {due && <p className={`text-xs mt-1 font-medium ${due.cls}`}>{due.text}</p>}
                   </div>
-                  <a href={normalizeUrl(hw.drive_link)} target="_blank" rel="noopener noreferrer"
-                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors">
-                    <ExternalLink className="h-3.5 w-3.5" /> Assignment
-                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setViewingMaterial({ title: `${hw.title} - Assignment`, url: hw.drive_link, type: 'google_drive' })}
+                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Assignment
+                  </button>
                 </div>
 
                 {sub ? (
@@ -220,8 +225,13 @@ export default function StudentHomework() {
                         {new Date(sub.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {sub.drive_link && (
-                        <a href={normalizeUrl(sub.drive_link)} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline">View your work</a>
+                        <button
+                          type="button"
+                          onClick={() => setViewingMaterial({ title: `${hw.title} - Your Submission`, url: sub.drive_link, type: 'google_drive' })}
+                          className="text-xs text-blue-600 hover:underline cursor-pointer"
+                        >
+                          View your work
+                        </button>
                       )}
                       {sub.grade && <span className="ml-auto font-bold text-green-800">Grade: {sub.grade}</span>}
                     </div>
@@ -248,6 +258,14 @@ export default function StudentHomework() {
             )
           })}
         </div>
+      )}
+
+      {/* In-App Material Viewer Modal for Homework and Submissions */}
+      {viewingMaterial && (
+        <MaterialViewerModal
+          card={viewingMaterial}
+          onClose={() => setViewingMaterial(null)}
+        />
       )}
     </div>
   )
