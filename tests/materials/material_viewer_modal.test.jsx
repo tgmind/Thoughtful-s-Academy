@@ -212,9 +212,9 @@ describe('MaterialViewerModal Component', () => {
   })
 
   it('renders iframe with the restricted in-app /preview URL for Google Docs', () => {
-    const { container } = render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
-    const iframe = container.querySelector('iframe')
+    const iframe = document.querySelector('iframe')
     expect(iframe).toBeInTheDocument()
     expect(iframe).toHaveAttribute('src', 'https://docs.google.com/document/d/1ABCXYZ_123-docId/preview')
   })
@@ -242,11 +242,11 @@ describe('MaterialViewerModal Component', () => {
   })
 
   it('dismisses loading indicator when iframe finishes loading', () => {
-    const { container } = render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     expect(screen.getByText(/Opening study material in protected view/i)).toBeInTheDocument()
 
-    const iframe = container.querySelector('iframe')
+    const iframe = document.querySelector('iframe')
     fireEvent.load(iframe)
 
     expect(screen.queryByText(/Opening study material in protected view/i)).not.toBeInTheDocument()

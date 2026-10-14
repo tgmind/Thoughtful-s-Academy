@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft, X, Download, ShieldCheck, Maximize2, Minimize2,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Sun, Moon,
@@ -202,10 +203,14 @@ export default function PremiumPdfViewer({
         setNumPages(doc.numPages)
         setLoading(false)
       } catch (err) {
-        console.error('PDF native load failed:', err)
+        console.warn('PDF native load failed, auto-falling back to embedded preview:', err)
         if (!isCancelled) {
-          setLoadError(err.message || 'Unable to render PDF natively.')
-          setLoading(false)
+          if (onFallbackToEmbed) {
+            onFallbackToEmbed()
+          } else {
+            setLoadError(err.message || 'Unable to render PDF natively.')
+            setLoading(false)
+          }
         }
       }
     }
@@ -215,7 +220,7 @@ export default function PremiumPdfViewer({
     return () => {
       isCancelled = true
     }
-  }, [card?.url, fileId])
+  }, [card?.url, fileId, onFallbackToEmbed])
 
   // Fullscreen listener
   useEffect(() => {
@@ -286,13 +291,16 @@ export default function PremiumPdfViewer({
   const handleZoomOut = () => setScale(s => Math.max(+(s - 0.15).toFixed(2), 0.6))
   const handleResetZoom = () => setScale(window.innerWidth < 640 ? 0.95 : 1.15)
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-[9999] flex flex-col ${theme.bg} text-white w-screen h-screen overflow-hidden select-none transition-colors duration-300`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={card?.title || 'Study Material Viewer'}
+      className={`fixed inset-0 z-[99999] flex flex-col ${theme.bg} text-white w-screen h-[100dvh] max-h-[100dvh] m-0 p-0 overflow-hidden select-none transition-colors duration-200`}
     >
-      {/* ─── 1. TOP HEADER TOOLBAR ────────────────────────────────────── */}
-      <header className="flex-shrink-0 h-14 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800/80 px-2.5 sm:px-5 flex items-center justify-between gap-2 z-30 shadow-lg">
+      {/* ─── 1. TOP HEADER TOOLBAR (GOOGLE MATERIAL DESIGN 3) ─────────────── */}
+      <header className="flex-shrink-0 h-14 sm:h-16 bg-[#1f1f1f] border-b border-[#2d2d2d] px-3 sm:px-6 flex items-center justify-between gap-2.5 z-30 shadow-xs">
         
         {/* Left: Back & Document Metadata */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -304,12 +312,11 @@ export default function PremiumPdfViewer({
               }
               onClose?.()
             }}
-            className="p-2 rounded-xl bg-slate-800/90 hover:bg-red-600/90 text-slate-300 hover:text-white transition-all flex items-center gap-1 shrink-0 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 active:bg-white/20 text-slate-300 hover:text-white transition-all flex items-center justify-center shrink-0 cursor-pointer focus:outline-none"
             title="Close material (Esc)"
             aria-label="Close viewer"
           >
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-bold hidden md:inline">Back</span>
+            <ArrowLeft className="h-5 w-5" />
           </button>
 
           <div className="h-5 w-px bg-slate-800 hidden sm:block shrink-0" />
@@ -318,17 +325,17 @@ export default function PremiumPdfViewer({
           <div className="min-w-0 flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-1.5 flex-wrap">
               {card?.subject && (
-                <span className="inline-flex items-center text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="inline-flex items-center text-[10px] font-semibold tracking-wide px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30">
                   {card.subject}
                 </span>
               )}
-              <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                <ShieldCheck className="h-2.5 w-2.5 text-blue-400" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium tracking-wide px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/80">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
                 <span>Protected Reader</span>
               </span>
             </div>
             <h3
-              className="text-xs sm:text-sm font-black text-slate-100 truncate tracking-tight mt-0.5"
+              className="text-xs sm:text-sm font-semibold text-slate-100 truncate tracking-normal mt-0.5"
               title={card?.title}
             >
               {card?.title || 'Practice Sheet / Study Material'}
@@ -336,19 +343,19 @@ export default function PremiumPdfViewer({
           </div>
         </div>
 
-        {/* Center: Desktop Page Jump & Zoom Controls */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-900/90 rounded-xl border border-slate-800 shadow-inner">
+        {/* Center: Desktop Page Jump & Zoom Controls (M3 Pill) */}
+        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-[#282828] rounded-full border border-[#383838]">
           <button
             type="button"
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
+            className="w-7 h-7 rounded-full text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 flex items-center justify-center cursor-pointer transition-colors"
             title="Previous Page (Left Arrow)"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           
-          <span className="text-xs font-mono font-bold text-slate-200">
+          <span className="text-xs font-mono font-medium text-slate-200 px-1.5 min-w-[50px] text-center">
             {currentPage} / {numPages || '…'}
           </span>
 
@@ -356,41 +363,41 @@ export default function PremiumPdfViewer({
             type="button"
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage >= numPages}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
+            className="w-7 h-7 rounded-full text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 flex items-center justify-center cursor-pointer transition-colors"
             title="Next Page (Right Arrow)"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
 
-          <div className="h-4 w-px bg-slate-800 mx-1" />
+          <div className="h-3.5 w-px bg-slate-700 mx-1" />
 
           {/* Zoom */}
           <button
             type="button"
             onClick={handleZoomOut}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer"
+            className="w-7 h-7 rounded-full text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors"
             title="Zoom Out"
           >
-            <ZoomOut className="h-4 w-4" />
+            <ZoomOut className="h-3.5 w-3.5" />
           </button>
-          <span className="text-[11px] font-mono text-slate-300 w-10 text-center">
+          <span className="text-[11px] font-mono text-slate-300 w-9 text-center">
             {Math.round(scale * 100)}%
           </span>
           <button
             type="button"
             onClick={handleZoomIn}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer"
+            className="w-7 h-7 rounded-full text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors"
             title="Zoom In"
           >
-            <ZoomIn className="h-4 w-4" />
+            <ZoomIn className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             onClick={handleResetZoom}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer"
+            className="w-7 h-7 rounded-full text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors"
             title="Reset Zoom"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-3 w-3" />
           </button>
         </div>
 
@@ -398,7 +405,7 @@ export default function PremiumPdfViewer({
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
           {/* Eye-Care Theme Switcher */}
-          <div className="flex items-center bg-slate-900 rounded-xl p-0.5 border border-slate-800">
+          <div className="flex items-center bg-[#282828] rounded-full p-0.5 border border-[#383838]">
             {Object.values(THEMES).map(t => {
               const Icon = t.icon
               const active = themeKey === t.id
@@ -407,8 +414,8 @@ export default function PremiumPdfViewer({
                   key={t.id}
                   type="button"
                   onClick={() => setThemeKey(t.id)}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    active ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white'
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    active ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                   title={`${t.label} reading mode`}
                 >
@@ -424,7 +431,7 @@ export default function PremiumPdfViewer({
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
               title="Download clean file directly to your device"
             >
               {downloading ? (
@@ -440,7 +447,7 @@ export default function PremiumPdfViewer({
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer focus:outline-none"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             aria-label="Toggle fullscreen"
           >
@@ -456,11 +463,11 @@ export default function PremiumPdfViewer({
               }
               onClose?.()
             }}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-600 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer focus:outline-none"
             title="Close (Esc)"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       </header>
@@ -583,13 +590,14 @@ export default function PremiumPdfViewer({
           <button
             type="button"
             onClick={handleZoomIn}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 cursor-pointer"
+            className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 active:scale-95 flex items-center justify-center cursor-pointer"
             aria-label="Zoom In"
           >
-            <ZoomIn className="h-4 w-4" />
+            <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }

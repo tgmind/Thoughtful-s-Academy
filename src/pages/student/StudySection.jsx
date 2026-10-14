@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen, PlayCircle, Heart, Youtube,
@@ -13,6 +14,7 @@ import LiveClassBanner from '../../components/shared/LiveClassBanner'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 import { normalizeUrl } from '../../utils/formatters'
 import { getYTThumb } from '../../utils/youtube'
+import { isGoogleDriveResource } from '../../utils/materialUrl'
 
 // Subject Theme Resolver for Physics Wallah / Premium EdTech Style
 function getSubjectTheme(subjectName = '') {
@@ -95,10 +97,12 @@ const TYPE_BADGES = {
   external_link:    { label: 'Link',          color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <LinkIcon className="h-3 w-3" /> },
 }
 
-function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpenMaterial }) {
+function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpenMaterial, onOpenNotes }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const badge = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
   const isVideo = card.type?.startsWith('youtube')
+  const hasAttachedNotes = Array.isArray(card.attached_notes) && card.attached_notes.length > 0
+  const isPlaylist = card.type === 'youtube_playlist'
 
   const handleCardClick = () => {
     if (isVideo) {
@@ -110,17 +114,34 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
     }
   }
 
+  const handleNotesClick = (e) => {
+    e.stopPropagation()
+    if (onOpenNotes) {
+      onOpenNotes(card)
+    } else if (hasAttachedNotes && onOpenMaterial) {
+      const firstNote = card.attached_notes[0]
+      onOpenMaterial({
+        id: firstNote.id,
+        title: firstNote.title,
+        subject: card.subject,
+        url: firstNote.url,
+        type: isGoogleDriveResource(firstNote.url) ? 'google_drive' : 'external_link'
+      })
+    }
+  }
+
   return (
     <div
       id={`card-${card.id}`}
-      className={`group bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col ${
+      className={`group relative bg-white rounded-2xl border transition-all duration-200 flex flex-col overflow-hidden shadow-2xs hover:shadow-md hover:-translate-y-0.5 ${
         isHighlighted
-          ? 'border-amber-400 ring-4 ring-amber-400/50 shadow-2xl scale-[1.02] bg-amber-50/20'
-          : 'border-gray-100'
+          ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-lg scale-[1.01] bg-amber-50/10'
+          : 'border-slate-200/90 hover:border-slate-300'
       }`}
     >
+      {/* ─── COMPACT THUMBNAIL CONTAINER ─── */}
       <div
-        className="relative overflow-hidden aspect-video bg-slate-900 cursor-pointer"
+        className="relative overflow-hidden aspect-video bg-slate-950 cursor-pointer select-none"
         onClick={handleCardClick}
       >
         {thumb ? (
@@ -132,118 +153,289 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
           />
         ) : card.type === 'google_drive' ? (
           /* Soothing EdTech Study Notebook Cover Design */
-          <div className="w-full h-full bg-gradient-to-br from-amber-200 via-amber-100 to-yellow-200 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden select-none">
-            {/* Subtle background ambient glow */}
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/40 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-orange-300/30 rounded-full blur-2xl pointer-events-none" />
-
-            {/* Clean Floating Study Notebook Sheet (Sized cleanly to avoid overlapping bookmark or subject tag) */}
-            <div className="relative z-0 bg-white rounded-xl shadow-md p-2 sm:p-2.5 border border-amber-200/80 w-[82%] max-w-[220px] h-[78%] max-h-[120px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
-              {/* Paper header */}
+          <div className="w-full h-full bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 relative flex items-center justify-center p-2.5 sm:p-3 overflow-hidden select-none">
+            <div className="absolute -top-8 -right-8 w-28 h-28 bg-amber-200/40 rounded-full blur-xl pointer-events-none" />
+            <div className="relative z-0 bg-white rounded-xl shadow-xs p-2 border border-amber-200/80 w-[84%] max-w-[200px] h-[78%] max-h-[110px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
-                  <FileText className="h-2.5 w-2.5" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[7.5px] sm:text-[8px] font-black uppercase tracking-wider shadow-2xs">
+                  <FileText className="h-2 w-2" />
                   <span>CHAPTER NOTES</span>
                 </span>
               </div>
-
-              {/* Document Title */}
-              <h4 className="text-[10px] sm:text-xs font-black text-slate-900 tracking-tight leading-tight line-clamp-1 my-0.5">
+              <h4 className="text-[9.5px] sm:text-[11px] font-black text-slate-900 tracking-tight leading-tight line-clamp-1 my-0.5">
                 {card.title}
               </h4>
-
-              {/* Notebook Ruled Lines */}
-              <div className="space-y-1">
-                <div className="h-0.5 bg-amber-100/80 rounded-full w-full" />
-                <div className="h-0.5 bg-amber-100/80 rounded-full w-2/3" />
+              <div className="space-y-0.5">
+                <div className="h-0.5 bg-amber-100 rounded-full w-full" />
+                <div className="h-0.5 bg-amber-100 rounded-full w-2/3" />
               </div>
             </div>
           </div>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 flex items-center justify-center p-4">
-            <BookOpen className="h-10 w-10 text-white/30" />
+          <div className="w-full h-full bg-gradient-to-br from-blue-950 to-indigo-950 flex items-center justify-center p-3">
+            <BookOpen className="h-8 w-8 text-white/30" />
           </div>
         )}
 
-        {/* Dark overlay for videos only */}
+        {/* Dark overlay & Play icon for videos */}
         {isVideo && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-red-600 transition-all duration-200 shadow-xl border border-white/30">
-                <Play className="h-5 w-5 text-white fill-current ml-0.5" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-70 group-hover:opacity-80 transition-opacity" />
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-red-600 transition-all duration-200 shadow-md border border-white/30">
+                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white fill-current ml-0.5" />
               </div>
             </div>
           </>
         )}
 
+        {/* Heart Bookmark */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation()
             onBookmark(card.id, bookmarked)
           }}
           title={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
-          className={`absolute top-2.5 right-2.5 p-2 rounded-full backdrop-blur-md transition-all z-20 ${
+          className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all z-20 cursor-pointer ${
             bookmarked
-              ? 'bg-red-500 text-white shadow-lg scale-105'
+              ? 'bg-red-500 text-white shadow-md scale-105'
               : 'bg-black/40 text-white/90 hover:bg-black/70 hover:text-white'
           }`}
         >
-          <Heart className={`h-4 w-4 ${bookmarked ? 'fill-current' : ''}`} />
+          <Heart className={`h-3.5 w-3.5 ${bookmarked ? 'fill-current' : ''}`} />
         </button>
 
+        {/* Subject Pill (Bottom-left) */}
         {card.subject && (
-          <span className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-white/10 z-20">
+          <span className="absolute bottom-2 left-2 z-20 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-white/10 select-none">
             {card.subject}
           </span>
         )}
       </div>
 
-      <div className="p-4 flex flex-col flex-1 justify-between space-y-3">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${badge.color}`}>
+      {/* ─── CARD CONTENT BODY ─── */}
+      <div className="p-2.5 sm:p-3.5 flex flex-col flex-1 justify-between gap-2 sm:gap-2.5">
+        <div className="space-y-1 sm:space-y-1.5 min-w-0">
+          
+          {/* Badges Row */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className={`inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border ${badge.color}`}>
               {badge.icon} {badge.label}
             </span>
+            
             {card.is_featured && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                <Sparkles className="h-3 w-3 text-amber-500" /> Featured
+              <span className="inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Featured
               </span>
             )}
-            {card.attached_notes?.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                <FileText className="h-3 w-3 text-amber-500" />
-                {card.type === 'youtube_playlist' ? `Notes Playlist (${card.attached_notes.length})` : `Notes (${card.attached_notes.length})`}
-              </span>
+
+            {hasAttachedNotes && (
+              <button
+                type="button"
+                onClick={handleNotesClick}
+                className="inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 rounded font-bold tracking-tight bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer"
+                title="View attached notes"
+              >
+                <FileText className="h-2.5 w-2.5 text-amber-600" />
+                <span>{isPlaylist ? 'Notes Playlist' : 'Notes'} ({card.attached_notes.length})</span>
+              </button>
             )}
           </div>
-          <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-blue-950 transition-colors">
+
+          {/* Title - Never Chops Off */}
+          <h3
+            onClick={handleCardClick}
+            className="font-bold text-slate-900 text-xs sm:text-sm leading-snug line-clamp-2 group-hover:text-blue-950 transition-colors cursor-pointer"
+            title={card.title}
+          >
             {card.title}
           </h3>
+
+          {/* Description */}
           {card.description && (
-            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{card.description}</p>
+            <p className="text-[10.5px] sm:text-xs text-slate-500 line-clamp-1 sm:line-clamp-2 leading-relaxed">
+              {card.description}
+            </p>
           )}
         </div>
 
-        {isVideo ? (
-          <button
-            type="button"
-            onClick={() => onWatch?.(card)}
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md cursor-pointer"
-          >
-            <PlayCircle className="h-4 w-4 text-amber-400" /> Watch Lecture
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleCardClick}
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-950 hover:bg-blue-900 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm group-hover:shadow-md cursor-pointer"
-          >
-            <FileText className="h-4 w-4 text-amber-400" /> Open Material
-          </button>
-        )}
+        {/* Actions Button Row */}
+        <div className="space-y-1 pt-1">
+          {isVideo ? (
+            <button
+              type="button"
+              onClick={() => onWatch?.(card)}
+              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2.5 bg-blue-950 hover:bg-blue-900 active:scale-98 text-white text-[11px] sm:text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
+            >
+              <PlayCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">Watch Lecture</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCardClick}
+              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2.5 bg-blue-950 hover:bg-blue-900 active:scale-98 text-white text-[11px] sm:text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
+            >
+              <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">Open Material</span>
+            </button>
+          )}
+
+          {isVideo && hasAttachedNotes && (
+            <button
+              type="button"
+              onClick={handleNotesClick}
+              className="w-full inline-flex items-center justify-center gap-1 py-1 px-2 bg-slate-100 hover:bg-amber-100/70 text-slate-700 hover:text-amber-950 border border-slate-200/80 rounded-lg text-[10px] sm:text-[10.5px] font-bold transition-all cursor-pointer truncate"
+              title="Open lecture notes playlist"
+            >
+              <FileText className="h-3 w-3 text-amber-600 shrink-0" />
+              <span className="truncate">
+                {isPlaylist ? `Notes Playlist (${card.attached_notes.length})` : `Attached Notes (${card.attached_notes.length})`}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
+  )
+}
+
+function StudentNotesPlaylistModal({ card, onClose, onOpenMaterial }) {
+  const [search, setSearch] = useState('')
+
+  if (!card) return null
+
+  const notes = Array.isArray(card.attached_notes) ? card.attached_notes : []
+  const filtered = notes.filter(n =>
+    !search.trim() ||
+    (n.title && n.title.toLowerCase().includes(search.toLowerCase())) ||
+    (n.description && n.description.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg max-h-[85vh] bg-[#f8f9fa] text-slate-900 rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* M3 Modal Header */}
+        <div className="p-4 sm:p-5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {card.subject || 'Notes'}
+                </span>
+                <span className="text-xs font-bold text-slate-400">
+                  {notes.length} {notes.length === 1 ? 'Document' : 'Documents'}
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 truncate mt-0.5" title={card.title}>
+                {card.title}
+              </h3>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors shrink-0 cursor-pointer"
+            title="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Search Bar if > 2 notes */}
+        {notes.length > 2 && (
+          <div className="px-4 py-2.5 bg-white/70 border-b border-slate-200/60 shrink-0">
+            <div className="relative">
+              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search notes in this playlist..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100 rounded-xl border border-transparent focus:border-amber-400 focus:bg-white focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Playlist Items */}
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-2.5">
+          {filtered.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 text-xs">
+              No notes match your search.
+            </div>
+          ) : (
+            filtered.map((note, idx) => {
+              const isDrive = isGoogleDriveResource(note.url)
+              return (
+                <div
+                  key={note.id || idx}
+                  onClick={() => {
+                    onOpenMaterial({
+                      id: note.id,
+                      title: note.title,
+                      subject: card.subject,
+                      url: note.url,
+                      type: isDrive ? 'google_drive' : 'external_link'
+                    })
+                  }}
+                  className="bg-white hover:bg-amber-50/40 border border-slate-200 hover:border-amber-300 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center shrink-0 group-hover:bg-amber-100/60 group-hover:border-amber-200 transition-colors">
+                      <span className="text-[10px] font-black text-slate-700">#{idx + 1}</span>
+                      <span className="text-[7.5px] font-extrabold uppercase text-slate-500 group-hover:text-amber-800">
+                        {isDrive ? 'PDF' : 'LINK'}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-950 truncate">
+                        {note.title}
+                      </h4>
+                      {note.description && (
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {note.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 group-hover:bg-amber-500 text-slate-700 group-hover:text-white font-bold text-xs transition-colors shrink-0 flex items-center gap-1.5"
+                  >
+                    <span>Open</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 bg-white border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <span className="text-[11px] font-medium">Click any document to view in-app</span>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   )
 }
 
@@ -274,6 +466,22 @@ export default function StudySection() {
   const [highlightedCardId, setHighlightedCardId] = useState(null)
   const [showSubjectSwitcher, setShowSubjectSwitcher] = useState(false)
   const [viewingMaterial, setViewingMaterial] = useState(null)
+  const [notesPlaylistCard, setNotesPlaylistCard] = useState(null)
+
+  const handleOpenNotes = (card) => {
+    if (Array.isArray(card?.attached_notes) && card.attached_notes.length === 1) {
+      const single = card.attached_notes[0]
+      setViewingMaterial({
+        id: single.id,
+        title: single.title,
+        subject: card.subject,
+        url: single.url,
+        type: isGoogleDriveResource(single.url) ? 'google_drive' : 'external_link'
+      })
+    } else if (Array.isArray(card?.attached_notes) && card.attached_notes.length > 1) {
+      setNotesPlaylistCard(card)
+    }
+  }
 
   const handleWatchCard = (card) => {
     const returnSub = selectedSubject || card.subject || ''
@@ -695,9 +903,18 @@ export default function StudySection() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
               {filteredCards.map(c => (
-                <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
+                <StudyCard
+                  key={c.id}
+                  card={c}
+                  bookmarked={bookmarks.has(c.id)}
+                  onBookmark={toggleBookmark}
+                  isHighlighted={c.id === highlightedCardId}
+                  onWatch={handleWatchCard}
+                  onOpenMaterial={setViewingMaterial}
+                  onOpenNotes={handleOpenNotes}
+                />
               ))}
             </div>
           )}
@@ -781,25 +998,37 @@ export default function StudySection() {
 
               {/* Distinct Feed Container for Recent Uploads */}
               {cards.length > 0 && (
-                <div className="bg-slate-900 rounded-3xl p-5 sm:p-7 text-white space-y-5 shadow-xl border border-slate-800 relative overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-                    <div>
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-black uppercase tracking-wider mb-1">
-                        <Sparkles className="h-3.5 w-3.5 fill-current text-amber-400" />
+                <div className="bg-slate-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white space-y-3.5 sm:space-y-4 shadow-xl border border-slate-800 relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 gap-2">
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 text-[9px] sm:text-[10px] font-black uppercase tracking-wider mb-1">
+                        <Sparkles className="h-3 w-3 fill-current text-amber-400" />
                         <span>Latest Material Feed</span>
                       </div>
-                      <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                      <h3 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate">
                         Recent Batch Uploads
                       </h3>
-                      <p className="text-xs text-slate-400 font-medium">
+                      <p className="text-[11px] sm:text-xs text-slate-400 font-medium line-clamp-1 sm:line-clamp-none">
                         Fresh video lectures, chapter notes, and assignments uploaded for your batch
                       </p>
                     </div>
+                    <span className="hidden sm:inline-flex text-[11px] font-bold text-slate-400 bg-slate-800/80 border border-slate-700/80 px-2.5 py-1 rounded-full shrink-0">
+                      {cards.length} {cards.length === 1 ? 'Upload' : 'Uploads'}
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {cards.slice(0, 6).map(c => (
-                      <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
+                    {cards.slice(0, 8).map(c => (
+                      <StudyCard
+                        key={c.id}
+                        card={c}
+                        bookmarked={bookmarks.has(c.id)}
+                        onBookmark={toggleBookmark}
+                        isHighlighted={c.id === highlightedCardId}
+                        onWatch={handleWatchCard}
+                        onOpenMaterial={setViewingMaterial}
+                        onOpenNotes={handleOpenNotes}
+                      />
                     ))}
                   </div>
                 </div>
@@ -1015,14 +1244,14 @@ export default function StudySection() {
 
                   {/* Study Cards Grid */}
                   {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
                       {[...Array(6)].map((_, i) => (
                         <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-                          <div className="h-44 bg-gray-200" />
-                          <div className="p-4 space-y-3">
-                            <div className="h-4 bg-gray-200 rounded w-3/4" />
+                          <div className="aspect-video bg-gray-200" />
+                          <div className="p-2.5 sm:p-3.5 space-y-2">
+                            <div className="h-3.5 bg-gray-200 rounded w-3/4" />
                             <div className="h-3 bg-gray-100 rounded w-1/2" />
-                            <div className="h-8 bg-gray-200 rounded-xl" />
+                            <div className="h-7 bg-gray-200 rounded-xl" />
                           </div>
                         </div>
                       ))}
@@ -1042,9 +1271,18 @@ export default function StudySection() {
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
                       {categoryCardsToDisplay.map(c => (
-                        <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
+                        <StudyCard
+                          key={c.id}
+                          card={c}
+                          bookmarked={bookmarks.has(c.id)}
+                          onBookmark={toggleBookmark}
+                          isHighlighted={c.id === highlightedCardId}
+                          onWatch={handleWatchCard}
+                          onOpenMaterial={setViewingMaterial}
+                          onOpenNotes={handleOpenNotes}
+                        />
                       ))}
                     </div>
                   )}
@@ -1068,14 +1306,14 @@ export default function StudySection() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-                    <div className="h-44 bg-gray-200" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="aspect-video bg-gray-200" />
+                    <div className="p-2.5 sm:p-3.5 space-y-2">
+                      <div className="h-3.5 bg-gray-200 rounded w-3/4" />
                       <div className="h-3 bg-gray-100 rounded w-1/2" />
-                      <div className="h-8 bg-gray-200 rounded-xl" />
+                      <div className="h-7 bg-gray-200 rounded-xl" />
                     </div>
                   </div>
                 ))}
@@ -1091,9 +1329,18 @@ export default function StudySection() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
                 {filteredCards.map(c => (
-                  <StudyCard key={c.id} card={c} bookmarked={bookmarks.has(c.id)} onBookmark={toggleBookmark} isHighlighted={c.id === highlightedCardId} onWatch={handleWatchCard} onOpenMaterial={setViewingMaterial} />
+                  <StudyCard
+                    key={c.id}
+                    card={c}
+                    bookmarked={bookmarks.has(c.id)}
+                    onBookmark={toggleBookmark}
+                    isHighlighted={c.id === highlightedCardId}
+                    onWatch={handleWatchCard}
+                    onOpenMaterial={setViewingMaterial}
+                    onOpenNotes={handleOpenNotes}
+                  />
                 ))}
               </div>
             )}
@@ -1207,6 +1454,15 @@ export default function StudySection() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Student Notes Playlist Modal */}
+      {notesPlaylistCard && (
+        <StudentNotesPlaylistModal
+          card={notesPlaylistCard}
+          onClose={() => setNotesPlaylistCard(null)}
+          onOpenMaterial={(mat) => setViewingMaterial(mat)}
+        />
       )}
 
       {/* In-App Material Viewer Modal for Drive & External Resources */}

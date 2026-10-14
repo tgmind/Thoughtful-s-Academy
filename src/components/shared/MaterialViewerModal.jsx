@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft, X, Download, ShieldCheck, FileText, Maximize2,
   Minimize2, ExternalLink, Loader2, Sparkles, AlertCircle
@@ -141,13 +142,13 @@ export default function MaterialViewerModal({ card, onClose }) {
   else if (isDrive) typeLabel = 'Notes'
   else if (card?.type === 'external_link') typeLabel = 'Web Resource'
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
       role="dialog"
       aria-modal="true"
       aria-label={card.title || 'Study Material Viewer'}
-      className="fixed inset-0 z-[9999] flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden select-none"
+      className="fixed inset-0 z-[99999] flex flex-col bg-[#121212] text-slate-100 w-screen h-[100dvh] max-h-[100dvh] m-0 p-0 overflow-hidden select-none"
       style={{ animation: 'materialModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       <style>{`
@@ -157,8 +158,8 @@ export default function MaterialViewerModal({ card, onClose }) {
         }
       `}</style>
 
-      {/* ─── TOP HEADER TOOLBAR (RESPONSIVE & MOBILE-OPTIMIZED) ───────── */}
-      <header className="flex-shrink-0 h-14 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800/80 px-2.5 sm:px-5 flex items-center justify-between gap-2 z-30 shadow-md">
+      {/* ─── TOP HEADER TOOLBAR (GOOGLE MATERIAL DESIGN 3) ─────────────── */}
+      <header className="flex-shrink-0 h-14 sm:h-16 bg-[#1f1f1f] border-b border-[#2d2d2d] px-3 sm:px-6 flex items-center justify-between gap-2.5 z-30 shadow-xs">
         
         {/* Left: Back Button & Title */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -170,12 +171,11 @@ export default function MaterialViewerModal({ card, onClose }) {
               }
               onClose?.()
             }}
-            className="p-2 rounded-xl bg-slate-800/90 hover:bg-red-600/90 text-slate-300 hover:text-white transition-all flex items-center gap-1 shrink-0 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 active:bg-white/20 text-slate-300 hover:text-white transition-all flex items-center justify-center shrink-0 cursor-pointer focus:outline-none"
             title="Close material (Esc)"
             aria-label="Close viewer"
           >
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-bold hidden md:inline">Back</span>
+            <ArrowLeft className="h-5 w-5" />
           </button>
 
           <div className="h-5 w-px bg-slate-800 hidden sm:block shrink-0" />
@@ -184,17 +184,17 @@ export default function MaterialViewerModal({ card, onClose }) {
           <div className="min-w-0 flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-1.5 flex-wrap">
               {card.subject && (
-                <span className="inline-flex items-center text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="inline-flex items-center text-[10px] font-semibold tracking-wide px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30">
                   {card.subject}
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                <FileText className="h-2.5 w-2.5" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium tracking-wide px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/80">
+                <FileText className="h-3 w-3" />
                 <span>{typeLabel}</span>
               </span>
             </div>
             <h3
-              className="text-xs sm:text-sm font-black text-slate-100 truncate tracking-tight mt-0.5"
+              className="text-xs sm:text-sm font-semibold text-slate-100 truncate tracking-normal mt-0.5"
               title={card.title}
             >
               {card.title || 'Untitled Material'}
@@ -206,7 +206,7 @@ export default function MaterialViewerModal({ card, onClose }) {
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           
           {/* Protected View Status */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
             <span>Protected View</span>
           </div>
@@ -217,7 +217,7 @@ export default function MaterialViewerModal({ card, onClose }) {
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
               title="Download clean file directly to your device"
             >
               {downloading ? (
@@ -238,7 +238,7 @@ export default function MaterialViewerModal({ card, onClose }) {
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer focus:outline-none"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             aria-label="Toggle fullscreen"
           >
@@ -258,26 +258,26 @@ export default function MaterialViewerModal({ card, onClose }) {
               }
               onClose?.()
             }}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-600 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer focus:outline-none"
             title="Close (Esc)"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       </header>
 
       {/* ─── MAIN EMBED VIEWPORT ──────────────────────────────────────── */}
-      <main className="flex-1 relative bg-slate-950 overflow-hidden flex items-center justify-center">
+      <main className="flex-1 relative bg-[#121212] overflow-hidden flex items-center justify-center">
         
         {/* Loading Spinner */}
         {loading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-10 transition-opacity">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#121212] z-10 transition-opacity">
             <div className="relative">
               <div className="w-14 h-14 rounded-full border-4 border-amber-500/20 border-t-amber-400 animate-spin" />
               <FileText className="h-6 w-6 text-amber-400 absolute inset-0 m-auto" />
             </div>
-            <p className="mt-4 text-xs sm:text-sm font-bold text-slate-300">
+            <p className="mt-4 text-xs sm:text-sm font-semibold text-slate-200">
               Opening study material in protected view...
             </p>
             <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
@@ -289,12 +289,12 @@ export default function MaterialViewerModal({ card, onClose }) {
 
         {/* Fallback / Error State */}
         {hasError ? (
-          <div className="max-w-md p-6 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-4 m-4 shadow-xl">
+          <div className="max-w-md p-6 bg-[#1e1e1e] border border-[#2d2d2d] rounded-3xl text-center space-y-4 m-4 shadow-xl">
             <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 mx-auto flex items-center justify-center">
               <AlertCircle className="h-6 w-6" />
             </div>
             <div>
-              <h4 className="text-base font-bold text-white">Preview Unavailable</h4>
+              <h4 className="text-base font-semibold text-white">Preview Unavailable</h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 This document provider restricts in-frame embedding. You can download the file directly or open it securely.
               </p>
@@ -304,7 +304,7 @@ export default function MaterialViewerModal({ card, onClose }) {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Download className="h-4 w-4" /> Download File
                 </button>
@@ -313,14 +313,14 @@ export default function MaterialViewerModal({ card, onClose }) {
                 href={card.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-full transition-all flex items-center justify-center gap-1.5"
               >
                 <ExternalLink className="h-4 w-4" /> Open External Link
               </a>
             </div>
           </div>
         ) : (
-          <div className="w-full h-full relative bg-slate-900">
+          <div className="w-full h-full relative bg-[#121212]">
             {/* Embedded Material Iframe */}
             <iframe
               ref={iframeRef}
@@ -334,11 +334,11 @@ export default function MaterialViewerModal({ card, onClose }) {
 
             {/* 
               ─── PROTECTIVE CORNER SHIELD ───
-              Conceals Google Drive's pop-out button with an elegant Thoughtful's Academy badge.
+              Seamlessly matches Google Drive dark toolbar (#323639) to cap pop-out cleanly.
             */}
             {isDrive && (
               <div
-                className="absolute top-0 right-0 w-28 h-12 z-20 pointer-events-auto cursor-default bg-slate-950/90 backdrop-blur-sm border-b border-l border-slate-800 rounded-bl-xl flex items-center justify-center gap-1 text-[11px] font-bold text-amber-400 select-none shadow-md"
+                className="absolute top-0 right-0 w-14 h-12 z-20 pointer-events-auto cursor-default bg-[#323639] border-b border-l border-[#4a4d50] rounded-bl-lg flex items-center justify-center gap-1 text-[10px] font-medium text-slate-300 select-none shadow-xs"
                 title="Protected View: Sharing and pop-outs restricted."
                 onClick={(e) => {
                   e.stopPropagation()
@@ -352,6 +352,7 @@ export default function MaterialViewerModal({ card, onClose }) {
           </div>
         )}
       </main>
-    </div>
+    </div>,
+    document.body
   )
 }
