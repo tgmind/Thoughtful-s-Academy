@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import {
   ArrowLeft, BookOpen, Heart, Maximize2, Minimize2,
@@ -6,7 +6,7 @@ import {
   ChevronRight, Layers, Clock, Search, Radio,
   ShieldCheck, CheckCircle2, Send, HelpCircle,
   FileText, Keyboard, X, LogIn, Trash2,
-  AlertCircle, RefreshCw, Eye
+  AlertCircle, RefreshCw, Eye, Download, Edit3, Plus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -20,6 +20,8 @@ import {
 } from '../../utils/youtube'
 import ProtectedVideoPlayer from '../../components/shared/ProtectedVideoPlayer'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
+import NotesPlaylistModal from '../../components/shared/NotesPlaylistModal'
+import { getDirectDownloadUrl, isGoogleDriveResource } from '../../utils/materialUrl'
 import {
   createDoubt,
   fetchStudentDoubtsForLecture,
@@ -67,6 +69,8 @@ export default function WatchLecture() {
   const [loading, setLoading] = useState(!isMatchingCard && !!cardId)
   const [relatedCards, setRelatedCards] = useState([])
   const [notesResources, setNotesResources] = useState([])
+  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [notesSearch, setNotesSearch] = useState('')
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -210,20 +214,39 @@ export default function WatchLecture() {
     }
   }, [card])
 
-  // Fetch subject notes & PDFs
+  // Synchronize attached notes for this card exclusively (zero interference from other subjects)
   useEffect(() => {
-    if (!card?.subject) return
-    supabase
-      .from('study_cards')
-      .select('*')
-      .eq('is_active', true)
-      .eq('subject', card.subject)
-      .in('type', ['google_drive', 'external_link'])
-      .limit(6)
-      .then(({ data }) => {
-        setNotesResources(data ?? [])
-      })
-  }, [card?.subject])
+    if (!card) return
+    if (Array.isArray(card.attached_notes)) {
+      setNotesResources(card.attached_notes)
+    } else if (cardId) {
+      supabase
+        .from('study_cards')
+        .select('attached_notes')
+        .eq('id', cardId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (Array.isArray(data?.attached_notes)) {
+            setNotesResources(data.attached_notes)
+          } else {
+            setNotesResources([])
+          }
+        })
+    } else {
+      setNotesResources([])
+    }
+  }, [card?.attached_notes, card, cardId])
+
+  // Filtered notes by search query
+  const filteredNotes = useMemo(() => {
+    if (!notesSearch.trim()) return notesResources
+    const q = notesSearch.toLowerCase().trim()
+    return notesResources.filter(n =>
+      (n.title?.toLowerCase() || '').includes(q) ||
+      (n.tag?.toLowerCase() || '').includes(q) ||
+      (n.description?.toLowerCase() || '').includes(q)
+    )
+  }, [notesResources, notesSearch])
 
   // Fetch student profile for authoritative batch and roll number
   const fetchStudentProfile = useCallback(async (uid) => {
@@ -1076,54 +1099,191 @@ export default function WatchLecture() {
             </div>
           )}
 
-          {/* TAB 2: CLASS NOTES & FORMULAS (PW STYLE) */}
+          {/* TAB 2: NOTES PLAYLIST & LECTURE STUDY MATERIALS (MODERN GREYISH / GREY-WHITE THEME) */}
           {activeTab === 'notes' && (
-            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-4 sm:p-5 space-y-4 h-[520px] overflow-y-auto custom-scrollbar">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                  <FileText className="h-4 w-4" />
+            <div className="bg-slate-100/95 dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-lg overflow-hidden flex flex-col h-[520px]">
+              
+              {/* Header (Grey-Whitish Theme with Status & Search) */}
+              <div className="p-4 border-b border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-800/90 space-y-2.5 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-800 dark:text-slate-200 shrink-0">
+                      <FileText className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider truncate">
+                          {hasMultipleLectures ? 'Notes Playlist' : 'Lecture Notes & Reference'}
+                        </h3>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate">
+                        {notesResources.length > 0
+                          ? `${notesResources.length} ${notesResources.length === 1 ? 'document' : 'documents'} attached to this card`
+                          : 'Handwritten notes & study reference'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-black bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded-full">
+                      {notesResources.length} Notes
+                    </span>
+                    {isTeacherOrAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNotesModal(true)}
+                        className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                        title="Add or update attached notes playlist"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        <span className="hidden sm:inline">Manage</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Chapter Notes &amp; Formulas
-                  </h3>
-                  <p className="text-[10px] text-slate-500">
-                    Handwritten notes &amp; reference sheets for {card.subject || 'this lecture'}
-                  </p>
-                </div>
+
+                {/* Filter / Search Bar if more than 2 notes */}
+                {notesResources.length > 2 && (
+                  <div className="relative pt-0.5">
+                    <Search className="h-3.5 w-3.5 absolute left-2.5 top-[calc(50%+1px)] -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={notesSearch}
+                      onChange={(e) => setNotesSearch(e.target.value)}
+                      placeholder="Search notes, formulas, or topics..."
+                      className="w-full bg-slate-50 dark:bg-slate-900 text-xs text-slate-900 dark:text-white placeholder-slate-400 pl-7 pr-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+                )}
               </div>
 
+              {/* Notes Playlist Items */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                {filteredNotes.length > 0 ? (
+                  filteredNotes.map((note, idx) => {
+                    const isDrive = isGoogleDriveResource(note.url)
+                    const isCurrentLectureNote = hasMultipleLectures && (
+                      note.lecture_index === activeVideoIndex + 1 ||
+                      (playlistItems[activeVideoIndex]?.title && note.title?.toLowerCase().includes(playlistItems[activeVideoIndex].title.toLowerCase().substring(0, 15)))
+                    )
 
-              {/* Downloadable / Cloud Drive Notes in this Subject */}
-              <div className="space-y-2 pt-1">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                  Subject Materials ({notesResources.length})
-                </span>
+                    return (
+                      <div
+                        key={note.id || idx}
+                        onClick={() => setViewingMaterial({
+                          id: note.id,
+                          title: note.title,
+                          subject: card.subject,
+                          url: note.url,
+                          type: isDrive ? 'google_drive' : 'external_link'
+                        })}
+                        className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-center justify-between gap-3 group cursor-pointer border ${
+                          isCurrentLectureNote
+                            ? 'bg-white dark:bg-slate-800 border-amber-400 dark:border-amber-500 shadow-md ring-2 ring-amber-400/25 scale-[1.01]'
+                            : 'bg-white/90 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 border-slate-200/90 dark:border-slate-700/80 hover:border-slate-300 shadow-2xs hover:shadow-xs'
+                        }`}
+                      >
+                        {/* Note Thumbnail / Document Index Badge */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 border transition-all ${
+                            isCurrentLectureNote
+                              ? 'bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/60 dark:to-slate-800 border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400'
+                              : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'
+                          }`}>
+                            <span className="text-[9px] font-black">
+                              #{note.lecture_index ?? (idx + 1)}
+                            </span>
+                            <span className="text-[7px] font-extrabold uppercase px-1 rounded bg-slate-200/80 dark:bg-slate-600 text-slate-700 dark:text-slate-300 mt-0.5">
+                              {isDrive ? 'PDF' : 'DOC'}
+                            </span>
+                          </div>
 
-                {notesResources.length > 0 ? (
-                  notesResources.map(n => (
-                    <button
-                      key={n.id}
-                      type="button"
-                      onClick={() => setViewingMaterial(n)}
-                      className="w-full text-left p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-2xl transition-all flex items-center justify-between gap-3 group cursor-pointer"
-                    >
-                      <div className="min-w-0">
-                        <span className="text-[8px] font-black uppercase text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
-                          {n.type === 'google_drive' ? 'PDF NOTES' : 'RESOURCE'}
-                        </span>
-                        <h4 className="text-xs font-bold text-slate-800 truncate mt-0.5 group-hover:text-emerald-800">
-                          {n.title}
-                        </h4>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isCurrentLectureNote && (
+                                <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-amber-900 bg-amber-400/90 px-1.5 py-0.2 rounded shadow-2xs">
+                                  ★ Current Lecture Note
+                                </span>
+                              )}
+                              <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded border border-slate-200 dark:border-slate-600">
+                                {note.tag || 'Notes'}
+                              </span>
+                            </div>
+                            <h4 className={`text-xs font-bold line-clamp-2 mt-0.5 transition-colors ${
+                              isCurrentLectureNote
+                                ? 'text-slate-900 dark:text-white font-black'
+                                : 'text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                            }`}>
+                              {note.title}
+                            </h4>
+                            {note.description && (
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                                {note.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setViewingMaterial({
+                                id: note.id,
+                                title: note.title,
+                                subject: card.subject,
+                                url: note.url,
+                                type: isDrive ? 'google_drive' : 'external_link'
+                              })
+                            }}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                            title="Open notes in premium reader"
+                          >
+                            <Eye className="h-3 w-3 text-amber-500" />
+                            <span className="hidden sm:inline">Open</span>
+                          </button>
+
+                          <a
+                            href={getDirectDownloadUrl(note.url)}
+                            download
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-lg transition-all cursor-pointer"
+                            title="Direct download to device"
+                          >
+                            <Download className="h-3 w-3" />
+                          </a>
+                        </div>
                       </div>
-                      <Eye className="h-4 w-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                    </button>
-                  ))
+                    )
+                  })
                 ) : (
-                  <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 p-4">
-                    <FileText className="h-7 w-7 text-slate-300 mx-auto mb-1.5" />
-                    <p className="text-xs font-bold text-slate-600">Notes will be uploaded shortly</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Your educator uploads handwritten notes after lecture delivery.</p>
+                  <div className="text-center py-12 bg-white dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700 p-6 space-y-3">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 mx-auto">
+                      <FileText className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {notesSearch ? 'No notes match your search' : 'Notes will be uploaded shortly'}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 max-w-xs mx-auto">
+                        {notesSearch
+                          ? 'Try clearing the search query or checking all notes.'
+                          : 'Your educator uploads handwritten notes and reference sheets for this course.'}
+                      </p>
+                    </div>
+
+                    {isTeacherOrAdmin && !notesSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNotesModal(true)}
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>{hasMultipleLectures ? 'Create Notes Playlist' : 'Attach Notes & PDF'}</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1593,6 +1753,21 @@ export default function WatchLecture() {
         <MaterialViewerModal
           card={viewingMaterial}
           onClose={() => setViewingMaterial(null)}
+        />
+      )}
+
+      {/* Notes Playlist Modal for Educators/Admins */}
+      {showNotesModal && (
+        <NotesPlaylistModal
+          isOpen={showNotesModal}
+          onClose={() => setShowNotesModal(false)}
+          card={card}
+          onSaveSuccess={(updatedCard) => {
+            setCard(updatedCard)
+            if (Array.isArray(updatedCard.attached_notes)) {
+              setNotesResources(updatedCard.attached_notes)
+            }
+          }}
         />
       )}
 

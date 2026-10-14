@@ -120,3 +120,8 @@ export function getMaterialDownloadUrl(rawUrl, _type) {
 
   return normalizeUrl(rawUrl)
 }
+
+/**
+ * Convenient alias for getMaterialDownloadUrl
+ */
+export const getDirectDownloadUrl = getMaterialDownloadUrl

@@ -210,6 +210,12 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
                 <Sparkles className="h-3 w-3 text-amber-500" /> Featured
               </span>
             )}
+            {card.attached_notes?.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                <FileText className="h-3 w-3 text-amber-500" />
+                {card.type === 'youtube_playlist' ? `Notes Playlist (${card.attached_notes.length})` : `Notes (${card.attached_notes.length})`}
+              </span>
+            )}
           </div>
           <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-blue-950 transition-colors">
             {card.title}

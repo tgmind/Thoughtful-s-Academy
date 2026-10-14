@@ -3,13 +3,15 @@ import { Link } from 'react-router-dom'
 import {
   Layers, Bold, Italic, Underline, Strikethrough,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Save, Plus, Trash2,
-  Image as ImageIcon, Video, UserCheck, Sparkles, RefreshCw, ExternalLink, X, Clock
+  Image as ImageIcon, Video, UserCheck, Sparkles, RefreshCw, ExternalLink, X, Clock,
+  FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import CustomSelect from '../../components/ui/CustomSelect'
 import ActivityLogModal from '../../components/shared/ActivityLogModal'
+import NotesPlaylistModal from '../../components/shared/NotesPlaylistModal'
 import { logActivity } from '../../lib/activityLogger'
 
 import DriveImage from '../../components/shared/DriveImage'
@@ -161,6 +163,7 @@ export default function AdminBatchDetails() {
   })
   const [savingCard, setSavingCard] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
+  const [notesModalCard, setNotesModalCard] = useState(null)
 
   // Load batches on mount
   useEffect(() => {
@@ -565,15 +568,31 @@ export default function AdminBatchDetails() {
                     </div>
                   </div>
 
-                  {/* Action Button */}
-                  <button
-                    onClick={() => handleRemoveFromPublic(card)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                    title="Remove card from public batch page"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Remove from Public Page
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setNotesModalCard(card)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer"
+                      title={card.type === 'youtube_playlist' ? 'Manage Notes Playlist' : 'Attach Notes & PDFs'}
+                    >
+                      <FileText className="h-3.5 w-3.5 text-amber-500" />
+                      <span>
+                        {card.type === 'youtube_playlist'
+                          ? (card.attached_notes?.length > 0 ? `Notes (${card.attached_notes.length})` : 'Notes Playlist')
+                          : (card.attached_notes?.length > 0 ? `Notes (${card.attached_notes.length})` : 'Attach Notes')}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => handleRemoveFromPublic(card)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                      title="Remove card from public batch page"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -697,6 +716,19 @@ export default function AdminBatchDetails() {
           batchId={selectedBatchId}
           batchName={batches.find(b => b.id === selectedBatchId)?.name}
           onClose={() => setShowActivityLog(false)}
+        />
+      )}
+
+      {/* Notes Playlist Modal */}
+      {notesModalCard && (
+        <NotesPlaylistModal
+          isOpen={Boolean(notesModalCard)}
+          onClose={() => setNotesModalCard(null)}
+          card={notesModalCard}
+          onSaveSuccess={(updated) => {
+            setStudyCards(prev => prev.map(c => c.id === updated.id ? updated : c))
+            setNotesModalCard(null)
+          }}
         />
       )}
     </div>

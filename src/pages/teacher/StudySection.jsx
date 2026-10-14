@@ -16,6 +16,7 @@ import { getSubjectTheme, getYTVideoId, getYTPlaylistId, getYTThumb, TYPE_BADGES
 import { logActivity } from '../../lib/activityLogger'
 import ActivityLogModal from '../../components/shared/ActivityLogModal'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
+import NotesPlaylistModal from '../../components/shared/NotesPlaylistModal'
 
 // Vibrant aesthetic themes for batch workspace cards
 const BATCH_THEMES = [
@@ -344,7 +345,8 @@ function ManageableStudyCard({
   onWatch,
   deleting,
   viewMode = 'grid',
-  onOpenMaterial
+  onOpenMaterial,
+  onManageNotes
 }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
   const badgeInfo = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
@@ -410,6 +412,22 @@ function ManageableStudyCard({
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+          {canManage && isVideo && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onManageNotes?.(card) }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300/80 dark:border-slate-700 text-xs font-bold shadow-2xs transition-all cursor-pointer active:scale-95"
+              title={card.type === 'youtube_playlist' ? 'Manage Notes Playlist' : 'Attach Notes & PDFs'}
+            >
+              <FileText className="h-3.5 w-3.5 text-amber-500" />
+              <span>
+                {card.type === 'youtube_playlist'
+                  ? (card.attached_notes?.length > 0 ? `Notes (${card.attached_notes.length})` : 'Notes Playlist')
+                  : (card.attached_notes?.length > 0 ? `Notes (${card.attached_notes.length})` : 'Attach Notes')}
+              </span>
+            </button>
+          )}
+
           {canManage && (
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
               <button
@@ -603,8 +621,24 @@ function ManageableStudyCard({
           )}
         </div>
 
-        {/* Action Button */}
-        <div>
+        {/* Action Button & Notes Management */}
+        <div className="space-y-2">
+          {isVideo && canManage && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onManageNotes?.(card) }}
+              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300/80 dark:border-slate-700 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
+              title={card.type === 'youtube_playlist' ? 'Create or manage Notes Playlist' : 'Attach Google Drive Notes & PDFs'}
+            >
+              <FileText className="h-3.5 w-3.5 text-amber-500" />
+              <span>
+                {card.type === 'youtube_playlist'
+                  ? (card.attached_notes?.length > 0 ? `Notes Playlist (${card.attached_notes.length})` : '+ Create Notes Playlist')
+                  : (card.attached_notes?.length > 0 ? `Attached Notes (${card.attached_notes.length})` : '+ Attach Notes / PDF')}
+              </span>
+            </button>
+          )}
+
           {isVideo ? (
             <button
               onClick={() => onWatch?.(card)}
@@ -648,6 +682,7 @@ export default function StudySection({ isAdmin = false }) {
 
   // Modal Form State
   const [showForm, setShowForm] = useState(false)
+  const [notesModalCard, setNotesModalCard] = useState(null)
   const [form, setForm] = useState(EMPTY_CARD_FORM)
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -1167,6 +1202,7 @@ export default function StudySection({ isAdmin = false }) {
             deleting={deleting}
             viewMode={viewMode}
             onOpenMaterial={setViewingMaterial}
+            onManageNotes={setNotesModalCard}
           />
         )
       })}
@@ -1950,6 +1986,19 @@ export default function StudySection({ isAdmin = false }) {
         <MaterialViewerModal
           card={viewingMaterial}
           onClose={() => setViewingMaterial(null)}
+        />
+      )}
+
+      {/* Notes Playlist Modal for Educators/Admins */}
+      {notesModalCard && (
+        <NotesPlaylistModal
+          isOpen={Boolean(notesModalCard)}
+          onClose={() => setNotesModalCard(null)}
+          card={notesModalCard}
+          onSaveSuccess={(updated) => {
+            setCards(prev => prev.map(c => c.id === updated.id ? updated : c))
+            setNotesModalCard(null)
+          }}
         />
       )}
     </div>
