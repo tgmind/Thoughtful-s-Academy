@@ -63,7 +63,6 @@ export default function ProtectedVideoPlayer({
   // Playback & Timing state
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isBuffering, setIsBuffering] = useState(false)
   const [isEnded, setIsEnded] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -351,7 +350,6 @@ export default function ProtectedVideoPlayer({
 
             if (state === YT.PlayerState.PLAYING) {
               setIsPlaying(true)
-              setIsBuffering(false)
               setIsEnded(false)
               cancelAutoAdvance()
 
@@ -391,12 +389,10 @@ export default function ProtectedVideoPlayer({
               } catch { /* Ignore */ }
             } else if (state === YT.PlayerState.PAUSED) {
               setIsPlaying(false)
-              setIsBuffering(false)
             } else if (state === YT.PlayerState.BUFFERING) {
-              setIsBuffering(true)
+              // Buffering state handled natively by stream
             } else if (state === YT.PlayerState.ENDED) {
               setIsPlaying(false)
-              setIsBuffering(false)
               setIsEnded(true)
               setControlsVisible(true)
 
@@ -408,12 +404,10 @@ export default function ProtectedVideoPlayer({
                 }
               }
             } else if (state === YT.PlayerState.CUED) {
-              setIsBuffering(false)
               setIsEnded(false)
             }
           },
           onError: (event) => {
-            setIsBuffering(false)
             setHasError(true)
             const code = event.data
             console.warn('YouTube Player error code:', code)
@@ -491,7 +485,6 @@ export default function ProtectedVideoPlayer({
         if (targetVideoId) currentLoadedVideoIdRef.current = targetVideoId
         try {
           setIsEnded(false)
-          setIsBuffering(true)
           player.playVideoAt(activeVideoIndex)
           applyQualityToPlayer(selectedQualityRef.current)
         } catch (err) {
@@ -508,7 +501,6 @@ export default function ProtectedVideoPlayer({
         currentLoadedIndexRef.current = activeVideoIndex
         try {
           setIsEnded(false)
-          setIsBuffering(true)
           player.loadVideoById(targetVideoId)
           applyQualityToPlayer(selectedQualityRef.current)
         } catch (err) {
@@ -1313,12 +1305,7 @@ export default function ProtectedVideoPlayer({
             </div>
           </div>
 
-          {/* 2. BUFFERING SPINNER (WHEN LOADING) ─────────────────────────────────── */}
-          {isBuffering && (
-            <div className="my-auto self-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin flex items-center justify-center backdrop-blur-xs pointer-events-none" />
-          )}
-
-          {/* 3. BOTTOM FLOATING BAR (TRANSLUCENT GRADIENT OVERLAY) ────────────── */}
+          {/* 2. BOTTOM FLOATING BAR (TRANSLUCENT GRADIENT OVERLAY) ────────────── */}
           <div className={`pt-3 pb-2 px-2 sm:px-3 bg-gradient-to-t from-black/90 via-black/40 to-transparent space-y-1 ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}>
 
             {/* Progress Bar */}
