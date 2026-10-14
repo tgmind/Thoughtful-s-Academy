@@ -90,16 +90,8 @@ function getSubjectTheme(subjectName = '') {
 }
 
 
-const TYPE_BADGES = {
-  youtube_video:    { label: 'Video Lecture', color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },
-  youtube_playlist: { label: 'Playlist',      color: 'bg-red-50 text-red-700 border-red-200',        icon: <Youtube className="h-3 w-3" /> },
-  google_drive:     { label: 'Notes / Drive', color: 'bg-amber-50 text-amber-800 border-amber-300',  icon: <FileText className="h-3 w-3 text-amber-600" /> },
-  external_link:    { label: 'Link',          color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <LinkIcon className="h-3 w-3" /> },
-}
-
 function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpenMaterial, onOpenNotes }) {
   const thumb = card.thumbnail_url || getYTThumb(card.url)
-  const badge = TYPE_BADGES[card.type] || TYPE_BADGES.external_link
   const isVideo = card.type?.startsWith('youtube')
   const hasAttachedNotes = Array.isArray(card.attached_notes) && card.attached_notes.length > 0
   const isPlaylist = card.type === 'youtube_playlist'
@@ -135,11 +127,11 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
       id={`card-${card.id}`}
       className={`group relative bg-white rounded-2xl border transition-all duration-200 flex flex-col overflow-hidden shadow-2xs hover:shadow-md hover:-translate-y-0.5 ${
         isHighlighted
-          ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-lg scale-[1.01] bg-amber-50/10'
+          ? 'border-indigo-400 ring-2 ring-indigo-400/30 shadow-lg scale-[1.01] bg-indigo-50/10'
           : 'border-slate-200/90 hover:border-slate-300'
       }`}
     >
-      {/* ─── COMPACT THUMBNAIL CONTAINER ─── */}
+      {/* ─── 1. THUMBNAIL (16:9 HERO VIEWPORT) ─── */}
       <div
         className="relative overflow-hidden aspect-video bg-slate-950 cursor-pointer select-none"
         onClick={handleCardClick}
@@ -152,44 +144,56 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : card.type === 'google_drive' ? (
-          /* Soothing EdTech Study Notebook Cover Design */
-          <div className="w-full h-full bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 relative flex items-center justify-center p-2.5 sm:p-3 overflow-hidden select-none">
-            <div className="absolute -top-8 -right-8 w-28 h-28 bg-amber-200/40 rounded-full blur-xl pointer-events-none" />
-            <div className="relative z-0 bg-white rounded-xl shadow-xs p-2 border border-amber-200/80 w-[84%] max-w-[200px] h-[78%] max-h-[110px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
+          /* Apple Books / High-End Digital Document Cover */
+          <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 relative flex items-center justify-center p-3 select-none overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-28 h-28 bg-indigo-500/15 rounded-full blur-xl pointer-events-none" />
+            <div className="relative z-10 bg-white dark:bg-slate-900 rounded-xl shadow-md p-2.5 border border-slate-200/80 dark:border-slate-700 w-[88%] max-w-[210px] h-[82%] max-h-[115px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[7.5px] sm:text-[8px] font-black uppercase tracking-wider shadow-2xs">
-                  <FileText className="h-2 w-2" />
-                  <span>CHAPTER NOTES</span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/30 text-[8px] font-black uppercase tracking-wider">
+                  <FileText className="h-2.5 w-2.5 text-amber-600" />
+                  <span>PDF NOTES</span>
                 </span>
+                {card.subject && (
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tight truncate max-w-[80px]">
+                    {card.subject}
+                  </span>
+                )}
               </div>
-              <h4 className="text-[9.5px] sm:text-[11px] font-black text-slate-900 tracking-tight leading-tight line-clamp-1 my-0.5">
+              <h4 className="text-[10px] sm:text-[11px] font-black text-slate-900 dark:text-white tracking-tight leading-snug line-clamp-2 my-0.5">
                 {card.title}
               </h4>
-              <div className="space-y-0.5">
-                <div className="h-0.5 bg-amber-100 rounded-full w-full" />
-                <div className="h-0.5 bg-amber-100 rounded-full w-2/3" />
+              <div className="space-y-1">
+                <div className="h-0.5 bg-slate-200 dark:bg-slate-700 rounded-full w-full" />
+                <div className="h-0.5 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4" />
               </div>
             </div>
           </div>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-950 to-indigo-950 flex items-center justify-center p-3">
+          <div className="w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center p-3">
             <BookOpen className="h-8 w-8 text-white/30" />
           </div>
         )}
 
-        {/* Dark overlay & Play icon for videos */}
+        {/* Video Play Overlay */}
         {isVideo && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-70 group-hover:opacity-80 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 opacity-60 group-hover:opacity-75 transition-opacity" />
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-red-600 transition-all duration-200 shadow-md border border-white/30">
-                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white fill-current ml-0.5" />
+              <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-900 group-hover:scale-110 group-hover:bg-red-600 group-hover:text-white transition-all duration-200 shadow-md">
+                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current ml-0.5" />
               </div>
             </div>
           </>
         )}
 
-        {/* Heart Bookmark */}
+        {/* Subject Label Overlaid Top-Left */}
+        {card.subject && (
+          <span className="absolute top-2 left-2 z-20 bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md border border-white/10 select-none">
+            {card.subject}
+          </span>
+        )}
+
+        {/* Minimal Bookmark Button Top-Right */}
         <button
           type="button"
           onClick={(e) => {
@@ -197,102 +201,100 @@ function StudyCard({ card, bookmarked, onBookmark, isHighlighted, onWatch, onOpe
             onBookmark(card.id, bookmarked)
           }}
           title={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
+          aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark card'}
           className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all z-20 cursor-pointer ${
             bookmarked
               ? 'bg-red-500 text-white shadow-md scale-105'
-              : 'bg-black/40 text-white/90 hover:bg-black/70 hover:text-white'
+              : 'bg-black/35 text-white/90 hover:bg-black/60 hover:text-white'
           }`}
         >
           <Heart className={`h-3.5 w-3.5 ${bookmarked ? 'fill-current' : ''}`} />
         </button>
 
-        {/* Subject Pill (Bottom-left) */}
-        {card.subject && (
-          <span className="absolute bottom-2 left-2 z-20 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-white/10 select-none">
-            {card.subject}
-          </span>
-        )}
+        {/* Format Chip Bottom-Right */}
+        <span className="absolute bottom-2 right-2 z-20 bg-black/75 backdrop-blur-md text-white text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-white/10 select-none flex items-center gap-1">
+          {isPlaylist ? <Youtube className="h-2.5 w-2.5 text-red-400" /> : isVideo ? <Play className="h-2.5 w-2.5 text-red-400 fill-current" /> : <FileText className="h-2.5 w-2.5 text-amber-400" />}
+          <span>{isPlaylist ? 'PLAYLIST' : isVideo ? 'VIDEO' : 'PDF'}</span>
+        </span>
       </div>
 
-      {/* ─── CARD CONTENT BODY ─── */}
-      <div className="p-2.5 sm:p-3.5 flex flex-col flex-1 justify-between gap-2 sm:gap-2.5">
-        <div className="space-y-1 sm:space-y-1.5 min-w-0">
+      {/* ─── 2. CARD CONTENT AREA ─── */}
+      <div className="p-3 sm:p-3.5 flex flex-col flex-1 justify-between gap-2">
+        <div className="space-y-1 min-w-0">
           
-          {/* Badges Row */}
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className={`inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border ${badge.color}`}>
-              {badge.icon} {badge.label}
+          {/* Single Compact Meta Row (No double stacked badges) */}
+          <div className="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="truncate">
+              {isPlaylist ? 'Playlist' : isVideo ? 'Video Lecture' : 'Chapter Notes'}
             </span>
-            
             {card.is_featured && (
-              <span className="inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                <Sparkles className="h-2.5 w-2.5 text-amber-500" /> Featured
+              <span className="inline-flex items-center gap-0.5 text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded font-black text-[8px] uppercase">
+                <Sparkles className="h-2 w-2 text-amber-500 fill-current" /> Featured
               </span>
-            )}
-
-            {hasAttachedNotes && (
-              <button
-                type="button"
-                onClick={handleNotesClick}
-                className="inline-flex items-center gap-1 text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 rounded font-bold tracking-tight bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer"
-                title="View attached notes"
-              >
-                <FileText className="h-2.5 w-2.5 text-amber-600" />
-                <span>{isPlaylist ? 'Notes Playlist' : 'Notes'} ({card.attached_notes.length})</span>
-              </button>
             )}
           </div>
 
-          {/* Title - Never Chops Off */}
+          {/* Title (High-contrast, never chops off) */}
           <h3
             onClick={handleCardClick}
-            className="font-bold text-slate-900 text-xs sm:text-sm leading-snug line-clamp-2 group-hover:text-blue-950 transition-colors cursor-pointer"
+            className="font-black text-slate-900 text-xs sm:text-sm leading-snug line-clamp-2 min-h-[2.3rem] sm:min-h-[2.6rem] group-hover:text-indigo-600 transition-colors cursor-pointer"
             title={card.title}
           >
             {card.title}
           </h3>
 
-          {/* Description */}
+          {/* Description (1 line on mobile) */}
           {card.description && (
-            <p className="text-[10.5px] sm:text-xs text-slate-500 line-clamp-1 sm:line-clamp-2 leading-relaxed">
+            <p className="text-[10.5px] sm:text-xs text-slate-500 line-clamp-1 leading-relaxed">
               {card.description}
             </p>
           )}
         </div>
 
-        {/* Actions Button Row */}
-        <div className="space-y-1 pt-1">
+        {/* ─── 3. UNIFIED ACTION BUTTON ROW ─── */}
+        <div className="pt-1">
           {isVideo ? (
-            <button
-              type="button"
-              onClick={() => onWatch?.(card)}
-              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2.5 bg-blue-950 hover:bg-blue-900 active:scale-98 text-white text-[11px] sm:text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
-            >
-              <PlayCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="truncate">Watch Lecture</span>
-            </button>
+            hasAttachedNotes ? (
+              /* Duo-Action Row Side-by-Side: Watch + Notes (N) */
+              <div className="flex items-center gap-1.5 w-full">
+                <button
+                  type="button"
+                  onClick={() => onWatch?.(card)}
+                  className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-2 bg-slate-900 hover:bg-indigo-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer min-w-0"
+                >
+                  <PlayCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  <span className="truncate">Watch</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNotesClick}
+                  className="shrink-0 inline-flex items-center justify-center gap-1 py-2 px-2 sm:px-2.5 bg-amber-50 hover:bg-amber-100/90 active:scale-98 text-amber-950 border border-amber-200/80 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
+                  title={`Open ${card.attached_notes.length} attached notes`}
+                >
+                  <FileText className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span className="whitespace-nowrap">Notes ({card.attached_notes.length})</span>
+                </button>
+              </div>
+            ) : (
+              /* Single Full-Width Action: Watch Lecture */
+              <button
+                type="button"
+                onClick={() => onWatch?.(card)}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-900 hover:bg-indigo-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
+              >
+                <PlayCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <span>Watch Lecture</span>
+              </button>
+            )
           ) : (
+            /* Single Full-Width Action: Open Material */
             <button
               type="button"
               onClick={handleCardClick}
-              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2.5 bg-blue-950 hover:bg-blue-900 active:scale-98 text-white text-[11px] sm:text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-900 hover:bg-indigo-600 active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs group-hover:shadow-xs cursor-pointer"
             >
               <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="truncate">Open Material</span>
-            </button>
-          )}
-
-          {isVideo && hasAttachedNotes && (
-            <button
-              type="button"
-              onClick={handleNotesClick}
-              className="w-full inline-flex items-center justify-center gap-1 py-1 px-2 bg-slate-100 hover:bg-amber-100/70 text-slate-700 hover:text-amber-950 border border-slate-200/80 rounded-lg text-[10px] sm:text-[10.5px] font-bold transition-all cursor-pointer truncate"
-              title="Open lecture notes playlist"
-            >
-              <FileText className="h-3 w-3 text-amber-600 shrink-0" />
-              <span className="truncate">
-                {isPlaylist ? `Notes Playlist (${card.attached_notes.length})` : `Attached Notes (${card.attached_notes.length})`}
-              </span>
+              <span>Open Material</span>
             </button>
           )}
         </div>
@@ -998,21 +1000,21 @@ export default function StudySection() {
 
               {/* Distinct Feed Container for Recent Uploads */}
               {cards.length > 0 && (
-                <div className="bg-slate-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white space-y-3.5 sm:space-y-4 shadow-xl border border-slate-800 relative overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 gap-2">
+                <div className="bg-white rounded-3xl p-4 sm:p-6 text-slate-900 space-y-3.5 sm:space-y-4 shadow-sm border border-slate-200/90 relative overflow-hidden bg-gradient-to-b from-slate-50/50 via-white to-white">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2">
                     <div className="min-w-0">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 text-[9px] sm:text-[10px] font-black uppercase tracking-wider mb-1">
-                        <Sparkles className="h-3 w-3 fill-current text-amber-400" />
-                        <span>Latest Material Feed</span>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60 text-[9px] sm:text-[9.5px] font-black uppercase tracking-wider mb-1">
+                        <Sparkles className="h-3 w-3 fill-current text-indigo-600" />
+                        <span>Latest for your Batch</span>
                       </div>
-                      <h3 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate">
+                      <h3 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate">
                         Recent Batch Uploads
                       </h3>
-                      <p className="text-[11px] sm:text-xs text-slate-400 font-medium line-clamp-1 sm:line-clamp-none">
-                        Fresh video lectures, chapter notes, and assignments uploaded for your batch
+                      <p className="text-[11px] sm:text-xs text-slate-500 font-medium line-clamp-1 sm:line-clamp-none">
+                        Lectures, chapter notes & materials uploaded for your batch
                       </p>
                     </div>
-                    <span className="hidden sm:inline-flex text-[11px] font-bold text-slate-400 bg-slate-800/80 border border-slate-700/80 px-2.5 py-1 rounded-full shrink-0">
+                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full shrink-0">
                       {cards.length} {cards.length === 1 ? 'Upload' : 'Uploads'}
                     </span>
                   </div>

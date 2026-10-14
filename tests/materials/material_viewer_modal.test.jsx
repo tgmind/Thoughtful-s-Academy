@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import MaterialViewerModal from '../../src/components/shared/MaterialViewerModal'
-import PremiumPdfViewer from '../../src/components/shared/PremiumPdfViewer'
 import {
   parseGoogleResource,
   isGoogleDriveResource,
@@ -106,7 +105,7 @@ describe('Material URL Utilities', () => {
   })
 })
 
-describe('PremiumPdfViewer Component', () => {
+describe('MaterialViewerModal Component - PDF & Protected Notes', () => {
   const samplePdfCard = {
     id: '740baede-5e68-451c-87ec-10f833f69fd8',
     title: 'Class 9 Mathematics Practice Workbook 1',
@@ -125,56 +124,54 @@ describe('PremiumPdfViewer Component', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders title, subject badge, and reading mode themes', () => {
-    render(
-      <PremiumPdfViewer
-        card={samplePdfCard}
-        downloadUrl="https://drive.google.com/uc?export=download&id=123"
-        fileId="123"
-        onClose={onCloseMock}
-      />
-    )
+  it('renders title, subject subtitle, and iframe with /preview for Google Drive PDF', () => {
+    render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
 
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Class 9 Mathematics Practice Workbook 1')).toBeInTheDocument()
     expect(screen.getByText('Maths')).toBeInTheDocument()
+    expect(screen.getByText('Notes')).toBeInTheDocument()
+
+    const iframe = document.querySelector('iframe')
+    expect(iframe).toBeInTheDocument()
+    expect(iframe).toHaveAttribute('src', 'https://drive.google.com/file/d/1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI/preview')
+  })
+
+  it('renders the minimalist institutional protection badge over Google Drive popout', () => {
+    render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
+
+    const badge = screen.getByTitle("Thoughtful's Academy Protected View — External sharing is disabled")
+    expect(badge).toBeInTheDocument()
     expect(screen.getByText('Protected Reader')).toBeInTheDocument()
 
-    // Reading mode theme buttons
-    expect(screen.getByTitle('Day reading mode')).toBeInTheDocument()
-    expect(screen.getByTitle('Sepia reading mode')).toBeInTheDocument()
-    expect(screen.getByTitle('Night reading mode')).toBeInTheDocument()
+    // Clicking protection badge stops propagation and prevents default
+    const clickEvt = new MouseEvent('click', { bubbles: true, cancelable: true })
+    const stopPropagationSpy = vi.spyOn(clickEvt, 'stopPropagation')
+    const preventDefaultSpy = vi.spyOn(clickEvt, 'preventDefault')
+    badge.dispatchEvent(clickEvt)
+
+    expect(stopPropagationSpy).toHaveBeenCalled()
+    expect(preventDefaultSpy).toHaveBeenCalled()
   })
 
-  it('allows switching between Day, Sepia, and Night eye-care themes', () => {
-    render(
-      <PremiumPdfViewer
-        card={samplePdfCard}
-        downloadUrl="https://drive.google.com/uc?export=download&id=123"
-        fileId="123"
-        onClose={onCloseMock}
-      />
-    )
+  it('prevents browser print (Ctrl+P) and save (Ctrl+S) inside protected viewer', () => {
+    render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
 
-    const sepiaBtn = screen.getByTitle('Sepia reading mode')
-    fireEvent.click(sepiaBtn)
-    expect(sepiaBtn).toHaveClass('bg-amber-500')
+    const printEvt = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true })
+    const preventDefaultSpy = vi.spyOn(printEvt, 'preventDefault')
+    window.dispatchEvent(printEvt)
+    expect(preventDefaultSpy).toHaveBeenCalled()
 
-    const nightBtn = screen.getByTitle('Night reading mode')
-    fireEvent.click(nightBtn)
-    expect(nightBtn).toHaveClass('bg-amber-500')
+    const saveEvt = new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true })
+    const preventDefaultSaveSpy = vi.spyOn(saveEvt, 'preventDefault')
+    window.dispatchEvent(saveEvt)
+    expect(preventDefaultSaveSpy).toHaveBeenCalled()
   })
 
-  it('calls onClose when Back/Close is clicked or Escape is pressed', () => {
-    render(
-      <PremiumPdfViewer
-        card={samplePdfCard}
-        downloadUrl="https://drive.google.com/uc?export=download&id=123"
-        fileId="123"
-        onClose={onCloseMock}
-      />
-    )
+  it('calls onClose when Close button is clicked or Escape is pressed', () => {
+    render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
 
-    const closeBtn = screen.getByLabelText('Close viewer')
+    const closeBtn = screen.getByLabelText('Close')
     fireEvent.click(closeBtn)
     expect(onCloseMock).toHaveBeenCalledTimes(1)
 
@@ -208,7 +205,7 @@ describe('MaterialViewerModal Component', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Chapter 1 Theory Notes')).toBeInTheDocument()
     expect(screen.getByText('Physics')).toBeInTheDocument()
-    expect(screen.getByText('Protected View')).toBeInTheDocument()
+    expect(screen.getByText('Google Doc')).toBeInTheDocument()
   })
 
   it('renders iframe with the restricted in-app /preview URL for Google Docs', () => {
@@ -252,11 +249,9 @@ describe('MaterialViewerModal Component', () => {
     expect(screen.queryByText(/Opening study material in protected view/i)).not.toBeInTheDocument()
   })
 
-  it('renders fullscreen toggle button and allows toggling', () => {
+  it('does not render maximize/fullscreen button to maximize readable area by default', () => {
     render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
-    const fullscreenBtn = screen.getByLabelText('Toggle fullscreen')
-    expect(fullscreenBtn).toBeInTheDocument()
-    fireEvent.click(fullscreenBtn)
+    expect(screen.queryByLabelText('Toggle fullscreen')).not.toBeInTheDocument()
   })
 })

@@ -19,8 +19,8 @@ import {
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { resolveYouTubeMedia, fetchPlaylistItems } from '../../utils/youtube'
-import { parseGoogleResource, isGoogleDriveResource, getDirectDownloadUrl } from '../../utils/materialUrl'
-import PremiumPdfViewer from './PremiumPdfViewer'
+import { parseGoogleResource, isGoogleDriveResource } from '../../utils/materialUrl'
+import MaterialViewerModal from './MaterialViewerModal'
 
 const NOTE_TAGS = [
   'Full Chapter Notes',
@@ -569,17 +569,16 @@ export default function NotesPlaylistModal({
 
       </div>
 
-      {/* In-Place Test Preview Modal */}
+      {/* In-Place Material Viewer Modal */}
       {previewNote && (
-        <PremiumPdfViewer
+        <MaterialViewerModal
           card={{
             id: previewNote.id,
             title: previewNote.title,
-            subject: card.subject,
-            url: previewNote.url
+            subject: card?.subject,
+            url: previewNote.url,
+            type: 'google_drive'
           }}
-          downloadUrl={getDirectDownloadUrl(previewNote.url)}
-          fileId={parseGoogleResource(previewNote.url).id}
           onClose={() => setPreviewNote(null)}
         />
       )}
