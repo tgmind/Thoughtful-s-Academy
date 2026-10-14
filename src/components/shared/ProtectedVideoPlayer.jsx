@@ -37,8 +37,8 @@ const DEFAULT_PLAYLIST_ITEMS = []
 export default function ProtectedVideoPlayer({
   videoId,
   playlistId,
-  title = 'Lecture Video',
-  subject = '',
+  title: _title = 'Lecture Video',
+  subject: _subject = '',
   isPlaylist = false,
   playlistItems = DEFAULT_PLAYLIST_ITEMS,
   activeVideoIndex = 0,
@@ -105,9 +105,6 @@ export default function ProtectedVideoPlayer({
 
   // Cumulative Multi-Tap Seek Ripple state: { type: 'rewind'|'forward', count: number, id: number }
   const [ripple, setRipple] = useState(null)
-
-  // Center Play/Pause pulse feedback state: { type: 'play'|'pause', id: number }
-  const [centerFeedback, setCenterFeedback] = useState(null)
 
   // Swipe-to-Seek HUD state: { deltaSeconds: number, targetTime: number }
   const [swipeSeekHud, setSwipeSeekHud] = useState(null)
@@ -437,18 +434,19 @@ export default function ProtectedVideoPlayer({
       setHasError(true)
       setErrorMessage('Could not initialize video player. Please click retry.')
     }
-  }, [ytPlayerId, cancelAutoAdvance, startAutoAdvanceCountdown, applyQualityToPlayer])
+  }, [ytPlayerId, cancelAutoAdvance, startAutoAdvanceCountdown, applyQualityToPlayer, initialSeekSeconds])
 
   // Mount/Unmount lifecycle (only runs on initial mount)
   useEffect(() => {
     initializePlayer()
+    const singleTapTimer = singleTapTimerRef.current
 
     return () => {
+      if (singleTapTimer) clearTimeout(singleTapTimer)
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current)
       if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current)
       if (cleanToastTimerRef.current) clearTimeout(cleanToastTimerRef.current)
-      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current)
       if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
       if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current)
       if (resumePromptTimerRef.current) clearTimeout(resumePromptTimerRef.current)
@@ -895,11 +893,9 @@ export default function ProtectedVideoPlayer({
       setTimeout(() => setRipple(null), 750)
       showControlsTemporarily(3500)
     } else {
-      // Center tap: Toggle Play / Pause instantly
+      // Center tap: Toggle Play / Pause instantly without intrusive central overlay
       lastTapRef.current = { time: now, x: clientX, y: clientY, count: 0, zone: 'center' }
       togglePlayPause()
-      setCenterFeedback({ type: isPlayingRef.current ? 'pause' : 'play', id: now })
-      setTimeout(() => setCenterFeedback(null), 500)
       showControlsTemporarily(3500)
     }
   }
@@ -1087,19 +1083,6 @@ export default function ProtectedVideoPlayer({
           onContextMenu={(e) => e.preventDefault()}
           onAuxClick={(e) => e.preventDefault()}
         />
-
-        {/* ─── CENTER PLAY/PAUSE TAP PULSE HUD ─────────────────────────────────── */}
-        {centerFeedback && (
-          <div className="absolute inset-0 z-28 pointer-events-none flex items-center justify-center animate-fade-in">
-            <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white border border-white/20 shadow-2xl">
-              {centerFeedback.type === 'play' ? (
-                <Play className="h-6 w-6 sm:h-7 sm:w-7 text-white fill-current ml-0.5" />
-              ) : (
-                <Pause className="h-6 w-6 sm:h-7 sm:w-7 text-white fill-current" />
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ─── SUBTLE BOTTOM-RIGHT THOUGHTFUL'S ACADEMY BRAND EMBLEM (z-22) ────── */}
         {/* Unobtrusive, delicate TV-network watermark bug at bottom right corner  */}

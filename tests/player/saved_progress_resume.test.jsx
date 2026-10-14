@@ -11,7 +11,7 @@ describe('ProtectedVideoPlayer: Saved Progress & Resume Mechanism', () => {
     vi.clearAllMocks()
 
     window.YT = {
-      Player: vi.fn().mockImplementation((id, config) => {
+      Player: vi.fn().mockImplementation((_id, _config) => {
         return {
           seekTo: mockSeekTo,
           playVideo: mockPlayVideo,
@@ -126,5 +126,32 @@ describe('ProtectedVideoPlayer: Saved Progress & Resume Mechanism', () => {
 
     expect(screen.queryByText('Saved Progress')).not.toBeInTheDocument()
     expect(screen.queryByText('Resume from 11:43?')).not.toBeInTheDocument()
+  })
+
+  it('preserves touch protected mask and play/pause functionality while omitting central play/pause overlay', async () => {
+    vi.spyOn(youtubeUtils, 'getLectureProgress').mockReturnValue(null)
+
+    const { container } = render(
+      <ProtectedVideoPlayer
+        videoId="test-video-123"
+        title="Physics Motion Lecture"
+      />
+    )
+
+    await waitFor(() => {
+      expect(window.YT.Player).toHaveBeenCalled()
+    })
+
+    // 1. Verify touch-blocking shield mask exists with correct protection classes
+    const shield = container.querySelector('.z-20.pointer-events-auto')
+    expect(shield).toBeInTheDocument()
+    expect(shield).toHaveClass('absolute', 'inset-0')
+
+    // 2. Click the center of the shield to toggle playback
+    fireEvent.click(shield, { clientX: 500, clientY: 300 })
+
+    // 3. Verify no intrusive center play/pause overlay is rendered
+    expect(container.querySelector('.w-13.h-13')).not.toBeInTheDocument()
+    expect(container.querySelector('.w-15.h-15')).not.toBeInTheDocument()
   })
 })
