@@ -137,12 +137,14 @@ describe('MaterialViewerModal Component - PDF & Protected Notes', () => {
     expect(iframe).toHaveAttribute('src', 'https://drive.google.com/file/d/1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI/preview')
   })
 
-  it('renders the minimalist institutional protection badge over Google Drive popout', () => {
+  it('renders the minimalist grey protection shield mask over Google Drive popout without intrusive text', () => {
     render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
 
     const badge = screen.getByTitle("Thoughtful's Academy Protected View — External sharing is disabled")
     expect(badge).toBeInTheDocument()
-    expect(screen.getByText('Protected Reader')).toBeInTheDocument()
+    expect(badge.querySelector('svg')).toBeInTheDocument()
+    expect(screen.queryByText('Protected Reader')).not.toBeInTheDocument()
+    expect(screen.queryByText('Protected')).not.toBeInTheDocument()
 
     // Clicking protection badge stops propagation and prevents default
     const clickEvt = new MouseEvent('click', { bubbles: true, cancelable: true })

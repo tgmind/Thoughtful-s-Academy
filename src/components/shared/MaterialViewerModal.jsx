@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowLeft, X, Download, FileText,
-  ExternalLink, Loader2, Sparkles, AlertCircle, Lock
+  ExternalLink, Loader2, Sparkles, AlertCircle, Shield
 } from 'lucide-react'
 import {
   getMaterialEmbedUrl,
@@ -259,30 +259,26 @@ export default function MaterialViewerModal({ card, onClose }) {
             />
 
             {/* 
-              ─── MINIMALISTIC INSTITUTIONAL PROTECTION BADGE ───
-              Beautiful, unobtrusive security badge that cleanly covers Google Drive's
-              external popout button and intercepts clicks/drags to keep student in-app.
+              ─── MINIMALISTIC INSTITUTIONAL PROTECTION SHIELD ───
+              Discreet, elegant grey protection shield overlay that precisely masks
+              Google Drive's external redirect/popout button across all screen sizes,
+              leaving 100% of the document readable without annoying text intrusion.
             */}
             {isDrive && (
               <div
-                className="absolute top-2 right-2 sm:top-2.5 sm:right-3.5 z-20 flex items-center justify-center pointer-events-auto select-none"
+                className="absolute top-2 right-2.5 sm:top-2.5 sm:right-3.5 z-20 flex items-center justify-center pointer-events-auto select-none"
                 onContextMenu={(e) => e.preventDefault()}
               >
                 <div
-                  className="flex items-center gap-1.5 h-10 px-3 sm:px-3.5 bg-[#202124] hover:bg-[#292a2d] border border-[#3c4043] rounded-xl shadow-md text-neutral-300 transition-colors cursor-default"
+                  className="w-9 h-9 sm:w-10 sm:h-10 bg-[#202124] hover:bg-[#28292c] border border-[#3c4043] rounded-full sm:rounded-xl shadow-md flex items-center justify-center text-neutral-400 hover:text-neutral-300 transition-colors cursor-default"
                   title="Thoughtful's Academy Protected View — External sharing is disabled"
+                  aria-label="Protected View"
                   onClick={(e) => {
                     e.stopPropagation()
                     e.preventDefault()
                   }}
                 >
-                  <Lock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                  <span className="hidden sm:inline text-xs font-semibold text-neutral-200 tracking-wide">
-                    Protected Reader
-                  </span>
-                  <span className="sm:hidden text-[11px] font-semibold text-neutral-200 tracking-wide">
-                    Protected
-                  </span>
+                  <Shield className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-neutral-400 shrink-0" />
                 </div>
               </div>
             )}
