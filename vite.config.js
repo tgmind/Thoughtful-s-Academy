@@ -111,6 +111,9 @@ export default defineConfig({
             if (id.includes('recharts') || id.includes('d3')) {
               return 'vendor-charts'
             }
+            if (id.includes('pdfjs-dist')) {
+              return 'vendor-pdf'
+            }
           }
         },
       },

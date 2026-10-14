@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import MaterialViewerModal from '../../src/components/shared/MaterialViewerModal'
+import PremiumPdfViewer from '../../src/components/shared/PremiumPdfViewer'
 import {
   parseGoogleResource,
   isGoogleDriveResource,
@@ -105,10 +106,10 @@ describe('Material URL Utilities', () => {
   })
 })
 
-describe('MaterialViewerModal Component', () => {
-  const sampleCard = {
+describe('PremiumPdfViewer Component', () => {
+  const samplePdfCard = {
     id: '740baede-5e68-451c-87ec-10f833f69fd8',
-    title: 'Practice Sheet',
+    title: 'Class 9 Mathematics Practice Workbook 1',
     type: 'google_drive',
     url: 'https://drive.google.com/file/d/1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI/view?usp=drivesdk',
     subject: 'Maths'
@@ -124,40 +125,109 @@ describe('MaterialViewerModal Component', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders modal dialog with document title and subject badge', () => {
-    render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+  it('renders title, subject badge, and reading mode themes', () => {
+    render(
+      <PremiumPdfViewer
+        card={samplePdfCard}
+        downloadUrl="https://drive.google.com/uc?export=download&id=123"
+        fileId="123"
+        onClose={onCloseMock}
+      />
+    )
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('Practice Sheet')).toBeInTheDocument()
+    expect(screen.getByText('Class 9 Mathematics Practice Workbook 1')).toBeInTheDocument()
     expect(screen.getByText('Maths')).toBeInTheDocument()
-    expect(screen.getByText('Protected Study View')).toBeInTheDocument()
+    expect(screen.getByText('Protected Reader')).toBeInTheDocument()
+
+    // Reading mode theme buttons
+    expect(screen.getByTitle('Day reading mode')).toBeInTheDocument()
+    expect(screen.getByTitle('Sepia reading mode')).toBeInTheDocument()
+    expect(screen.getByTitle('Night reading mode')).toBeInTheDocument()
   })
 
-  it('renders iframe with the restricted in-app /preview URL', () => {
-    const { container } = render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+  it('allows switching between Day, Sepia, and Night eye-care themes', () => {
+    render(
+      <PremiumPdfViewer
+        card={samplePdfCard}
+        downloadUrl="https://drive.google.com/uc?export=download&id=123"
+        fileId="123"
+        onClose={onCloseMock}
+      />
+    )
+
+    const sepiaBtn = screen.getByTitle('Sepia reading mode')
+    fireEvent.click(sepiaBtn)
+    expect(sepiaBtn).toHaveClass('bg-amber-500')
+
+    const nightBtn = screen.getByTitle('Night reading mode')
+    fireEvent.click(nightBtn)
+    expect(nightBtn).toHaveClass('bg-amber-500')
+  })
+
+  it('calls onClose when Back/Close is clicked or Escape is pressed', () => {
+    render(
+      <PremiumPdfViewer
+        card={samplePdfCard}
+        downloadUrl="https://drive.google.com/uc?export=download&id=123"
+        fileId="123"
+        onClose={onCloseMock}
+      />
+    )
+
+    const closeBtn = screen.getByLabelText('Close viewer')
+    fireEvent.click(closeBtn)
+    expect(onCloseMock).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onCloseMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('MaterialViewerModal Component', () => {
+  const sampleDocCard = {
+    id: 'doc-1',
+    title: 'Chapter 1 Theory Notes',
+    type: 'google_drive',
+    url: 'https://docs.google.com/document/d/1ABCXYZ_123-docId/edit',
+    subject: 'Physics'
+  }
+
+  let onCloseMock
+
+  beforeEach(() => {
+    onCloseMock = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('renders modal dialog with document title and subject badge for documents', () => {
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Chapter 1 Theory Notes')).toBeInTheDocument()
+    expect(screen.getByText('Physics')).toBeInTheDocument()
+    expect(screen.getByText('Protected View')).toBeInTheDocument()
+  })
+
+  it('renders iframe with the restricted in-app /preview URL for Google Docs', () => {
+    const { container } = render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     const iframe = container.querySelector('iframe')
     expect(iframe).toBeInTheDocument()
-    expect(iframe).toHaveAttribute('src', 'https://drive.google.com/file/d/1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI/preview')
-  })
-
-  it('renders the protective corner shield overlay for Google Drive files', () => {
-    render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
-
-    const shield = screen.getByTitle(/Protected View: Sharing and pop-outs restricted/i)
-    expect(shield).toBeInTheDocument()
-    expect(shield).toHaveClass('absolute top-0 right-0')
+    expect(iframe).toHaveAttribute('src', 'https://docs.google.com/document/d/1ABCXYZ_123-docId/preview')
   })
 
   it('renders the manual Download button', () => {
-    render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     const downloadBtn = screen.getByRole('button', { name: /download/i })
     expect(downloadBtn).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', () => {
-    render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     const closeBtn = screen.getByLabelText('Close')
     fireEvent.click(closeBtn)
@@ -165,14 +235,14 @@ describe('MaterialViewerModal Component', () => {
   })
 
   it('calls onClose when Escape key is pressed', () => {
-    render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onCloseMock).toHaveBeenCalledTimes(1)
   })
 
   it('dismisses loading indicator when iframe finishes loading', () => {
-    const { container } = render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+    const { container } = render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     expect(screen.getByText(/Opening study material in protected view/i)).toBeInTheDocument()
 
@@ -183,7 +253,7 @@ describe('MaterialViewerModal Component', () => {
   })
 
   it('renders fullscreen toggle button and allows toggling', () => {
-    render(<MaterialViewerModal card={sampleCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     const fullscreenBtn = screen.getByLabelText('Toggle fullscreen')
     expect(fullscreenBtn).toBeInTheDocument()

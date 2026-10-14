@@ -9,6 +9,7 @@ import {
   isGoogleDriveResource,
   parseGoogleResource
 } from '../../utils/materialUrl'
+import PremiumPdfViewer from './PremiumPdfViewer'
 
 export default function MaterialViewerModal({ card, onClose }) {
   const containerRef = useRef(null)
@@ -17,11 +18,18 @@ export default function MaterialViewerModal({ card, onClose }) {
   const [hasError, setHasError] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [forceEmbed, setForceEmbed] = useState(false)
 
   const isDrive = isGoogleDriveResource(card?.url, card?.type)
-  const { kind } = parseGoogleResource(card?.url)
+  const { id, kind } = parseGoogleResource(card?.url)
   const embedUrl = getMaterialEmbedUrl(card?.url, card?.type)
   const downloadUrl = getMaterialDownloadUrl(card?.url, card?.type)
+
+  // Use the native high-performance canvas renderer for Google Drive files & direct PDFs
+  const isPdfCandidate = !forceEmbed && (
+    (isDrive && (!kind || kind === 'drive_file')) ||
+    (card?.url && card.url.toLowerCase().includes('.pdf'))
+  )
 
   // Native iframe error listener (React does not support synthetic onError on iframes)
   useEffect(() => {
@@ -96,12 +104,11 @@ export default function MaterialViewerModal({ card, onClose }) {
     if (!downloadUrl) return
     setDownloading(true)
 
-    // Trigger download via synthetic anchor
     const link = document.createElement('a')
     link.href = downloadUrl
     link.target = '_blank'
     link.rel = 'noopener noreferrer'
-    link.setAttribute('download', card?.title ? `${card.title.replace(/[/\\?%*:|"<>]/g, '-')}` : 'study_material')
+    link.setAttribute('download', card?.title ? `${card.title.replace(/[/\\?%*:|"<>]/g, '-')}.pdf` : 'study_material.pdf')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -113,12 +120,25 @@ export default function MaterialViewerModal({ card, onClose }) {
 
   if (!card) return null
 
-  // Friendly type label
+  // ─── 1. RENDER HIGH-PERFORMANCE NATIVE PDF VIEWER ────────────────────
+  if (isPdfCandidate) {
+    return (
+      <PremiumPdfViewer
+        card={card}
+        downloadUrl={downloadUrl}
+        fileId={id}
+        onClose={onClose}
+        onFallbackToEmbed={() => setForceEmbed(true)}
+      />
+    )
+  }
+
+  // ─── 2. RENDER PREMIUM EMBEDDED VIEWER FOR DOCS / SHEETS / WEB ───────
   let typeLabel = 'Study Material'
   if (kind === 'doc') typeLabel = 'Google Doc'
   else if (kind === 'sheet') typeLabel = 'Google Sheet'
   else if (kind === 'presentation') typeLabel = 'Presentation'
-  else if (isDrive) typeLabel = 'PDF / Notes'
+  else if (isDrive) typeLabel = 'Notes'
   else if (card?.type === 'external_link') typeLabel = 'Web Resource'
 
   return (
@@ -137,11 +157,11 @@ export default function MaterialViewerModal({ card, onClose }) {
         }
       `}</style>
 
-      {/* ─── 1. TOP HEADER TOOLBAR ────────────────────────────────────── */}
-      <header className="flex-shrink-0 h-14 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800/80 px-3 sm:px-6 flex items-center justify-between gap-3 z-30 shadow-md">
+      {/* ─── TOP HEADER TOOLBAR (RESPONSIVE & MOBILE-OPTIMIZED) ───────── */}
+      <header className="flex-shrink-0 h-14 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800/80 px-2.5 sm:px-5 flex items-center justify-between gap-2 z-30 shadow-md">
         
         {/* Left: Back Button & Title */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => {
@@ -155,21 +175,21 @@ export default function MaterialViewerModal({ card, onClose }) {
             aria-label="Close viewer"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-bold hidden sm:inline">Close</span>
+            <span className="text-xs font-bold hidden md:inline">Back</span>
           </button>
 
-          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-800 hidden sm:block shrink-0" />
 
           {/* Badges & Title */}
           <div className="min-w-0 flex-1 flex flex-col justify-center">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {card.subject && (
-                <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="inline-flex items-center text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   {card.subject}
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                <FileText className="h-3 w-3" />
+              <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <FileText className="h-2.5 w-2.5" />
                 <span>{typeLabel}</span>
               </span>
             </div>
@@ -183,12 +203,12 @@ export default function MaterialViewerModal({ card, onClose }) {
         </div>
 
         {/* Right: Security Badge, Manual Download, Fullscreen & Close */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           
           {/* Protected View Status */}
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Protected Study View</span>
+            <span>Protected View</span>
           </div>
 
           {/* Manual Download Button */}
@@ -197,7 +217,7 @@ export default function MaterialViewerModal({ card, onClose }) {
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-black text-xs transition-all shadow-md hover:shadow-amber-500/20 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
               title="Download clean file directly to your device"
             >
               {downloading ? (
@@ -208,7 +228,7 @@ export default function MaterialViewerModal({ card, onClose }) {
               ) : (
                 <>
                   <Download className="h-3.5 w-3.5" />
-                  <span>Download</span>
+                  <span className="hidden sm:inline">Download</span>
                 </>
               )}
             </button>
@@ -218,7 +238,7 @@ export default function MaterialViewerModal({ card, onClose }) {
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             aria-label="Toggle fullscreen"
           >
@@ -238,7 +258,7 @@ export default function MaterialViewerModal({ card, onClose }) {
               }
               onClose?.()
             }}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-600 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-600 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
             title="Close (Esc)"
             aria-label="Close"
           >
@@ -247,7 +267,7 @@ export default function MaterialViewerModal({ card, onClose }) {
         </div>
       </header>
 
-      {/* ─── 2. MAIN DOCUMENT VIEWPORT ─────────────────────────────────── */}
+      {/* ─── MAIN EMBED VIEWPORT ──────────────────────────────────────── */}
       <main className="flex-1 relative bg-slate-950 overflow-hidden flex items-center justify-center">
         
         {/* Loading Spinner */}
@@ -276,7 +296,7 @@ export default function MaterialViewerModal({ card, onClose }) {
             <div>
               <h4 className="text-base font-bold text-white">Preview Unavailable</h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                This document or external provider restricts in-frame embedding. You can download the file directly or open it securely.
+                This document provider restricts in-frame embedding. You can download the file directly or open it securely.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
@@ -284,7 +304,7 @@ export default function MaterialViewerModal({ card, onClose }) {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Download className="h-4 w-4" /> Download File
                 </button>
@@ -310,32 +330,24 @@ export default function MaterialViewerModal({ card, onClose }) {
               allow="autoplay; encrypted-media; fullscreen"
               loading="eager"
               onLoad={() => setLoading(false)}
-              onError={() => {
-                setLoading(false)
-                setHasError(true)
-              }}
             />
 
             {/* 
               ─── PROTECTIVE CORNER SHIELD ───
-              Google Drive's /preview iframe has an external pop-out button located
-              in the top-right corner (~50px by ~50px). When clicked, it redirects
-              the student to the unconstrained drive.google.com interface exposing
-              sharing and owner controls.
-              
-              This transparent protective shield intercepts clicks in that corner,
-              keeping the student safely inside Thoughtful's Academy classroom while
-              still leaving the PDF canvas and internal zoom/navigation intact!
+              Conceals Google Drive's pop-out button with an elegant Thoughtful's Academy badge.
             */}
             {isDrive && (
               <div
-                className="absolute top-0 right-0 w-24 h-16 z-20 pointer-events-auto cursor-default bg-transparent"
-                title="Protected View: Sharing and pop-outs restricted. Use the Download button above to save a copy."
+                className="absolute top-0 right-0 w-28 h-12 z-20 pointer-events-auto cursor-default bg-slate-950/90 backdrop-blur-sm border-b border-l border-slate-800 rounded-bl-xl flex items-center justify-center gap-1 text-[11px] font-bold text-amber-400 select-none shadow-md"
+                title="Protected View: Sharing and pop-outs restricted."
                 onClick={(e) => {
                   e.stopPropagation()
                   e.preventDefault()
                 }}
-              />
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Protected</span>
+              </div>
             )}
           </div>
         )}
