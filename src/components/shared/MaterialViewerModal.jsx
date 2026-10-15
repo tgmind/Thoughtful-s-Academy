@@ -7,6 +7,7 @@ import {
 import {
   getMaterialEmbedUrl,
   getMaterialDownloadUrl,
+  downloadMaterialFile,
   isGoogleDriveResource,
   parseGoogleResource
 } from '../../utils/materialUrl'
@@ -67,24 +68,21 @@ export default function MaterialViewerModal({ card, onClose }) {
     }
   }, [onClose])
 
-  // Direct manual download handler
-  const handleDownload = useCallback(() => {
+  // Direct manual download handler (downloads directly to device without opening Google Drive tabs)
+  const handleDownload = useCallback(async (e) => {
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
     if (!downloadUrl) return
     setDownloading(true)
 
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.target = '_blank'
-    link.rel = 'noopener noreferrer'
-    link.setAttribute('download', card?.title ? `${card.title.replace(/[/\\?%*:|"<>]/g, '-')}.pdf` : 'study_material.pdf')
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    setTimeout(() => {
-      setDownloading(false)
-    }, 2000)
-  }, [downloadUrl, card?.title])
+    try {
+      await downloadMaterialFile(card?.url, card?.title, card?.type)
+    } finally {
+      setTimeout(() => {
+        setDownloading(false)
+      }, 1200)
+    }
+  }, [downloadUrl, card?.url, card?.title, card?.type])
 
   if (!card) return null
 

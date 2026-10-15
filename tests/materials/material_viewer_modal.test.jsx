@@ -5,7 +5,8 @@ import {
   parseGoogleResource,
   isGoogleDriveResource,
   getMaterialEmbedUrl,
-  getMaterialDownloadUrl
+  getMaterialDownloadUrl,
+  downloadMaterialFile
 } from '../../src/utils/materialUrl'
 
 describe('Material URL Utilities', () => {
@@ -95,12 +96,33 @@ describe('Material URL Utilities', () => {
   describe('getMaterialDownloadUrl', () => {
     it('creates direct download stream URL for Google Drive file', () => {
       const download = getMaterialDownloadUrl(sampleDriveUrl)
-      expect(download).toBe('https://drive.google.com/uc?export=download&id=1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI')
+      expect(download).toBe('https://drive.usercontent.google.com/download?id=1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI&export=download&confirm=t')
     })
 
     it('creates PDF export URL for Google Docs', () => {
       const download = getMaterialDownloadUrl(sampleDocUrl)
       expect(download).toBe('https://docs.google.com/document/d/1ABCXYZ_123-docId/export?format=pdf')
+    })
+  })
+
+  describe('downloadMaterialFile', () => {
+    it('initiates direct download without setting target=_blank', async () => {
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild')
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild')
+
+      await downloadMaterialFile(sampleDriveUrl, 'Sample Chapter Note')
+
+      // Ensure elements added to DOM for download never have target="_blank"
+      const createdAnchors = appendChildSpy.mock.calls
+        .map(call => call[0])
+        .filter(el => el.tagName === 'A')
+
+      createdAnchors.forEach(a => {
+        expect(a.getAttribute('target')).toBeNull()
+      })
+
+      appendChildSpy.mockRestore()
+      removeChildSpy.mockRestore()
     })
   })
 })
@@ -235,11 +257,25 @@ describe('MaterialViewerModal Component', () => {
     expect(iframe).toHaveAttribute('src', 'https://docs.google.com/document/d/1ABCXYZ_123-docId/preview')
   })
 
-  it('renders the manual Download button', () => {
+  it('renders the manual Download button and triggers direct download without target=_blank', async () => {
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild')
+
     render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     const downloadBtn = screen.getByRole('button', { name: /download/i })
     expect(downloadBtn).toBeInTheDocument()
+
+    fireEvent.click(downloadBtn)
+
+    const createdAnchors = appendChildSpy.mock.calls
+      .map(call => call[0])
+      .filter(el => el.tagName === 'A')
+
+    createdAnchors.forEach(a => {
+      expect(a.getAttribute('target')).toBeNull()
+    })
+
+    appendChildSpy.mockRestore()
   })
 
   it('calls onClose when close button is clicked', () => {

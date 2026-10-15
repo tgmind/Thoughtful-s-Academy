@@ -94,6 +94,7 @@ export function getMaterialEmbedUrl(rawUrl, _type) {
 
 /**
  * Returns a direct download URL that downloads the material without opening interactive sharing interfaces.
+ * Uses Google Drive's CORS-enabled usercontent attachment endpoint with auto-confirmation.
  *
  * @param {string} rawUrl
  * @param {string} [_type]
@@ -114,8 +115,8 @@ export function getMaterialDownloadUrl(rawUrl, _type) {
     if (kind === 'presentation') {
       return `https://docs.google.com/presentation/d/${id}/export/pdf`
     }
-    // Direct Google Drive download stream
-    return `https://drive.google.com/uc?export=download&id=${id}`
+    // Direct Google Drive download stream (serves Content-Disposition: attachment directly)
+    return `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`
   }
 
   return normalizeUrl(rawUrl)
@@ -125,3 +126,58 @@ export function getMaterialDownloadUrl(rawUrl, _type) {
  * Convenient alias for getMaterialDownloadUrl
  */
 export const getDirectDownloadUrl = getMaterialDownloadUrl
+
+/**
+ * Triggers a direct background file download onto the user's device
+ * strictly WITHOUT opening Google Drive or launching new browser tabs.
+ *
+ * @param {string} rawUrl - Source document URL or Google Drive link
+ * @param {string} [title] - Suggested filename
+ * @param {string} [type] - Optional resource type hint
+ * @returns {Promise<boolean>}
+ */
+export async function downloadMaterialFile(rawUrl, title = 'study_material', type) {
+  if (!rawUrl) return false
+
+  const downloadUrl = getMaterialDownloadUrl(rawUrl, type)
+  if (!downloadUrl) return false
+
+  const cleanTitle = (title || 'study_material').replace(/[/\\?%*:|"<>]/g, '-').trim()
+  const filename = cleanTitle.toLowerCase().endsWith('.pdf') ? cleanTitle : `${cleanTitle}.pdf`
+
+  // 1. Fetch as Blob for seamless native download (supported by CORS-enabled direct stream)
+  try {
+    const res = await fetch(downloadUrl, { method: 'GET', mode: 'cors' })
+    if (res && res.ok) {
+      const blob = await res.blob()
+      if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = filename
+        // Strictly avoid target="_blank"
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 20000)
+        return true
+      }
+    }
+  } catch {
+    // Cross-origin restriction fallback
+  }
+
+  // 2. Direct Anchor trigger strictly WITHOUT target="_blank"
+  // When the server sends Content-Disposition: attachment, clicking <a href="..." download="..."> triggers download directly.
+  try {
+    const a = document.createElement('a')
+    a.href = downloadUrl
+    a.setAttribute('download', filename)
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    return true
+  } catch {
+    return false
+  }
+}

@@ -21,7 +21,7 @@ import {
 import ProtectedVideoPlayer from '../../components/shared/ProtectedVideoPlayer'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 import NotesPlaylistModal from '../../components/shared/NotesPlaylistModal'
-import { getDirectDownloadUrl, isGoogleDriveResource } from '../../utils/materialUrl'
+import { downloadMaterialFile, isGoogleDriveResource } from '../../utils/materialUrl'
 import {
   createDoubt,
   fetchStudentDoubtsForLecture,
@@ -1247,15 +1247,18 @@ export default function WatchLecture() {
                             <span className="hidden sm:inline">Open</span>
                           </button>
 
-                          <a
-                            href={getDirectDownloadUrl(note.url)}
-                            download
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-lg transition-all cursor-pointer"
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              downloadMaterialFile(note.url, note.title)
+                            }}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 rounded-lg transition-all cursor-pointer flex items-center justify-center"
                             title="Direct download to device"
+                            aria-label="Direct download to device"
                           >
                             <Download className="h-3 w-3" />
-                          </a>
+                          </button>
                         </div>
                       </div>
                     )
