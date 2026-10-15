@@ -243,6 +243,11 @@ export default function DashboardShell({ navItems, pageTitle }) {
   // 2. Subject Workspaces
   // 3. Lectures & Study Materials
   // 4. Quick Actions
+  // Unified Global Search across:
+  // 1. Portal Modules & Pages
+  // 2. Subject Workspaces
+  // 3. Lectures & Study Materials
+  // 4. Quick Actions
   const groupedSearchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
     const sections = []
@@ -252,14 +257,15 @@ export default function DashboardShell({ navItems, pageTitle }) {
       if (!q) return true
       return item.label.toLowerCase().includes(q)
     })
-    if (matchingNav.length > 0) {
+    // Compact: show top 4 on empty search, up to 5 when searching
+    const displayNav = !q ? matchingNav.slice(0, 4) : matchingNav.slice(0, 5)
+    if (displayNav.length > 0) {
       sections.push({
         title: 'Portal Modules & Pages',
-        items: matchingNav.map(item => ({
+        items: displayNav.map(item => ({
           id: `nav-${item.path}`,
           type: 'module',
           label: item.label,
-          subtext: `Navigate to ${item.label}`,
           icon: item.icon,
           badge: badges[item.path],
           action: () => {
@@ -273,14 +279,15 @@ export default function DashboardShell({ navItems, pageTitle }) {
     // 2. Subject Workspaces (for enrolled student)
     if (profile?.role === 'student' && studentSubjects.length > 0) {
       const matchingSubjs = studentSubjects.filter(s => !q || s.toLowerCase().includes(q))
-      if (matchingSubjs.length > 0) {
+      // Compact: show top 2 on empty search, up to 4 when searching
+      const displaySubjs = !q ? matchingSubjs.slice(0, 2) : matchingSubjs.slice(0, 4)
+      if (displaySubjs.length > 0) {
         sections.push({
           title: 'Subject Workspaces',
-          items: matchingSubjs.map(s => ({
+          items: displaySubjs.map(s => ({
             id: `subject-${s}`,
             type: 'subject',
             label: `${s} Workspace`,
-            subtext: `Explore ${s} lectures & study notes`,
             icon: <BookOpen className="h-4 w-4 text-amber-500" />,
             action: () => {
               navigate(`/student/study?subject=${encodeURIComponent(s)}`)
@@ -299,19 +306,18 @@ export default function DashboardShell({ navItems, pageTitle }) {
           (c.subject || '').toLowerCase().includes(q) ||
           (c.description || '').toLowerCase().includes(q)
         )
-      }).slice(0, 8)
+      }).slice(0, 5)
 
       if (matchingCards.length > 0) {
         sections.push({
           title: 'Lectures & Study Materials',
           items: matchingCards.map(card => {
             const isVideo = card.type === 'youtube_video' || card.type === 'youtube_playlist'
-            const isDrive = card.type === 'google_drive'
             return {
               id: `card-${card.id}`,
               type: 'study',
               label: card.title,
-              subtext: `${card.subject || 'General'} • ${card.type === 'youtube_playlist' ? 'Playlist' : isDrive ? 'Notes / Drive' : 'Video Lecture'}`,
+              subtext: card.subject ? `${card.subject}` : undefined,
               icon: isVideo ? <PlayCircle className="h-4 w-4 text-rose-500" /> : <FileText className="h-4 w-4 text-emerald-500" />,
               badgeLabel: card.type === 'youtube_playlist' ? 'Playlist' : isVideo ? 'Video' : 'Notes',
               badgeColor: isVideo ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -331,7 +337,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
 
     // 3 (Admin variant): Batches
     if (profile?.role === 'admin' && adminBatches.length > 0 && q) {
-      const matchingBatches = adminBatches.filter(b => (b.name || '').toLowerCase().includes(q)).slice(0, 5)
+      const matchingBatches = adminBatches.filter(b => (b.name || '').toLowerCase().includes(q)).slice(0, 4)
       if (matchingBatches.length > 0) {
         sections.push({
           title: 'Batches',
@@ -339,7 +345,6 @@ export default function DashboardShell({ navItems, pageTitle }) {
             id: `batch-${b.id}`,
             type: 'batch',
             label: b.name,
-            subtext: 'Manage batch enrollment and curriculum',
             icon: <School className="h-4 w-4 text-indigo-500" />,
             action: () => {
               navigate('/admin/batches')
@@ -357,7 +362,6 @@ export default function DashboardShell({ navItems, pageTitle }) {
         id: 'action-search-study',
         type: 'action',
         label: `Filter Study Hub for "${searchQuery.trim()}"`,
-        subtext: 'View and filter all matching cards in the Study Hub',
         icon: <Search className="h-4 w-4 text-blue-600" />,
         action: () => {
           navigate(`/student/study?search=${encodeURIComponent(searchQuery.trim())}`)
@@ -897,49 +901,56 @@ export default function DashboardShell({ navItems, pageTitle }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-start justify-center pt-16 sm:pt-24 p-4"
+            className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-start justify-center p-3 sm:p-4 pt-10 sm:pt-16 overflow-hidden"
             onClick={() => setShowCommandPalette(false)}
           >
             {/* Modal Dialog */}
             <motion.div
               key="command-palette-dialog"
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              initial={{ opacity: 0, scale: 0.96, y: -8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              exit={{ opacity: 0, scale: 0.96, y: -8 }}
               transition={{ duration: 0.15 }}
-              className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-10"
+              className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden z-10 flex flex-col max-h-[82vh] sm:max-h-[72vh]"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={handleCommandKeyNav}
             >
               {/* Search Bar Input */}
-              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50/50">
-                <Search className="h-5 w-5 text-indigo-600 shrink-0" />
+              <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-slate-100 bg-slate-50/70 shrink-0">
+                <Search className="h-4 w-4 text-indigo-600 shrink-0 ml-0.5" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search modules, subjects, lectures, or notes…"
-                  className="w-full bg-transparent border-none text-slate-900 placeholder-slate-400 text-sm font-semibold focus:outline-none"
+                  className="w-full bg-transparent border-none text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-semibold focus:outline-none"
                 />
-                <button
-                  onClick={() => setShowCommandPalette(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {searchQuery ? (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+                    title="Clear query"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <kbd className="hidden sm:inline-block text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-400">
+                    ESC
+                  </kbd>
+                )}
               </div>
 
               {/* Grouped Search Results List */}
-              <div className="p-2 max-h-84 overflow-y-auto space-y-3 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-2 custom-scrollbar min-h-0">
                 {flatResults.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    No matching results found for &quot;{searchQuery}&quot;
+                  <div className="py-8 text-center text-xs text-slate-400 font-medium">
+                    No matching results found for &ldquo;{searchQuery}&rdquo;
                   </div>
                 ) : (
                   groupedSearchResults.map((section) => (
-                    <div key={section.title} className="space-y-1">
-                      <div className="px-3 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <div key={section.title} className="space-y-0.5">
+                      <div className="px-3 pt-1 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
                         {section.title}
                       </div>
                       {section.items.map((item) => {
@@ -950,33 +961,33 @@ export default function DashboardShell({ navItems, pageTitle }) {
                             key={item.id}
                             onClick={item.action}
                             onMouseEnter={() => setSelectedIndex(itemIndex)}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-left transition-all ${
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
                               isSelected
-                                ? 'bg-blue-950 text-white shadow-sm'
-                                : 'hover:bg-slate-100 text-slate-700'
+                                ? 'bg-blue-950 text-white shadow-xs'
+                                : 'hover:bg-slate-100/90 text-slate-800'
                             }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <span className={`shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`}>
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <span className={`h-4 w-4 shrink-0 flex items-center justify-center ${isSelected ? 'text-amber-400' : 'text-slate-400'}`}>
                                 {item.icon}
                               </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs sm:text-sm font-bold truncate">
+                              <div className="min-w-0 flex-1 flex items-baseline gap-2">
+                                <span className="text-xs sm:text-sm font-semibold truncate">
                                   {item.label}
-                                </p>
+                                </span>
                                 {item.subtext && (
-                                  <p className={`text-[10px] sm:text-[11px] truncate mt-0.5 ${
-                                    isSelected ? 'text-slate-300' : 'text-slate-400'
+                                  <span className={`text-[11px] truncate hidden sm:inline ${
+                                    isSelected ? 'text-slate-300' : 'text-slate-400 font-normal'
                                   }`}>
                                     {item.subtext}
-                                  </p>
+                                  </span>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
                               {item.badgeLabel && (
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
                                   isSelected ? 'bg-white/20 text-white border-white/20' : item.badgeColor
                                 }`}>
                                   {item.badgeLabel}
@@ -984,17 +995,22 @@ export default function DashboardShell({ navItems, pageTitle }) {
                               )}
                               {item.badge && (
                                 item.badge.includes && item.badge.includes('live-class') ? (
-                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-600 text-white shrink-0 flex items-center gap-1 shadow-xs animate-pulse">
-                                    <span className="w-1 h-1 rounded-full bg-white" />
+                                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-rose-600 text-white shrink-0 animate-pulse">
                                     LIVE
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">
+                                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-white shrink-0">
                                     NEW
                                   </span>
                                 )
                               )}
-                              <ArrowRight className={`h-3.5 w-3.5 shrink-0 ${isSelected ? 'text-amber-400 translate-x-0.5' : 'text-slate-300'}`} />
+                              {isSelected ? (
+                                <kbd className="hidden sm:inline-flex items-center text-[10px] font-mono px-1 py-0.5 rounded bg-white/20 text-white border border-white/20">
+                                  ↵
+                                </kbd>
+                              ) : (
+                                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                              )}
                             </div>
                           </button>
                         )
@@ -1005,9 +1021,9 @@ export default function DashboardShell({ navItems, pageTitle }) {
               </div>
 
               {/* Palette Footer Tip */}
-              <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <div className="px-3.5 py-2 bg-slate-50/90 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
                 <span>Use ↑↓ arrows to navigate, Enter to select</span>
-                <span className="font-mono">ESC to close</span>
+                <span className="font-mono text-[10px]">ESC to close</span>
               </div>
             </motion.div>
           </motion.div>
