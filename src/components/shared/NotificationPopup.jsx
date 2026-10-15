@@ -151,41 +151,51 @@ export default function NotificationPopup() {
     const now  = new Date().toISOString()
 
     const load = async () => {
-      let batchId = null
-      if (role === 'student') {
-        const { data: sp } = await supabase
-          .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
-        batchId = sp?.batch_id ?? null
-        batchIdRef.current = batchId
+      try {
+        let batchId = null
+        if (role === 'student') {
+          const { data: sp } = await supabase
+            .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
+          batchId = sp?.batch_id ?? null
+          batchIdRef.current = batchId
+        }
+
+        const [{ data: reads }, { data: notifs }] = await Promise.all([
+          supabase
+            .from('notification_reads')
+            .select('notification_id')
+            .eq('user_id', user.id)
+            .order('read_at', { ascending: false })
+            .limit(50),
+          supabase
+            .from('notifications')
+            .select('id, title, body, type, created_at, scheduled_at, expires_at, target_role, target_batch_id, target_user_id')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(30),
+        ])
+
+        const readSet = new Set((reads ?? []).map(r => r.notification_id))
+        const unread = (notifs ?? []).filter(n => {
+          if (readSet.has(n.id)) return false
+          if (n.scheduled_at && new Date(n.scheduled_at) > new Date(now)) return false
+          if (n.expires_at && new Date(n.expires_at) < new Date(now)) return false
+          if (n.target_user_id && n.target_user_id !== user.id) return false
+          if (role === 'student') {
+            if (n.target_role !== 'all' && n.target_role !== 'student') return false
+            if (n.target_batch_id && batchId && n.target_batch_id !== batchId) return false
+            if (n.target_batch_id && !batchId) return false
+          } else {
+            if (n.target_role !== 'all' && n.target_role !== 'teacher') return false
+            if (n.target_batch_id) return false
+          }
+          return true
+        })
+
+        enqueue(unread.map(n => ({ ...n, id: `notif_${n.id}`, notifId: n.id, itemType: 'notification' })))
+      } catch (err) {
+        console.warn('[NotificationPopup] load error:', err)
       }
-
-      const { data: reads } = await supabase
-        .from('notification_reads')
-        .select('notification_id')
-        .eq('user_id', user.id)
-        .order('read_at', { ascending: false })
-        .limit(50)
-      const readSet = new Set((reads ?? []).map(r => r.notification_id))
-
-      let q = supabase.from('notifications')
-        .select('id, title, body, type, created_at')
-        .eq('is_active', true)
-        .or('scheduled_at.is.null,scheduled_at.lte.' + now)
-        .or('expires_at.is.null,expires_at.gte.' + now)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (role === 'student') {
-        q = q.or('target_role.eq.student,target_role.eq.all')
-        if (batchId) q = q.or(`target_batch_id.is.null,target_batch_id.eq.${batchId}`)
-        else         q = q.is('target_batch_id', null)
-      } else {
-        q = q.or('target_role.eq.teacher,target_role.eq.all').is('target_batch_id', null)
-      }
-
-      const { data: notifs } = await q
-      const unread = (notifs ?? []).filter(n => !readSet.has(n.id))
-      enqueue(unread.map(n => ({ ...n, id: `notif_${n.id}`, notifId: n.id, itemType: 'notification' })))
     }
 
     load()
@@ -205,6 +215,9 @@ export default function NotificationPopup() {
       event: 'INSERT', schema: 'public', table: 'messages',
       filter: `receiver_id=eq.${user.id}`,
     }, async (payload) => {
+      // Don't show toast popup if user is actively in the messages view
+      if (window?.location?.pathname?.includes('/messages')) return
+
       const msg = payload.new
       let senderName = senderNameCache.get(msg.sender_id)
       if (!senderName) {

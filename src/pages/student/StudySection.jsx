@@ -5,7 +5,7 @@ import {
   BookOpen, PlayCircle, Heart, Youtube,
   Link as LinkIcon, ChevronLeft, ChevronRight, BookMarked, GraduationCap,
   Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
-  Dna, Calculator, ArrowRight, Play, FileText, Video, Home
+  Dna, Calculator, ArrowRight, Play, FileText, Video, Home, Folder
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -469,6 +469,7 @@ export default function StudySection() {
   const navigate = useNavigate()
 
   const [cards,            setCards]            = useState([])
+  const [chapters,         setChapters]         = useState([])
   const [bookmarks,        setBookmarks]        = useState(new Set())
   const [tab,              setTab]              = useState('My Batch') // Default landing tab
   const [loading,          setLoading]          = useState(true)
@@ -479,6 +480,7 @@ export default function StudySection() {
   const [studentSubjects,  setStudentSubjects]  = useState([])
   const [selectedSubject,  setSelectedSubject]  = useState(null) // null = Subject Hub view
   const [selectedCategory, setSelectedCategory] = useState(null) // null = Category Selection View ('video', 'drive', 'link', 'bookmarked')
+  const [selectedChapter,  setSelectedChapter]  = useState(null) // null = Chapters list view (when category is video)
   const [searchQuery,      setSearchQuery]      = useState('')
   const [highlightedCardId, setHighlightedCardId] = useState(null)
   const [showSubjectSwitcher, setShowSubjectSwitcher] = useState(false)
@@ -502,18 +504,22 @@ export default function StudySection() {
 
   const handleWatchCard = (card) => {
     const returnSub = selectedSubject || card.subject || ''
-    navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(returnSub)}`, {
-      state: { card, returnSubject: returnSub }
+    const returnCh = selectedChapter || card.chapter_id || card.chapter || ''
+    const chParam = returnCh ? `&returnChapter=${encodeURIComponent(returnCh)}` : ''
+    navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(returnSub)}${chParam}`, {
+      state: { card, returnSubject: returnSub, returnChapter: returnCh }
     })
   }
 
-  // Helper to select subject and category while syncing URL
-  const selectSubject = (subj, cat = null) => {
+  // Helper to select subject, category, and chapter while syncing URL
+  const selectSubject = (subj, cat = null, ch = null) => {
     setSelectedSubject(subj)
     setSelectedCategory(cat)
+    setSelectedChapter(ch)
     if (subj) {
       const catQuery = cat ? `&category=${encodeURIComponent(cat)}` : ''
-      navigate(`/student/study?subject=${encodeURIComponent(subj)}${catQuery}`)
+      const chQuery = ch ? `&chapter=${encodeURIComponent(ch)}` : ''
+      navigate(`/student/study?subject=${encodeURIComponent(subj)}${catQuery}${chQuery}`)
     } else {
       navigate('/student/study')
     }
@@ -521,9 +527,19 @@ export default function StudySection() {
 
   const selectCategory = (cat) => {
     setSelectedCategory(cat)
+    setSelectedChapter(null)
     if (selectedSubject) {
       const catQuery = cat ? `&category=${encodeURIComponent(cat)}` : ''
       navigate(`/student/study?subject=${encodeURIComponent(selectedSubject)}${catQuery}`)
+    }
+  }
+
+  const selectChapter = (chId) => {
+    setSelectedChapter(chId)
+    if (selectedSubject) {
+      const cat = selectedCategory || 'video'
+      const chQuery = chId ? `&chapter=${encodeURIComponent(chId)}` : ''
+      navigate(`/student/study?subject=${encodeURIComponent(selectedSubject)}&category=${encodeURIComponent(cat)}${chQuery}`)
     }
   }
 
@@ -532,6 +548,7 @@ export default function StudySection() {
     const params = new URLSearchParams(location.search)
     const subjParam = params.get('subject')
     const catParam = params.get('category')
+    const chParam = params.get('chapter')
     const cardIdParam = params.get('cardId')
     const searchParam = params.get('search')
 
@@ -540,6 +557,7 @@ export default function StudySection() {
       setTab('My Batch')
     }
     setSelectedCategory(catParam || null)
+    setSelectedChapter(chParam || null)
     setHighlightedCardId(cardIdParam || null)
     if (searchParam !== null) {
       setSearchQuery(searchParam)
@@ -622,7 +640,21 @@ export default function StudySection() {
     }
   }, [user, batchId])
 
-  // Auto-resolve target card subject & category if navigating directly from Dashboard
+  // Fetch chapters for student's batch
+  useEffect(() => {
+    if (!user) return
+    let q = supabase.from('chapters').select('*').order('display_order', { ascending: true })
+    if (batchId) {
+      q = q.or(`batch_id.is.null,batch_id.eq.${batchId}`)
+    }
+    q.then(({ data, error }) => {
+      if (!error && data) {
+        setChapters(data)
+      }
+    }).catch(() => {})
+  }, [user, batchId])
+
+  // Auto-resolve target card subject, category & chapter if navigating directly from Dashboard
   useEffect(() => {
     if (highlightedCardId && cards.length > 0) {
       const targetCard = cards.find(c => c.id === highlightedCardId)
@@ -635,6 +667,9 @@ export default function StudySection() {
         // Automatically set category based on target card type
         if (targetCard.type === 'youtube_video' || targetCard.type === 'youtube_playlist') {
           setSelectedCategory('video')
+          if (targetCard.chapter_id || targetCard.chapter) {
+            setSelectedChapter(targetCard.chapter_id || targetCard.chapter)
+          }
         } else if (targetCard.type === 'google_drive') {
           setSelectedCategory('drive')
         } else if (targetCard.type === 'external_link') {
@@ -754,15 +789,89 @@ export default function StudySection() {
     return counts
   }, [subjectCards, bookmarks])
 
+  // All video cards inside the selected subject
+  const subjectVideoCards = useMemo(() => {
+    return subjectCards.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
+  }, [subjectCards])
+
+  // Chapters belonging to the selected subject (DB chapters + virtual chapters derived from cards)
+  const subjectChapters = useMemo(() => {
+    if (!selectedSubject) return []
+    const s = selectedSubject.toLowerCase()
+    const dbChapters = chapters.filter(ch => ch.subject?.toLowerCase() === s)
+    const existingTitles = new Set(dbChapters.map(ch => (ch.title || '').trim().toLowerCase()))
+
+    const virtualChapters = []
+    subjectVideoCards.forEach(card => {
+      const chName = card.chapter?.trim()
+      if (chName && !existingTitles.has(chName.toLowerCase())) {
+        existingTitles.add(chName.toLowerCase())
+        virtualChapters.push({
+          id: `virtual_${chName}`,
+          title: chName,
+          subject: selectedSubject,
+          description: null,
+          display_order: 999,
+          isVirtual: true,
+        })
+      }
+    })
+    return [...dbChapters, ...virtualChapters]
+  }, [chapters, selectedSubject, subjectVideoCards])
+
+  // Video cards not assigned to any existing chapter for this subject
+  const unassignedVideoCards = useMemo(() => {
+    const knownIds = new Set(subjectChapters.map(ch => ch.id))
+    const knownTitles = new Set(subjectChapters.map(ch => (ch.title || '').trim().toLowerCase()))
+    return subjectVideoCards.filter(c => {
+      if (!c.chapter_id && !c.chapter) return true
+      if (c.chapter_id && !knownIds.has(c.chapter_id)) return true
+      if (!c.chapter_id && c.chapter && !knownTitles.has(c.chapter.trim().toLowerCase())) return true
+      return false
+    })
+  }, [subjectVideoCards, subjectChapters])
+
+  // Active chapter object
+  const activeChapterObj = useMemo(() => {
+    if (!selectedChapter) return null
+    if (selectedChapter === 'general') {
+      return { id: 'general', title: 'General & Introductory Lectures', description: 'Introductory concepts, syllabus and unassigned lectures' }
+    }
+    const found = subjectChapters.find(ch => ch.id === selectedChapter || ch.title?.toLowerCase() === selectedChapter.toLowerCase())
+    if (found) return found
+    return { id: selectedChapter, title: selectedChapter, description: '' }
+  }, [selectedChapter, subjectChapters])
+
+  // Active videos to render when a specific chapter is open
+  const activeChapterVideos = useMemo(() => {
+    if (!selectedChapter) return []
+    if (selectedChapter === 'general') return unassignedVideoCards
+    return subjectVideoCards.filter(c => {
+      if (c.chapter_id && activeChapterObj?.id && c.chapter_id === activeChapterObj.id) return true
+      if (c.chapter && activeChapterObj?.title && c.chapter.toLowerCase() === activeChapterObj.title.toLowerCase()) return true
+      return false
+    })
+  }, [selectedChapter, unassignedVideoCards, subjectVideoCards, activeChapterObj])
+
+  // Count videos inside a specific chapter
+  const getChapterVideoCount = (ch) => {
+    if (!ch) return 0
+    return subjectVideoCards.filter(c => {
+      if (c.chapter_id && c.chapter_id === ch.id) return true
+      if (c.chapter && ch.title && c.chapter.toLowerCase() === ch.title.toLowerCase()) return true
+      return false
+    }).length
+  }
+
   // Active cards to render inside the selected category
   const categoryCardsToDisplay = useMemo(() => {
     if (!selectedCategory) return []
-    if (selectedCategory === 'video') return subjectCards.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
+    if (selectedCategory === 'video') return subjectVideoCards
     if (selectedCategory === 'drive') return subjectCards.filter(c => c.type === 'google_drive')
     if (selectedCategory === 'link') return subjectCards.filter(c => c.type === 'external_link')
     if (selectedCategory === 'bookmarked') return subjectCards.filter(c => bookmarks.has(c.id))
     return subjectCards
-  }, [subjectCards, selectedCategory, bookmarks])
+  }, [subjectCards, selectedCategory, bookmarks, subjectVideoCards])
 
   // Horizontal shelf ref and navigation for compact Recent Batch Uploads
   const recentShelfRef = useRef(null)
@@ -790,11 +899,12 @@ export default function StudySection() {
     return sorted.slice(0, 10)
   }, [cards, batchId])
 
-  // Reset subject and category selection when switching away from My Batch tab
+  // Reset subject, category and chapter selection when switching away from My Batch tab
   useEffect(() => {
     if (tab !== 'My Batch') {
       setSelectedSubject(null)
       setSelectedCategory(null)
+      setSelectedChapter(null)
     }
   }, [tab])
 
@@ -1384,14 +1494,282 @@ export default function StudySection() {
                     </button>
                   </div>
                 </div>
+              ) : selectedCategory === 'video' ? (
+                /* ── MODE B-1: VIDEO LECTURES WITH CHAPTER ARCHITECTURE ── */
+                !selectedChapter ? (
+                  /* ── B-1a: CHAPTERS LIST VIEW ── */
+                  <div className="space-y-5">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <button
+                          onClick={() => selectCategory(null)}
+                          className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+                          title="Back to Categories"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          <span>Categories</span>
+                        </button>
+
+                        <div className="h-5 w-px bg-gray-200" />
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-black text-gray-900">
+                            🎥 Video Lectures • Chapters
+                          </span>
+                          {(() => {
+                            const totalCh = subjectChapters.length + (unassignedVideoCards.length > 0 || subjectChapters.length === 0 ? 1 : 0)
+                            const totalVids = subjectVideoCards.length
+                            return (
+                              <span className="text-xs font-bold text-gray-400">
+                                ({totalCh} {totalCh === 1 ? 'Chapter' : 'Chapters'} • {totalVids} {totalVids === 1 ? 'Video' : 'Videos'})
+                              </span>
+                            )
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Quick Category Switcher Tabs */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        {[
+                          { id: 'video', label: 'Videos' },
+                          { id: 'drive', label: 'Notes' },
+                          { id: 'link', label: 'Links' },
+                          { id: 'bookmarked', label: 'Bookmarked' },
+                        ].map(cat => (
+                          <button
+                            key={cat.id}
+                            onClick={() => selectCategory(cat.id)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                              selectedCategory === cat.id
+                                ? 'bg-blue-950 text-white shadow-2xs'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Chapter Cards List View */}
+                    {loading ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+                        {[...Array(4)].map((_, i) => (
+                          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-24 flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gray-200 rounded-2xl shrink-0" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-3.5 bg-gray-200 rounded w-1/3" />
+                              <div className="h-4 bg-gray-200 rounded w-3/4" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : subjectVideoCards.length === 0 ? (
+                      <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                        <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <h3 className="font-bold text-gray-800 text-base">No Video Lectures Uploaded</h3>
+                        <p className="text-sm text-gray-400 mt-1 max-w-xs mx-auto">
+                          No video lectures have been uploaded for {selectedSubject} yet.
+                        </p>
+                        <button
+                          onClick={() => selectCategory(null)}
+                          className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors cursor-pointer"
+                        >
+                          Back to Categories
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+                        {subjectChapters.map((ch, idx) => {
+                          const videoCount = getChapterVideoCount(ch)
+                          const chapterNum = String(idx + 1).padStart(2, '0')
+                          return (
+                            <button
+                              type="button"
+                              key={ch.id}
+                              onClick={() => selectChapter(ch.id)}
+                              className="group relative bg-white rounded-2xl border border-slate-200/90 hover:border-indigo-400 p-4 sm:p-5 shadow-2xs hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer hover:-translate-y-0.5 text-left w-full"
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200/80 flex flex-col items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-indigo-400 group-hover:bg-indigo-600 transition-all duration-300 shadow-2xs">
+                                  <span className="text-[9px] font-black uppercase tracking-wider text-indigo-500 group-hover:text-indigo-200 transition-colors">
+                                    CH
+                                  </span>
+                                  <span className="text-sm font-black text-indigo-700 group-hover:text-white transition-colors leading-none">
+                                    {chapterNum}
+                                  </span>
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">
+                                      Chapter {idx + 1}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400">•</span>
+                                    <span className="text-[10px] font-bold text-slate-500">
+                                      {videoCount} {videoCount === 1 ? 'Video' : 'Videos'}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-indigo-600 transition-colors truncate mt-0.5">
+                                    {ch.title}
+                                  </h4>
+                                  {ch.description && (
+                                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                                      {ch.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-indigo-600 text-slate-400 group-hover:text-white flex items-center justify-center transition-all shrink-0">
+                                <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                              </div>
+                            </button>
+                          )
+                        })}
+
+                        {/* Fallback Chapter: General & Introductory Lectures */}
+                        {(unassignedVideoCards.length > 0 || subjectChapters.length === 0) && (
+                          <button
+                            type="button"
+                            onClick={() => selectChapter('general')}
+                            className="group relative bg-white rounded-2xl border border-dashed border-slate-300 hover:border-amber-400 p-4 sm:p-5 shadow-2xs hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer hover:-translate-y-0.5 text-left w-full"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                              <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 flex flex-col items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-amber-400 group-hover:bg-amber-500 transition-all duration-300 shadow-2xs">
+                                <Folder className="h-5 w-5 text-amber-600 group-hover:text-white transition-colors" />
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider bg-amber-100/80 px-1.5 py-0.2 rounded-md">
+                                    General
+                                  </span>
+                                  <span className="text-[10px] font-bold text-slate-400">•</span>
+                                  <span className="text-[10px] font-bold text-slate-500">
+                                    {unassignedVideoCards.length} {unassignedVideoCards.length === 1 ? 'Video' : 'Videos'}
+                                  </span>
+                                </div>
+                                <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-amber-700 transition-colors truncate mt-0.5">
+                                  General & Introductory Lectures
+                                </h4>
+                                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                                  Introductory concepts, syllabus and unassigned lectures
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-amber-500 text-slate-400 group-hover:text-white flex items-center justify-center transition-all shrink-0">
+                              <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ── B-1b: CHAPTER SPECIFIC VIDEO LECTURES VIEW ── */
+                  <div className="space-y-5">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <button
+                          onClick={() => selectChapter(null)}
+                          className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+                          title="Back to Chapters"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          <span>Chapters</span>
+                        </button>
+
+                        <div className="h-5 w-px bg-gray-200" />
+
+                        <div className="flex items-center gap-2 min-w-0 truncate">
+                          <span className="text-xs sm:text-sm font-black text-gray-900 truncate">
+                            🎥 {activeChapterObj?.title || 'Chapter Lectures'}
+                          </span>
+                          <span className="text-xs font-bold text-gray-400 shrink-0">
+                            ({activeChapterVideos.length})
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quick Category Switcher Tabs */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        {[
+                          { id: 'video', label: 'Videos' },
+                          { id: 'drive', label: 'Notes' },
+                          { id: 'link', label: 'Links' },
+                          { id: 'bookmarked', label: 'Bookmarked' },
+                        ].map(cat => (
+                          <button
+                            key={cat.id}
+                            onClick={() => selectCategory(cat.id)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                              selectedCategory === cat.id
+                                ? 'bg-blue-950 text-white shadow-2xs'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Study Cards Grid */}
+                    {loading ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
+                        {[...Array(6)].map((_, i) => (
+                          <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                            <div className="aspect-video bg-gray-200" />
+                            <div className="p-2.5 sm:p-3.5 space-y-2">
+                              <div className="h-3.5 bg-gray-200 rounded w-3/4" />
+                              <div className="h-3 bg-gray-100 rounded w-1/2" />
+                              <div className="h-7 bg-gray-200 rounded-xl" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : activeChapterVideos.length === 0 ? (
+                      <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                        <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <h3 className="font-bold text-gray-800 text-base">No Video Lectures in this Chapter</h3>
+                        <p className="text-sm text-gray-400 mt-1 max-w-xs mx-auto">
+                          No lectures have been added to this chapter yet.
+                        </p>
+                        <button
+                          onClick={() => selectChapter(null)}
+                          className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors cursor-pointer"
+                        >
+                          Back to Chapters
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
+                        {activeChapterVideos.map(c => (
+                          <StudyCard
+                            key={c.id}
+                            card={c}
+                            bookmarked={bookmarks.has(c.id)}
+                            onBookmark={toggleBookmark}
+                            isHighlighted={c.id === highlightedCardId}
+                            onWatch={handleWatchCard}
+                            onOpenMaterial={setViewingMaterial}
+                            onOpenNotes={handleOpenNotes}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
               ) : (
-                /* ── MODE B: CATEGORY IS SELECTED -> SHOW CATEGORY HEADER & MATERIALS GRID ── */
+                /* ── MODE B-2: NON-VIDEO CATEGORY (Drive, Link, Bookmarked) ── */
                 <div className="space-y-5">
                   <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <button
                         onClick={() => selectCategory(null)}
-                        className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0"
+                        className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
                         title="Back to Categories"
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -1402,7 +1780,6 @@ export default function StudySection() {
 
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-gray-900">
-                          {selectedCategory === 'video' && '🎥 Video Lectures'}
                           {selectedCategory === 'drive' && '📁 Notes & Drive'}
                           {selectedCategory === 'link' && '🔗 Links & Web'}
                           {selectedCategory === 'bookmarked' && '🔖 Bookmarked Material'}
@@ -1459,7 +1836,7 @@ export default function StudySection() {
                       </p>
                       <button
                         onClick={() => selectCategory(null)}
-                        className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors"
+                        className="mt-4 px-4 py-2 bg-blue-950 text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors cursor-pointer"
                       >
                         Back to Categories
                       </button>

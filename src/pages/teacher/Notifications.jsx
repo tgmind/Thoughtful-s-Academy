@@ -391,21 +391,29 @@ function InboxTab({ user }) {
   const [loading,       setLoading]       = useState(true)
   const [filter,        setFilter]        = useState('all')
 
+  const matches = (n) => {
+    if (!n || !n.is_active) return false
+    const now = new Date()
+    if (n.scheduled_at && new Date(n.scheduled_at) > now) return false
+    if (n.expires_at   && new Date(n.expires_at)   < now) return false
+    if (n.target_role !== 'all' && n.target_role !== 'teacher') return false
+    if (n.target_batch_id) return false
+    return true
+  }
+
   useEffect(() => {
     if (!user) return
     const load = async () => {
-      const now = new Date().toISOString()
       const [{ data: notifs }, { data: reads }] = await Promise.all([
         supabase.from('notifications').select('*')
           .eq('is_active', true)
-          .or('target_role.eq.teacher,target_role.eq.all')
           .is('target_batch_id', null)
-          .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
-          .or(`expires_at.is.null,expires_at.gte.${now}`)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(100),
         supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
       ])
-      setNotifications(notifs ?? [])
+      const filtered = (notifs ?? []).filter(matches)
+      setNotifications(filtered)
       setReadIds(new Set((reads ?? []).map(r => r.notification_id)))
       setLoading(false)
     }

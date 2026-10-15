@@ -303,17 +303,11 @@ export default function StudentDashboard() {
       }
 
       // Secondary phase: Batch-targeted notifications, live classes, homework & study materials
-      let notifQ = supabase.from('notifications')
-        .select('id, title, body, type, created_at')
+      const notifQ = supabase.from('notifications')
+        .select('id, title, body, type, created_at, scheduled_at, expires_at, target_role, target_user_id, target_batch_id')
         .eq('is_active', true)
-        .or('target_role.eq.student,target_role.eq.all')
         .order('created_at', { ascending: false })
-        .limit(5)
-      if (currentBatchId) {
-        notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${currentBatchId}`)
-      } else {
-        notifQ = notifQ.is('target_batch_id', null)
-      }
+        .limit(20)
 
       let liveQ = supabase.from('live_classes')
         .select('id, title, platform, join_url, password, scheduled_at, teacher_id, profiles!teacher_id(full_name)')
@@ -382,11 +376,21 @@ export default function StudentDashboard() {
       }
 
       // Notifications filtering
+      const now = new Date()
       const readSet = new Set(
         (readRes.status === 'fulfilled' && readRes.value?.data) ? readRes.value.data.map(r => r.notification_id) : []
       )
       const rawNotifs = (notifRes.status === 'fulfilled' && notifRes.value?.data) ? notifRes.value.data : []
-      const unreadNotifs = rawNotifs.filter(n => !readSet.has(n.id))
+      const unreadNotifs = rawNotifs.filter(n => {
+        if (readSet.has(n.id)) return false
+        if (n.scheduled_at && new Date(n.scheduled_at) > now) return false
+        if (n.expires_at && new Date(n.expires_at) < now) return false
+        if (n.target_user_id && n.target_user_id !== uid) return false
+        if (n.target_role !== 'all' && n.target_role !== 'student') return false
+        if (n.target_batch_id && currentBatchId && n.target_batch_id !== currentBatchId) return false
+        if (n.target_batch_id && !currentBatchId) return false
+        return true
+      }).slice(0, 5)
       setNotifications(unreadNotifs)
 
       // Homework & Study materials
@@ -458,19 +462,32 @@ export default function StudentDashboard() {
 
     const syncNotifications = () => debounce('notif', async () => {
       const curBatch = batchIdRef.current
-      let notifQ = supabase.from('notifications')
-        .select('id, title, body, type, created_at')
-        .eq('is_active', true)
-        .or('target_role.eq.student,target_role.eq.all')
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (curBatch) {
-        notifQ = notifQ.or(`target_batch_id.is.null,target_batch_id.eq.${curBatch}`)
-      } else {
-        notifQ = notifQ.is('target_batch_id', null)
-      }
-      const { data } = await notifQ
-      if (isSubscribed && data) setNotifications(data)
+      const now = new Date()
+      const [{ data: rawNotifs }, { data: rawReads }] = await Promise.all([
+        supabase.from('notifications')
+          .select('id, title, body, type, created_at, scheduled_at, expires_at, target_role, target_user_id, target_batch_id')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase.from('notification_reads')
+          .select('notification_id')
+          .eq('user_id', uid)
+          .order('read_at', { ascending: false })
+          .limit(50),
+      ])
+      if (!isSubscribed) return
+      const readSet = new Set((rawReads || []).map(r => r.notification_id))
+      const unreadNotifs = (rawNotifs || []).filter(n => {
+        if (readSet.has(n.id)) return false
+        if (n.scheduled_at && new Date(n.scheduled_at) > now) return false
+        if (n.expires_at && new Date(n.expires_at) < now) return false
+        if (n.target_user_id && n.target_user_id !== uid) return false
+        if (n.target_role !== 'all' && n.target_role !== 'student') return false
+        if (n.target_batch_id && curBatch && n.target_batch_id !== curBatch) return false
+        if (n.target_batch_id && !curBatch) return false
+        return true
+      }).slice(0, 5)
+      setNotifications(unreadNotifs)
     })
 
     const syncHomework = () => debounce('hw', async () => {
@@ -503,7 +520,7 @@ export default function StudentDashboard() {
         .eq('receiver_id', uid)
         .eq('is_read', false)
       if (isSubscribed && count !== null && count !== undefined) {
-        setStats(s => ({ ...s, unreadMsg: count }))
+        setStats(s => ({ ...s, unread: count }))
       }
     })
 
@@ -513,9 +530,7 @@ export default function StudentDashboard() {
         .eq('student_id', uid)
         .eq('status', 'pending')
       if (isSubscribed && data) {
-        const isPending = data.length > 0
-        const pendingAmount = data.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-        setStats(s => ({ ...s, feesPaid: !isPending, pendingFeeAmount: pendingAmount }))
+        setStats(s => ({ ...s, pending_fees: data.length }))
       }
     })
 
@@ -529,10 +544,20 @@ export default function StudentDashboard() {
       if (isSubscribed && data) {
         const todayRow = data.find(a => a.date === today)
         setTodayAttendance(todayRow?.status ?? null)
-        const total = data.length
-        const present = data.filter(a => a.status === 'present' || a.status === 'late').length
-        const pct = total > 0 ? Math.round((present / total) * 100) : 100
-        setStats(s => ({ ...s, attendance: pct }))
+        const presentCount = data.filter(a => a.status === 'present').length
+        const lateCount = data.filter(a => a.status === 'late').length
+        const absentCount = data.filter(a => a.status === 'absent').length
+        const total = presentCount + lateCount + absentCount
+        const pct = total > 0 ? Math.round(((presentCount + lateCount * 0.5) / total) * 100) : 0
+        const streak = calculateStreak(data)
+        setStats(s => ({
+          ...s,
+          present: presentCount,
+          late: lateCount,
+          absent: absentCount,
+          pct,
+          streak,
+        }))
       }
     })
 
@@ -586,6 +611,7 @@ export default function StudentDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${uid}` }, syncFees)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${uid}` }, syncAttendance)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, syncNotifications)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${uid}` }, syncNotifications)
       .subscribe()
 
     return () => {

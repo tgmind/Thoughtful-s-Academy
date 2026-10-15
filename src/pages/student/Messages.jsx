@@ -293,16 +293,36 @@ export default function StudentMessages() {
     if (!text.trim() || !selected || sending) return
     setSending(true)
     const content = text.trim()
-    const { data, error } = await supabase
+    const insertPayload = {
+      sender_id: user.id,
+      receiver_id: selected.id,
+      content,
+      is_broadcast: false,
+    }
+
+    let { data, error } = await supabase
       .from('messages')
-      .insert({
-        sender_id: user.id,
-        receiver_id: selected.id,
-        content,
-        is_broadcast: false,
-      })
+      .insert(insertPayload)
       .select()
       .maybeSingle()
+
+    // Automatic fallback if is_broadcast is not in schema cache or does not exist
+    if (
+      error &&
+      (error.code === '42703' ||
+        error.code === 'PGRST204' ||
+        error.message?.includes('is_broadcast') ||
+        error.message?.includes('schema cache'))
+    ) {
+      delete insertPayload.is_broadcast
+      const retry = await supabase
+        .from('messages')
+        .insert(insertPayload)
+        .select()
+        .maybeSingle()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       toast.error(error.message)

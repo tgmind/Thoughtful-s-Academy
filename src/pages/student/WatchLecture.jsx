@@ -588,10 +588,12 @@ export default function WatchLecture() {
       document.exitFullscreen?.().catch(() => {})
     }
     const returnSubject = location.state?.returnSubject || searchParams.get('returnSubject') || card?.subject || ''
+    const returnChapter = location.state?.returnChapter || searchParams.get('returnChapter') || card?.chapter_id || card?.chapter || ''
     if (window.history.length > 1 && window.history.state?.idx > 0) {
       navigate(-1)
     } else if (user && returnSubject) {
-      navigate(`${rolePrefix}/study?subject=${encodeURIComponent(returnSubject)}&category=video`, { replace: true })
+      const chParam = returnChapter ? `&chapter=${encodeURIComponent(returnChapter)}` : ''
+      navigate(`${rolePrefix}/study?subject=${encodeURIComponent(returnSubject)}&category=video${chParam}`, { replace: true })
     } else if (user) {
       navigate(`${rolePrefix}/study`, { replace: true })
     } else {
@@ -722,6 +724,12 @@ export default function WatchLecture() {
           {card.subject && (
             <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-lg shrink-0">
               {card.subject}
+            </span>
+          )}
+
+          {(card.chapter || location.state?.returnChapter || searchParams.get('returnChapter')) && (
+            <span className="hidden sm:inline-flex text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-lg truncate max-w-[140px]" title={card.chapter || location.state?.returnChapter || searchParams.get('returnChapter')}>
+              {card.chapter || location.state?.returnChapter || searchParams.get('returnChapter')}
             </span>
           )}
 

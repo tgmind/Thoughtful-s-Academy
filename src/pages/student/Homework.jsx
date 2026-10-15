@@ -207,13 +207,15 @@ export default function StudentHomework() {
                     {hw.description && <p className="text-sm text-gray-500 mt-0.5">{hw.description}</p>}
                     {due && <p className={`text-xs mt-1 font-medium ${due.cls}`}>{due.text}</p>}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setViewingMaterial({ title: `${hw.title} - Assignment`, url: hw.drive_link, type: 'google_drive' })}
-                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-                  >
-                    <FileText className="h-3.5 w-3.5" /> Assignment
-                  </button>
+                  {hw.drive_link && (
+                    <button
+                      type="button"
+                      onClick={() => setViewingMaterial({ title: `${hw.title} - Assignment`, url: hw.drive_link, type: 'google_drive' })}
+                      className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Assignment
+                    </button>
+                  )}
                 </div>
 
                 {sub ? (

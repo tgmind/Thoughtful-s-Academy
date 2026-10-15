@@ -159,7 +159,7 @@ export default function AdminBatchDetails() {
   const [loadingCards, setLoadingCards] = useState(false)
   const [showCardModal, setShowCardModal] = useState(false)
   const [cardForm, setCardForm] = useState({
-    title: '', description: '', type: 'youtube_video', url: '', subject: '', is_public: true
+    title: '', description: '', type: 'youtube_video', url: '', subject: '', chapter: '', is_public: true
   })
   const [savingCard, setSavingCard] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
@@ -302,6 +302,7 @@ export default function AdminBatchDetails() {
       url: trimmedUrl,
       thumbnail_url: thumb || null,
       subject: cardForm.subject?.trim() || null,
+      chapter: cardForm.chapter?.trim() || null,
       is_public: cardForm.is_public,
       batch_id: selectedBatchId,
       batch_ids: [selectedBatchId],
@@ -309,7 +310,17 @@ export default function AdminBatchDetails() {
       added_by: user?.id || null,
     }
 
-    const { data, error } = await supabase.from('study_cards').insert(payload).select().maybeSingle()
+    let { data, error } = await supabase.from('study_cards').insert(payload).select().maybeSingle()
+
+    // Resilient fallback if chapter column does not exist yet on remote database
+    if (error && (error.code === '42703' || error.message?.includes('chapter'))) {
+      const cleanPayload = { ...payload }
+      delete cleanPayload.chapter
+      const retryResult = await supabase.from('study_cards').insert(cleanPayload).select().maybeSingle()
+      data = retryResult.data
+      error = retryResult.error
+    }
+
     setSavingCard(false)
 
     if (error) {
@@ -317,7 +328,7 @@ export default function AdminBatchDetails() {
     } else {
       toast.success('Public Study Card added!')
       setShowCardModal(false)
-      setCardForm({ title: '', description: '', type: 'youtube_video', url: '', subject: '', is_public: true })
+      setCardForm({ title: '', description: '', type: 'youtube_video', url: '', subject: '', chapter: '', is_public: true })
       if (data) {
         setStudyCards(prev => [data, ...prev])
         logActivity({
@@ -679,6 +690,17 @@ export default function AdminBatchDetails() {
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Chapter (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Electric Charges and Fields"
+                  value={cardForm.chapter || ''}
+                  onChange={e => setCardForm(f => ({ ...f, chapter: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none text-xs"
+                />
               </div>
 
               <div className="flex items-center gap-2 pt-2">

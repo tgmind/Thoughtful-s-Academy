@@ -190,14 +190,24 @@ describe('Free Library Audit: Public and Enrolled Batch Filtering', () => {
     const physicsCard = await screen.findByRole('button', { name: /Physics/i })
     fireEvent.click(physicsCard)
 
-    // Click 'Videos' category
+    // Click 'Videos' category to see chapters
     const videosCategory = await screen.findByRole('button', { name: /Video Lectures/i })
     fireEvent.click(videosCategory)
 
+    // In the new chapter architecture, open the general chapter containing unassigned batch lectures
+    const generalChapter = await screen.findByText(/General & Introductory Lectures/i)
+    const chBtn = generalChapter.closest('button')
+    const reactPropsKey = Object.keys(chBtn).find(k => k.startsWith('__reactProps'))
+    if (chBtn[reactPropsKey]?.onClick) {
+      chBtn[reactPropsKey].onClick()
+    } else {
+      fireEvent.click(chBtn)
+    }
+
     // In My Batch curriculum, all 3 Physics video/playlist cards (both public demo and private courses) must be present
-    expect(screen.getAllByText('Class 9 Public Demo Lecture').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Sigma Web Development Course').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Advanced Private Electromagnetism').length).toBeGreaterThan(0)
+    expect(await screen.findByText('Class 9 Public Demo Lecture')).toBeInTheDocument()
+    expect(screen.getByText('Sigma Web Development Course')).toBeInTheDocument()
+    expect(screen.getByText('Advanced Private Electromagnetism')).toBeInTheDocument()
 
     // Other batch cards must still be excluded
     expect(screen.queryByText('R Shankar (Other Batch Public Lecture)')).not.toBeInTheDocument()

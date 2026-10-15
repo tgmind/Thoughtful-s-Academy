@@ -6,7 +6,7 @@ import {
   Link as LinkIcon, Sparkles, Globe, Search, X, FolderOpen,
   ArrowRight, Play, School, FileText, Plus, Edit2,
   Trash2, Lock, Eye, EyeOff, ChevronDown, Check,
-  Folder, ArrowLeft, Grid, List, Clock
+  Folder, ArrowLeft, Grid, List, Clock, Layers, ChevronRight, ChevronLeft
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -17,6 +17,7 @@ import { logActivity } from '../../lib/activityLogger'
 import ActivityLogModal from '../../components/shared/ActivityLogModal'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 import NotesPlaylistModal from '../../components/shared/NotesPlaylistModal'
+import ChapterSchemaAlert from '../../components/study/ChapterSchemaAlert'
 
 // Vibrant aesthetic themes for batch workspace cards
 const BATCH_THEMES = [
@@ -325,6 +326,119 @@ function CustomSubjectSelect({ value, onChange, availableSubjects }) {
                 + Type Custom Subject
               </button>
             </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Custom Dropdown for Chapter Selection in Form */
+function CustomChapterSelect({ value, chapterId, onChange, availableChapters }) {
+  const [open, setOpen] = useState(false)
+  const [isCustom, setIsCustom] = useState(false)
+  const [customText, setCustomText] = useState('')
+
+  if (isCustom) {
+    return (
+      <div className="space-y-1.5">
+        <div className="relative flex items-center gap-1.5">
+          <input
+            type="text"
+            value={customText}
+            onChange={(e) => {
+              setCustomText(e.target.value)
+              onChange(e.target.value, null)
+            }}
+            placeholder="Type new chapter name..."
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setIsCustom(false)
+              setCustomText('')
+              onChange('', null)
+            }}
+            className="text-[10px] font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-2 rounded-xl border border-slate-200 shrink-0 cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+        <p className="text-[10px] text-slate-400">This chapter will be created automatically upon saving.</p>
+      </div>
+    )
+  }
+
+  const selectedCh = availableChapters.find(ch => ch.id === chapterId || (ch.title && ch.title.toLowerCase() === (value || '').toLowerCase()))
+  const displayLabel = selectedCh ? selectedCh.title : (value ? value : 'None / General (No Chapter)')
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 flex items-center justify-between transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+      >
+        <span className="truncate">{displayLabel}</span>
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-50 animate-scale-in space-y-1 max-h-56 overflow-y-auto">
+            {/* None / General option */}
+            <button
+              type="button"
+              onClick={() => {
+                onChange('', null)
+                setOpen(false)
+              }}
+              className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                !chapterId && !value ? 'bg-blue-50 font-bold text-blue-900' : 'hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <span>None / General (No Chapter)</span>
+              {!chapterId && !value && <Check className="h-3.5 w-3.5 text-blue-600 shrink-0 ml-1" />}
+            </button>
+
+            {/* List of existing chapters */}
+            {availableChapters.map((ch, idx) => {
+              const active = ch.id === chapterId || (ch.title && ch.title.toLowerCase() === (value || '').toLowerCase())
+              return (
+                <button
+                  key={ch.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(ch.title, ch.id)
+                    setOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                    active ? 'bg-blue-50 font-bold text-blue-900' : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <span className="truncate">
+                    <span className="text-[10px] font-bold text-slate-400 mr-1.5">CH {idx + 1}</span>
+                    {ch.title}
+                  </span>
+                  {active && <Check className="h-3.5 w-3.5 text-blue-600 shrink-0 ml-1" />}
+                </button>
+              )
+            })}
+
+            {/* Create new chapter option */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsCustom(true)
+                setOpen(false)
+              }}
+              className="w-full flex items-center gap-1.5 p-2 rounded-lg text-left text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors border-t border-slate-100 cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>+ Add New Chapter...</span>
+            </button>
           </div>
         </>
       )}
@@ -674,11 +788,20 @@ export default function StudySection({ isAdmin = false }) {
   const [loading, setLoading] = useState(true)
   const [batches, setBatches] = useState([])
   const [cards, setCards] = useState([])
+  const [chapters, setChapters] = useState([])
+  const [isChaptersTableMissing, setIsChaptersTableMissing] = useState(false)
 
   // Selection & Navigation
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [selectedSubject, setSelectedSubject] = useState(null)
   const [selectedFolder, setSelectedFolder] = useState(null) // null = directory root, 'video', 'drive', 'link', 'public'
+  const [selectedChapter, setSelectedChapter] = useState(null) // null = chapter list view (inside video folder)
+
+  // Chapter Management Modal State
+  const [showChapterModal, setShowChapterModal] = useState(false)
+  const [chapterForm, setChapterForm] = useState({ title: '', description: '', display_order: 1 })
+  const [editingChapterId, setEditingChapterId] = useState(null)
+  const [savingChapter, setSavingChapter] = useState(false)
 
   // View & Search Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -721,6 +844,25 @@ export default function StudySection({ isAdmin = false }) {
           .select('*')
           .order('display_order')
         setCards(cData || [])
+
+        try {
+          const { data: chData, error: chErr } = await supabase
+            .from('chapters')
+            .select('*')
+            .order('display_order')
+          if (chErr) {
+            if (chErr.code === 'PGRST205' || chErr.message?.includes('schema cache') || chErr.message?.includes('chapters')) {
+              setIsChaptersTableMissing(true)
+            }
+            setChapters([])
+          } else {
+            setIsChaptersTableMissing(false)
+            setChapters(chData || [])
+          }
+        } catch {
+          setIsChaptersTableMissing(true)
+          setChapters([])
+        }
       }
     } catch (err) {
       console.error(err)
@@ -739,6 +881,7 @@ export default function StudySection({ isAdmin = false }) {
     const batchParam = params.get('batch')
     const subjParam = params.get('subject')
     const folderParam = params.get('folder')
+    const chapterParam = params.get('chapter')
 
     if (batchParam && batches.length > 0) {
       const batch = batches.find(b => b.id === batchParam)
@@ -747,8 +890,10 @@ export default function StudySection({ isAdmin = false }) {
         if (subjParam) setSelectedSubject(subjParam)
         if (folderParam) {
           setSelectedFolder(folderParam)
+          setSelectedChapter(chapterParam || null)
         } else {
           setSelectedFolder(null)
+          setSelectedChapter(null)
         }
       }
     }
@@ -802,6 +947,7 @@ export default function StudySection({ isAdmin = false }) {
     setSelectedBatch(batch)
     setSelectedSubject(null)
     setSelectedFolder(null)
+    setSelectedChapter(null)
     setSearchQuery('')
     navigate(`${rolePrefix}/study?batch=${batch.id}`)
   }
@@ -809,12 +955,14 @@ export default function StudySection({ isAdmin = false }) {
   const selectSubject = (subj) => {
     setSelectedSubject(subj)
     setSelectedFolder(null)
+    setSelectedChapter(null)
     setSearchQuery('')
     navigate(`${rolePrefix}/study?batch=${selectedBatch.id}&subject=${encodeURIComponent(subj)}`)
   }
 
   const openFolder = (folderId) => {
     setSelectedFolder(folderId)
+    setSelectedChapter(null)
     setSearchQuery('')
     if (folderId) {
       navigate(`${rolePrefix}/study?batch=${selectedBatch.id}&subject=${encodeURIComponent(selectedSubject)}&folder=${encodeURIComponent(folderId)}`)
@@ -823,10 +971,21 @@ export default function StudySection({ isAdmin = false }) {
     }
   }
 
+  const openChapter = (chapterId) => {
+    setSelectedChapter(chapterId)
+    setSearchQuery('')
+    if (chapterId) {
+      navigate(`${rolePrefix}/study?batch=${selectedBatch.id}&subject=${encodeURIComponent(selectedSubject)}&folder=video&chapter=${encodeURIComponent(chapterId)}`)
+    } else {
+      navigate(`${rolePrefix}/study?batch=${selectedBatch.id}&subject=${encodeURIComponent(selectedSubject)}&folder=video`)
+    }
+  }
+
   const _goBackToBatches = () => {
     setSelectedBatch(null)
     setSelectedSubject(null)
     setSelectedFolder(null)
+    setSelectedChapter(null)
     setSearchQuery('')
     navigate(`${rolePrefix}/study`)
   }
@@ -834,13 +993,17 @@ export default function StudySection({ isAdmin = false }) {
   const _goBackToSubjects = () => {
     setSelectedSubject(null)
     setSelectedFolder(null)
+    setSelectedChapter(null)
     setSearchQuery('')
     navigate(`${rolePrefix}/study?batch=${selectedBatch.id}`)
   }
 
   const goBackStep = () => {
-    if (selectedFolder) {
+    if (selectedChapter) {
+      openChapter(null)
+    } else if (selectedFolder) {
       setSelectedFolder(null)
+      setSelectedChapter(null)
       if (selectedBatch && selectedSubject) {
         navigate(`${rolePrefix}/study?batch=${selectedBatch.id}&subject=${encodeURIComponent(selectedSubject)}`)
       } else if (selectedBatch) {
@@ -851,6 +1014,7 @@ export default function StudySection({ isAdmin = false }) {
     } else if (selectedSubject) {
       setSelectedSubject(null)
       setSelectedFolder(null)
+      setSelectedChapter(null)
       if (selectedBatch) {
         navigate(`${rolePrefix}/study?batch=${selectedBatch.id}`)
       } else {
@@ -860,6 +1024,7 @@ export default function StudySection({ isAdmin = false }) {
       setSelectedBatch(null)
       setSelectedSubject(null)
       setSelectedFolder(null)
+      setSelectedChapter(null)
       setSearchQuery('')
       navigate(`${rolePrefix}/study`)
     }
@@ -867,9 +1032,202 @@ export default function StudySection({ isAdmin = false }) {
 
   const handleWatchCard = (card) => {
     const returnSub = selectedSubject || card.subject || ''
-    navigate(`${rolePrefix}/watch/${card.id}?returnSubject=${encodeURIComponent(returnSub)}`, {
-      state: { card, returnSubject: returnSub }
+    const returnCh = selectedChapter || card.chapter_id || card.chapter || ''
+    const chParam = returnCh ? `&returnChapter=${encodeURIComponent(returnCh)}` : ''
+    navigate(`${rolePrefix}/watch/${card.id}?returnSubject=${encodeURIComponent(returnSub)}${chParam}`, {
+      state: { card, returnSubject: returnSub, returnChapter: returnCh }
     })
+  }
+
+  const openCreateChapter = () => {
+    setChapterForm({
+      title: '',
+      description: '',
+      display_order: batchSubjectChapters.length > 0 ? Math.max(...batchSubjectChapters.map(c => c.display_order || 0)) + 1 : 1
+    })
+    setEditingChapterId(null)
+    setShowChapterModal(true)
+  }
+
+  const openEditChapter = (ch) => {
+    setChapterForm({
+      title: ch.title,
+      description: ch.description || '',
+      display_order: ch.display_order || 0
+    })
+    setEditingChapterId(ch.id)
+    setShowChapterModal(true)
+  }
+
+  const saveChapter = async () => {
+    if (!chapterForm.title.trim()) {
+      toast.error('Chapter title is required')
+      return
+    }
+    if (!selectedBatch || !selectedSubject) {
+      toast.error('Batch and subject are required')
+      return
+    }
+
+    setSavingChapter(true)
+    const payload = {
+      title: chapterForm.title.trim(),
+      description: chapterForm.description?.trim() || null,
+      display_order: parseInt(chapterForm.display_order, 10) || 0,
+      batch_id: selectedBatch.id,
+      subject: selectedSubject,
+    }
+
+    // Graceful offline/unmigrated fallback if chapters table is not yet created in Supabase
+    if (isChaptersTableMissing) {
+      if (editingChapterId) {
+        const updated = { ...payload, id: editingChapterId, updated_at: new Date().toISOString() }
+        setChapters(prev => prev.map(ch => ch.id === editingChapterId ? updated : ch))
+        setCards(prev => prev.map(c => c.chapter_id === editingChapterId ? { ...c, chapter: updated.title } : c))
+        toast('Chapter updated in temporary session. Run migration 031 in Supabase for permanent persistence.', { icon: 'ℹ️' })
+      } else {
+        const clientChapter = {
+          ...payload,
+          id: `ch_local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          created_by: user?.id,
+          created_at: new Date().toISOString()
+        }
+        setChapters(prev => [...prev, clientChapter])
+        toast('Chapter created in temporary session. Run migration 031 in Supabase for permanent persistence.', { icon: 'ℹ️' })
+      }
+      setShowChapterModal(false)
+      setSavingChapter(false)
+      return
+    }
+
+    try {
+      if (editingChapterId) {
+        const { data, error } = await supabase
+          .from('chapters')
+          .update(payload)
+          .eq('id', editingChapterId)
+          .select()
+          .maybeSingle()
+        if (error) {
+          if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+            setIsChaptersTableMissing(true)
+            const updated = { ...payload, id: editingChapterId, updated_at: new Date().toISOString() }
+            setChapters(prev => prev.map(ch => ch.id === editingChapterId ? updated : ch))
+            toast('Saved in local session. Run migration 031 in Supabase for permanent persistence.', { icon: 'ℹ️' })
+            setShowChapterModal(false)
+            return
+          }
+          throw error
+        }
+        setChapters(prev => prev.map(ch => ch.id === editingChapterId ? data : ch))
+        if (data?.title) {
+          setCards(prev => prev.map(c => c.chapter_id === editingChapterId ? { ...c, chapter: data.title } : c))
+        }
+        logActivity({
+          batchId: selectedBatch.id,
+          user,
+          userName: user?.user_metadata?.full_name,
+          userRole: isAdmin ? 'admin' : 'teacher',
+          actionType: 'update',
+          entityType: 'chapter',
+          entityTitle: data.title,
+          details: `Subject: ${selectedSubject} • Chapter updated`
+        })
+        toast.success('Chapter updated successfully')
+      } else {
+        const { data, error } = await supabase
+          .from('chapters')
+          .insert({ ...payload, created_by: user.id })
+          .select()
+          .maybeSingle()
+        if (error) {
+          if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+            setIsChaptersTableMissing(true)
+            const clientChapter = {
+              ...payload,
+              id: `ch_local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              created_by: user?.id,
+              created_at: new Date().toISOString()
+            }
+            setChapters(prev => [...prev, clientChapter])
+            toast('Saved in local session. Run migration 031 in Supabase for permanent persistence.', { icon: 'ℹ️' })
+            setShowChapterModal(false)
+            return
+          }
+          throw error
+        }
+        setChapters(prev => [...prev, data])
+        logActivity({
+          batchId: selectedBatch.id,
+          user,
+          userName: user?.user_metadata?.full_name,
+          userRole: isAdmin ? 'admin' : 'teacher',
+          actionType: 'create',
+          entityType: 'chapter',
+          entityTitle: data.title,
+          details: `Subject: ${selectedSubject} • New chapter created`
+        })
+        toast.success('Chapter created successfully')
+      }
+      setShowChapterModal(false)
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message || 'Failed to save chapter')
+    } finally {
+      setSavingChapter(false)
+    }
+  }
+
+  const deleteChapter = async (chapterId) => {
+    const chToDelete = chapters.find(c => c.id === chapterId)
+    if (!window.confirm(`Are you sure you want to delete "${chToDelete?.title || 'this chapter'}"? Any lectures in this chapter will be preserved and moved to General Lectures.`)) {
+      return
+    }
+
+    if (isChaptersTableMissing || String(chapterId).startsWith('ch_local_') || String(chapterId).startsWith('virtual_')) {
+      setChapters(prev => prev.filter(c => c.id !== chapterId))
+      setCards(prev => prev.map(c => c.chapter_id === chapterId ? { ...c, chapter_id: null, chapter: null } : c))
+      if (selectedChapter === chapterId) {
+        setSelectedChapter(null)
+      }
+      toast.success('Chapter removed')
+      return
+    }
+
+    try {
+      const { error } = await supabase.from('chapters').delete().eq('id', chapterId)
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+          setIsChaptersTableMissing(true)
+          setChapters(prev => prev.filter(c => c.id !== chapterId))
+          setCards(prev => prev.map(c => c.chapter_id === chapterId ? { ...c, chapter_id: null, chapter: null } : c))
+          if (selectedChapter === chapterId) setSelectedChapter(null)
+          toast.success('Chapter removed')
+          return
+        }
+        throw error
+      }
+
+      setChapters(prev => prev.filter(c => c.id !== chapterId))
+      setCards(prev => prev.map(c => c.chapter_id === chapterId ? { ...c, chapter_id: null, chapter: null } : c))
+      if (selectedChapter === chapterId) {
+        setSelectedChapter(null)
+      }
+      logActivity({
+        batchId: selectedBatch?.id,
+        user,
+        userName: user?.user_metadata?.full_name,
+        userRole: isAdmin ? 'admin' : 'teacher',
+        actionType: 'delete',
+        entityType: 'chapter',
+        entityTitle: chToDelete?.title || 'Chapter',
+        details: `Subject: ${selectedSubject} • Chapter deleted`
+      })
+      toast.success('Chapter deleted')
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message || 'Failed to delete chapter')
+    }
   }
 
   const isBatchTeacher = (batch, userId) => {
@@ -908,11 +1266,17 @@ export default function StudySection({ isAdmin = false }) {
     else if (selectedFolder === 'drive') type = 'google_drive'
     else if (selectedFolder === 'link') type = 'external_link'
 
+    const activeChObj = (selectedChapter && selectedChapter !== 'general')
+      ? chapters.find(ch => ch.id === selectedChapter)
+      : null
+
     setForm({
       ...EMPTY_CARD_FORM,
       batch_ids: selectedBatch ? [selectedBatch.id] : [],
       subject: selectedSubject || '',
       type,
+      chapter_id: activeChObj?.id || null,
+      chapter: activeChObj?.title || '',
       display_order: cards.length > 0 ? Math.max(...cards.map(c => c.display_order || 0)) + 10 : 10
     })
     setEditing(null)
@@ -928,6 +1292,8 @@ export default function StudySection({ isAdmin = false }) {
       is_public: card.is_public,
       batch_ids: card.batch_ids || (card.batch_id ? [card.batch_id] : []),
       subject: card.subject || '',
+      chapter_id: card.chapter_id || null,
+      chapter: card.chapter || '',
       display_order: card.display_order || 0,
       is_featured: card.is_featured || false,
     })
@@ -954,6 +1320,54 @@ export default function StudySection({ isAdmin = false }) {
     const thumb = getYTThumb(form.url.trim()) || playlistThumb
     setSaving(true)
 
+    let finalChapterId = form.chapter_id || null
+    let finalChapterName = form.chapter ? form.chapter.trim() : null
+
+    // If teacher typed a new chapter name and it doesn't have an ID yet, create the chapter in chapters table
+    if (finalChapterName && !finalChapterId && form.batch_ids.length > 0 && form.subject) {
+      try {
+        if (!isChaptersTableMissing) {
+          const { data: newCh, error: chErr } = await supabase
+            .from('chapters')
+            .insert({
+              title: finalChapterName,
+              subject: form.subject,
+              batch_id: form.batch_ids[0],
+              created_by: user.id
+            })
+            .select()
+            .maybeSingle()
+          if (!chErr && newCh) {
+            finalChapterId = newCh.id
+            setChapters(prev => [...prev, newCh])
+          } else if (chErr && (chErr.code === 'PGRST205' || chErr.message?.includes('schema cache'))) {
+            setIsChaptersTableMissing(true)
+            const localCh = {
+              id: `ch_local_${Date.now()}`,
+              title: finalChapterName,
+              subject: form.subject,
+              batch_id: form.batch_ids[0],
+              created_by: user.id
+            }
+            finalChapterId = localCh.id
+            setChapters(prev => [...prev, localCh])
+          }
+        } else {
+          const localCh = {
+            id: `ch_local_${Date.now()}`,
+            title: finalChapterName,
+            subject: form.subject,
+            batch_id: form.batch_ids[0],
+            created_by: user.id
+          }
+          finalChapterId = localCh.id
+          setChapters(prev => [...prev, localCh])
+        }
+      } catch (err) {
+        console.warn('Could not auto-create chapter:', err)
+      }
+    }
+
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -964,18 +1378,35 @@ export default function StudySection({ isAdmin = false }) {
       batch_id: form.batch_ids[0] || null,
       batch_ids: form.batch_ids,
       subject: form.batch_ids.length > 0 ? (form.subject || null) : null,
+      chapter_id: finalChapterId,
+      chapter: finalChapterName,
       display_order: form.display_order,
       is_featured: form.is_featured,
     }
 
     try {
       if (editing) {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('study_cards')
           .update(payload)
           .eq('id', editing)
           .select()
           .maybeSingle()
+
+        // Fallback retry if chapter_id or chapter column does not exist on remote database
+        if (error && (error.code === '42703' || error.message?.includes('chapter'))) {
+          const cleanPayload = { ...payload }
+          delete cleanPayload.chapter_id
+          delete cleanPayload.chapter
+          const retryRes = await supabase
+            .from('study_cards')
+            .update(cleanPayload)
+            .eq('id', editing)
+            .select()
+            .maybeSingle()
+          data = retryRes.data
+          error = retryRes.error
+        }
 
         if (error) throw error
         setCards(c => c.map(x => x.id === editing ? data : x))
@@ -992,11 +1423,25 @@ export default function StudySection({ isAdmin = false }) {
           details: `${data.subject || ''} · ${data.folder || ''}`
         })
       } else {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('study_cards')
           .insert({ ...payload, added_by: user.id, is_active: true })
           .select()
           .maybeSingle()
+
+        // Fallback retry if chapter_id or chapter column does not exist on remote database
+        if (error && (error.code === '42703' || error.message?.includes('chapter'))) {
+          const cleanPayload = { ...payload }
+          delete cleanPayload.chapter_id
+          delete cleanPayload.chapter
+          const retryRes = await supabase
+            .from('study_cards')
+            .insert({ ...cleanPayload, added_by: user.id, is_active: true })
+            .select()
+            .maybeSingle()
+          data = retryRes.data
+          error = retryRes.error
+        }
 
         if (error) throw error
         setCards(c => [...c, data])
@@ -1126,6 +1571,81 @@ export default function StudySection({ isAdmin = false }) {
     const all = subjectCards.length
     return { video, drive, link, publics, all }
   }, [subjectCards])
+
+  // Batch & Subject video cards
+  const batchSubjectVideoCards = useMemo(() => {
+    return subjectCards.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
+  }, [subjectCards])
+
+  // Batch & Subject specific chapters (DB chapters + virtual chapters derived from card chapter strings)
+  const batchSubjectChapters = useMemo(() => {
+    if (!selectedBatch || !selectedSubject) return []
+    const s = selectedSubject.toLowerCase()
+    const dbChapters = chapters.filter(ch => (ch.batch_id === selectedBatch.id || !ch.batch_id) && ch.subject?.toLowerCase() === s)
+    const existingTitles = new Set(dbChapters.map(ch => (ch.title || '').trim().toLowerCase()))
+
+    const virtualChapters = []
+    batchSubjectVideoCards.forEach(card => {
+      const chName = card.chapter?.trim()
+      if (chName && !existingTitles.has(chName.toLowerCase())) {
+        existingTitles.add(chName.toLowerCase())
+        virtualChapters.push({
+          id: `virtual_${chName}`,
+          title: chName,
+          subject: selectedSubject,
+          batch_id: selectedBatch.id,
+          description: null,
+          display_order: 999,
+          isVirtual: true,
+        })
+      }
+    })
+    return [...dbChapters, ...virtualChapters]
+  }, [chapters, selectedBatch, selectedSubject, batchSubjectVideoCards])
+
+  // Unassigned video cards
+  const unassignedVideos = useMemo(() => {
+    const knownIds = new Set(batchSubjectChapters.map(ch => ch.id))
+    const knownTitles = new Set(batchSubjectChapters.map(ch => (ch.title || '').trim().toLowerCase()))
+    return batchSubjectVideoCards.filter(c => {
+      if (!c.chapter_id && !c.chapter) return true
+      if (c.chapter_id && !knownIds.has(c.chapter_id)) return true
+      if (!c.chapter_id && c.chapter && !knownTitles.has(c.chapter.trim().toLowerCase())) return true
+      return false
+    })
+  }, [batchSubjectVideoCards, batchSubjectChapters])
+
+  // Active chapter object
+  const activeChapterObj = useMemo(() => {
+    if (!selectedChapter) return null
+    if (selectedChapter === 'general') {
+      return { id: 'general', title: 'General & Introductory Lectures', description: 'Unassigned video lectures for this subject' }
+    }
+    const found = batchSubjectChapters.find(ch => ch.id === selectedChapter || ch.title?.toLowerCase() === selectedChapter.toLowerCase())
+    if (found) return found
+    return { id: selectedChapter, title: selectedChapter, description: '' }
+  }, [selectedChapter, batchSubjectChapters])
+
+  // Videos belonging to active chapter
+  const activeChapterVideos = useMemo(() => {
+    if (!selectedChapter) return []
+    if (selectedChapter === 'general') return unassignedVideos
+    return batchSubjectVideoCards.filter(c => {
+      if (c.chapter_id && activeChapterObj?.id && c.chapter_id === activeChapterObj.id) return true
+      if (c.chapter && activeChapterObj?.title && c.chapter.toLowerCase() === activeChapterObj.title.toLowerCase()) return true
+      return false
+    })
+  }, [selectedChapter, unassignedVideos, batchSubjectVideoCards, activeChapterObj])
+
+  // Count videos inside a specific chapter
+  const getChapterVideoCount = (ch) => {
+    if (!ch) return 0
+    return batchSubjectVideoCards.filter(c => {
+      if (c.chapter_id && c.chapter_id === ch.id) return true
+      if (c.chapter && ch.title && c.chapter.toLowerCase() === ch.title.toLowerCase()) return true
+      return false
+    }).length
+  }
 
   // Split batches into Assigned ("My Batches") vs Other Batches
   const myBatches = useMemo(() => {
@@ -1555,15 +2075,23 @@ export default function StudySection({ isAdmin = false }) {
       {/* ───────────────────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3 sm:p-3.5 space-y-2.5 transition-all">
         
-        {/* Row 1: Circular Back Button & Full Stacked Context Hierarchy + Add CTA */}
+        {/* Row 1: Circular Back Button & Full Stacked Context Hierarchy + Contextual Add CTAs */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {(selectedBatch || selectedSubject || selectedFolder) && (
+            {(selectedBatch || selectedSubject || selectedFolder || selectedChapter) && (
               <button
                 type="button"
                 onClick={goBackStep}
                 className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-900 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
-                title="Go Back"
+                title={
+                  selectedChapter
+                    ? 'Back to Chapters'
+                    : selectedFolder
+                    ? 'Back to Content Folders'
+                    : selectedSubject
+                    ? 'Back to Subjects'
+                    : 'Back to Batches'
+                }
               >
                 <ArrowLeft className="h-5 w-5 text-slate-800" />
               </button>
@@ -1571,7 +2099,9 @@ export default function StudySection({ isAdmin = false }) {
 
             <div className="min-w-0 flex-1 leading-none">
               <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block truncate">
-                {selectedFolder 
+                {selectedChapter
+                  ? `${activeFolderObj?.name || 'Video Lectures'} • ${selectedSubject}`
+                  : selectedFolder 
                   ? `${selectedSubject} • ${selectedBatch?.name}`
                   : selectedSubject 
                   ? selectedBatch?.name 
@@ -1579,26 +2109,93 @@ export default function StudySection({ isAdmin = false }) {
                   ? 'Workspace' 
                   : 'Study Workspace'}
               </span>
-              <h2 className="text-xs sm:text-sm font-black text-slate-900 truncate mt-0.5">
-                {selectedFolder 
-                  ? (activeFolderObj?.name || 'Folder Material')
-                  : selectedSubject 
-                  ? selectedSubject 
-                  : selectedBatch 
-                  ? selectedBatch.name 
-                  : 'All Batches'}
-              </h2>
+              <div className="flex items-center gap-2 truncate mt-0.5">
+                <h2 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                  {selectedChapter
+                    ? (activeChapterObj?.title || 'Chapter Lectures')
+                    : selectedFolder === 'video'
+                    ? `${selectedSubject} Video Chapters`
+                    : selectedFolder 
+                    ? (activeFolderObj?.name || 'Folder Material')
+                    : selectedSubject 
+                    ? selectedSubject 
+                    : selectedBatch 
+                    ? selectedBatch.name 
+                    : 'All Batches'}
+                </h2>
+                {selectedFolder === 'video' && !selectedChapter && (
+                  <span className="text-[11px] font-bold text-slate-500 shrink-0">
+                    {(() => {
+                      const totalCh = batchSubjectChapters.length + (unassignedVideos.length > 0 || batchSubjectChapters.length === 0 ? 1 : 0)
+                      const totalVids = batchSubjectVideoCards.length
+                      return `(${totalCh} ${totalCh === 1 ? 'Chapter' : 'Chapters'} • ${totalVids} ${totalVids === 1 ? 'Video' : 'Videos'})`
+                    })()}
+                  </span>
+                )}
+                {selectedChapter && (
+                  <span className="text-[11px] font-bold text-slate-500 shrink-0">
+                    ({activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'})
+                  </span>
+                )}
+                {selectedFolder && selectedFolder !== 'video' && (
+                  <span className="text-[11px] font-bold text-slate-500 shrink-0">
+                    ({processedCards.length} {processedCards.length === 1 ? 'Item' : 'Items'})
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           {canManageBatch(selectedBatch) && (
-            <button
-              onClick={() => openAddForm('external_link')}
-              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0 border border-blue-400/30"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden xs:inline">Add Card</span>
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {selectedFolder === 'video' && !selectedChapter ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={openCreateChapter}
+                    className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden xs:inline">Create Chapter</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAddForm('video')}
+                    className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Add Video</span>
+                  </button>
+                </>
+              ) : selectedFolder === 'video' && selectedChapter ? (
+                <button
+                  type="button"
+                  onClick={() => openAddForm('video')}
+                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Video to Chapter</span>
+                </button>
+              ) : selectedFolder ? (
+                <button
+                  type="button"
+                  onClick={() => openAddForm(activeFolderObj?.cardType || 'external_link')}
+                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Study Card</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAddForm('external_link')}
+                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0 border border-blue-400/30"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden xs:inline">Add Card</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -1610,7 +2207,7 @@ export default function StudySection({ isAdmin = false }) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search cards..."
+              placeholder={selectedFolder === 'video' ? 'Search chapters or lectures...' : 'Search cards...'}
               className="w-full pl-7 pr-6 py-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-[11px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             {searchQuery && (
@@ -1755,8 +2352,180 @@ export default function StudySection({ isAdmin = false }) {
 
               {renderFolderList()}
             </div>
+          ) : selectedFolder === 'video' ? (
+            /* OPENED FOLDER: VIDEO LECTURES WITH CHAPTER ARCHITECTURE */
+            !selectedChapter ? (
+              /* CHAPTER LIST VIEW FOR VIDEO LECTURES */
+              <div className="space-y-4">
+                {isChaptersTableMissing && (
+                  <ChapterSchemaAlert
+                    isAdmin={isAdmin}
+                    onRetry={fetchData}
+                  />
+                )}
+
+                {batchSubjectChapters.length === 0 && unassignedVideos.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 p-6 space-y-3">
+                    <BookOpen className="h-10 w-10 text-slate-300 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">No chapters or video lectures added yet for {selectedSubject}</p>
+                    {canManageBatch(selectedBatch) && (
+                      <div className="flex items-center justify-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={openCreateChapter}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Create First Chapter
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openAddForm('video')}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Add Video Lecture
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+                    {batchSubjectChapters.map((ch, idx) => {
+                      const videoCount = getChapterVideoCount(ch)
+                      const chapterNum = String(idx + 1).padStart(2, '0')
+                      return (
+                        <div
+                          key={ch.id}
+                          onClick={() => openChapter(ch.id)}
+                          className="group relative bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 p-4 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200/80 flex flex-col items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-indigo-400 group-hover:bg-indigo-600 transition-all duration-300 shadow-2xs">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-indigo-500 group-hover:text-indigo-200 transition-colors">
+                                CH
+                              </span>
+                              <span className="text-sm font-black text-indigo-700 group-hover:text-white transition-colors leading-none">
+                                {chapterNum}
+                              </span>
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">
+                                  Chapter {idx + 1}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400">•</span>
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  {videoCount} {videoCount === 1 ? 'Lecture' : 'Lectures'}
+                                </span>
+                              </div>
+                              <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-indigo-600 transition-colors truncate mt-0.5">
+                                {ch.title}
+                              </h4>
+                              {ch.description && (
+                                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                                  {ch.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {canManageBatch(selectedBatch) && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openEditChapter(ch)
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                  title="Edit Chapter"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    deleteChapter(ch.id)
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  title="Delete Chapter"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </>
+                            )}
+                            <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-indigo-600 text-slate-400 group-hover:text-white flex items-center justify-center transition-all ml-1">
+                              <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* Fallback Chapter: General & Introductory Lectures */}
+                    {(unassignedVideos.length > 0 || batchSubjectChapters.length === 0) && (
+                      <div
+                        onClick={() => openChapter('general')}
+                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 hover:border-amber-400 p-4 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 flex flex-col items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-amber-400 group-hover:bg-amber-500 transition-all duration-300 shadow-2xs">
+                            <Folder className="h-5 w-5 text-amber-600 group-hover:text-white transition-colors" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider bg-amber-100/80 px-1.5 py-0.2 rounded-md">
+                                General
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400">•</span>
+                              <span className="text-[10px] font-bold text-slate-500">
+                                {unassignedVideos.length} {unassignedVideos.length === 1 ? 'Lecture' : 'Lectures'}
+                              </span>
+                            </div>
+                            <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-amber-700 transition-colors truncate mt-0.5">
+                              General & Introductory Lectures
+                            </h4>
+                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                              Introductory concepts, syllabus and unassigned lectures
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-amber-500 text-slate-400 group-hover:text-white flex items-center justify-center transition-all shrink-0">
+                          <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* CHAPTER SPECIFIC LECTURES VIEW */
+              <div className="space-y-4">
+                {activeChapterVideos.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 p-6 space-y-3">
+                    <FolderOpen className="h-10 w-10 text-slate-400 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">No video lectures in this chapter yet</p>
+                    {canManageBatch(selectedBatch) && (
+                      <button
+                        type="button"
+                        onClick={() => openAddForm('video')}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <Plus className="h-4 w-4" /> Add Lecture
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  renderCardList(activeChapterVideos)
+                )}
+              </div>
+            )
           ) : (
-            /* OPENED FOLDER VIEW: FOLDER SPECIFIC CARDS LIST ONLY */
+            /* OPENED FOLDER VIEW: NON-VIDEO FOLDERS LIST */
             <div className="space-y-3">
               {processedCards.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 p-6 space-y-3">
@@ -1858,6 +2627,24 @@ export default function StudySection({ isAdmin = false }) {
                       />
                     </div>
                   </div>
+
+                  {(form.type === 'youtube_video' || form.type === 'youtube_playlist') && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        Chapter (Optional)
+                      </label>
+                      <CustomChapterSelect
+                        value={form.chapter}
+                        chapterId={form.chapter_id}
+                        onChange={(chTitle, chId) => setForm(f => ({ ...f, chapter: chTitle, chapter_id: chId }))}
+                        availableChapters={
+                          form.subject
+                            ? chapters.filter(ch => (form.batch_ids.length === 0 || form.batch_ids.includes(ch.batch_id)) && ch.subject?.toLowerCase() === form.subject.toLowerCase())
+                            : chapters
+                        }
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -2004,6 +2791,97 @@ export default function StudySection({ isAdmin = false }) {
             setNotesModalCard(null)
           }}
         />
+      )}
+
+      {/* ───────────────────────────────────────────────────────────────────────── */}
+      {/* CREATE / EDIT CHAPTER MODAL                                              */}
+      {/* ───────────────────────────────────────────────────────────────────────── */}
+      {showChapterModal && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden animate-scale-in text-slate-900 z-[100000]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-200 bg-slate-50/80 shrink-0">
+              <div>
+                <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
+                  {editingChapterId ? 'Edit Chapter' : 'Create New Chapter'}
+                </h2>
+                <p className="text-[10px] sm:text-xs text-slate-500 font-medium">
+                  {selectedSubject} • {selectedBatch?.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChapterModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 space-y-3.5">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Chapter Title *
+                </label>
+                <input
+                  type="text"
+                  value={chapterForm.title}
+                  onChange={(e) => setChapterForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  placeholder="e.g. Electric Charges and Fields"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={chapterForm.description}
+                  onChange={(e) => setChapterForm(f => ({ ...f, description: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
+                  placeholder="Brief chapter overview or syllabus scope..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  value={chapterForm.display_order}
+                  onChange={(e) => setChapterForm(f => ({ ...f, display_order: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  placeholder="1, 2, 3..."
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3.5 bg-slate-50/80 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowChapterModal(false)}
+                className="px-3.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-200/80 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveChapter}
+                disabled={savingChapter}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                {savingChapter ? 'Saving...' : editingChapterId ? 'Update Chapter' : 'Save Chapter'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -319,7 +319,8 @@ export default function DashboardShell({ navItems, pageTitle }) {
               badgeColor: isVideo ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
               action: () => {
                 if (isVideo) {
-                  navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(card.subject || '')}`)
+                  const chParam = card.chapter_id || card.chapter ? `&returnChapter=${encodeURIComponent(card.chapter_id || card.chapter)}` : ''
+                  navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(card.subject || '')}${chParam}`)
                 } else {
                   navigate(`/student/study?subject=${encodeURIComponent(card.subject || '')}&cardId=${card.id}`)
                 }
@@ -525,7 +526,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
                           LIVE
                         </span>
                       ) : (
-                        <span className="ml-auto text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-white shrink-0">
+                        <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">
                           NEW
                         </span>
                       )
@@ -852,12 +853,12 @@ export default function DashboardShell({ navItems, pageTitle }) {
                       </p>
                       {hasDot && (
                         isLiveItem ? (
-                          <span className="inline-flex items-center gap-1 mt-1 text-[8.5px] font-black uppercase tracking-wider text-rose-600 bg-rose-100/90 px-1.5 py-0.2 rounded-full border border-rose-300 shadow-2xs animate-pulse">
+                          <span className="inline-flex items-center gap-1 mt-1 text-[8.5px] font-black uppercase tracking-wider text-rose-600 bg-rose-100/90 px-1.5 py-0.5 rounded-full border border-rose-300 shadow-2xs animate-pulse">
                             <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
                             LIVE
                           </span>
                         ) : (
-                          <span className="inline-block mt-1 text-[8.5px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60">
+                          <span className="inline-block mt-1 text-[8.5px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
                             New
                           </span>
                         )
@@ -985,7 +986,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
 
                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
                               {item.badgeLabel && (
-                                <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
+                                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${
                                   isSelected ? 'bg-white/20 text-white border-white/20' : item.badgeColor
                                 }`}>
                                   {item.badgeLabel}
@@ -993,11 +994,11 @@ export default function DashboardShell({ navItems, pageTitle }) {
                               )}
                               {item.badge && (
                                 item.badge.includes && item.badge.includes('live-class') ? (
-                                  <span className="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-600 text-white shrink-0 animate-pulse">
+                                  <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded-full bg-rose-600 text-white shrink-0 animate-pulse">
                                     LIVE
                                   </span>
                                 ) : (
-                                  <span className="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-white shrink-0">
+                                  <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">
                                     NEW
                                   </span>
                                 )

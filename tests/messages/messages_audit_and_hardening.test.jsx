@@ -14,6 +14,9 @@ import TeacherMessages from '../../src/pages/teacher/Messages'
 import AdminMessages from '../../src/pages/admin/AdminMessages'
 
 // Query builder mock for Supabase
+let mockTableData = {}
+let shouldFailBroadcastSchema = false
+
 function createChainableQueryBuilder(table, getTableData) {
   let filterConditions = []
   let insertData = null
@@ -65,6 +68,20 @@ function createChainableQueryBuilder(table, getTableData) {
       return builder.then((res) => ({ data: res.data?.[0] || null, error: null }))
     },
     then(resolve) {
+      if (
+        shouldFailBroadcastSchema &&
+        table === 'messages' &&
+        filterConditions.some((f) => f.col === 'is_broadcast')
+      ) {
+        return Promise.resolve({
+          data: null,
+          error: {
+            code: 'PGRST204',
+            message: "Could not find the 'is_broadcast' column of 'messages' in the schema cache",
+          },
+        }).then(resolve)
+      }
+
       const allRows = getTableData(table) || []
       let rows = [...allRows]
 
@@ -103,8 +120,6 @@ function createChainableQueryBuilder(table, getTableData) {
   return builder
 }
 
-let mockTableData = {}
-
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: vi.fn((table) => createChainableQueryBuilder(table, (t) => mockTableData[t])),
@@ -128,6 +143,7 @@ vi.mock('../../src/context/AuthContext', () => ({
 describe('Messaging Feature Audit & Hardening Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    shouldFailBroadcastSchema = false
     mockTableData = {
       profiles: [],
       teacher_profiles: [],
@@ -540,6 +556,31 @@ describe('Messaging Feature Audit & Hardening Suite', () => {
       await waitFor(() => {
         expect(screen.getByText('Hello sir, sent accidentally')).toBeInTheDocument()
         expect(screen.getByTitle('Delete message')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('7. Schema Resilience & Auto-Fallback', () => {
+    it('renders MessagesSchemaAlert banner when is_broadcast column is missing in remote database', async () => {
+      mockAuthState.user = { id: 'admin-1', role: 'admin' }
+      mockTableData.batches = [
+        { id: 'batch-schema-err', name: 'Math Batch', subject: 'Math', is_active: true },
+      ]
+      shouldFailBroadcastSchema = true
+
+      render(
+        <MemoryRouter initialEntries={['/admin/messages?batch=batch-schema-err']}>
+          <Routes>
+            <Route path="/admin/messages" element={<AdminMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Database Setup Required for Batch Broadcasts/i)
+        ).toBeInTheDocument()
+        expect(screen.getByText(/Copy Migration SQL/i)).toBeInTheDocument()
       })
     })
   })

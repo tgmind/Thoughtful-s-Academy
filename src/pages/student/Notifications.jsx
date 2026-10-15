@@ -48,27 +48,27 @@ export default function Notifications() {
         const batchId = profile?.batch_id ?? null
         batchIdRef.current = batchId
 
-        const batchFilter = batchId
-          ? `target_batch_id.is.null,target_batch_id.eq.${batchId}`
-          : 'target_batch_id.is.null'
-
-        const { data: notifs } = await supabase.from('notifications').select('*')
-          .eq('is_active', true)
-          .or('target_role.eq.student,target_role.eq.all')
-          .or(`target_user_id.is.null,target_user_id.eq.${user.id}`)
-          .or(batchFilter)
-          .order('created_at', { ascending: false })
-
-        // Client-side filtering for schedule/expiry (avoids extra .or() overwrite)
-        const filtered = (notifs ?? []).filter(n => {
-          if (n.scheduled_at && new Date(n.scheduled_at) > new Date(now)) return false
-          if (n.expires_at && new Date(n.expires_at) < new Date(now)) return false
+        const matches = (n) => {
+          if (!n || !n.is_active) return false
+          const now = new Date()
+          if (n.scheduled_at && new Date(n.scheduled_at) > now) return false
+          if (n.expires_at   && new Date(n.expires_at)   < now) return false
+          if (n.target_user_id && n.target_user_id !== user.id) return false
+          if (n.target_role !== 'all' && n.target_role !== 'student') return false
+          if (n.target_batch_id && batchId && n.target_batch_id !== batchId) return false
+          if (n.target_batch_id && !batchId) return false
           return true
-        })
+        }
 
-        const [{ data: reads }] = await Promise.all([
+        const [{ data: notifs }, { data: reads }] = await Promise.all([
+          supabase.from('notifications').select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(100),
           supabase.from('notification_reads').select('notification_id').eq('user_id', user.id),
         ])
+
+        const filtered = (notifs ?? []).filter(matches)
         setNotifications(filtered)
         setReadIds(new Set((reads ?? []).map(r => r.notification_id)))
         setLoading(false)

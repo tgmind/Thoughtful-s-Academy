@@ -100,6 +100,7 @@ export const CARD_TYPES = [
 export const EMPTY_CARD_FORM = {
   title: '', description: '', type: 'youtube_video', url: '',
   is_public: false, batch_ids: [], subject: '', display_order: 0, is_featured: false,
+  chapter_id: null, chapter: '',
 }
 
 /** Returns unique union of subjects across all or selected batch objects */

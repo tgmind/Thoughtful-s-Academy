@@ -26,6 +26,7 @@ import {
   sepLabel,
   renderMessageContent,
 } from '../../utils/messageUtils'
+import MessagesSchemaAlert from '../../components/shared/MessagesSchemaAlert'
 
 const ROLE_BG = { teacher: 'bg-indigo-500', student: 'bg-blue-500', admin: 'bg-violet-600' }
 function roleBg(role) {
@@ -90,6 +91,7 @@ export default function TeacherMessages() {
   const [bcastSending, setBcastSending] = useState(false)
   const [bcastLoading, setBcastLoading] = useState(false)
   const [batchSearch, setBatchSearch] = useState('')
+  const [isBroadcastSchemaMissing, setIsBroadcastSchemaMissing] = useState(false)
 
   const bcastBottomRef = useRef(null)
   const bcastInputRef = useRef(null)
@@ -195,12 +197,29 @@ export default function TeacherMessages() {
   const loadBatchBroadcasts = useCallback(async () => {
     if (!selectedBatch || !user) return
     setBcastLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .select('id, content, created_at, sender_id, receiver_id, batch_id, is_broadcast')
       .eq('batch_id', selectedBatch.id)
       .eq('is_broadcast', true)
       .order('created_at')
+
+    if (error) {
+      if (
+        error.code === 'PGRST204' ||
+        error.code === '42703' ||
+        error.message?.includes('is_broadcast') ||
+        error.message?.includes('batch_id') ||
+        error.message?.includes('schema cache')
+      ) {
+        setIsBroadcastSchemaMissing(true)
+        setBroadcasts([])
+        setBcastLoading(false)
+        return
+      }
+    } else {
+      setIsBroadcastSchemaMissing(false)
+    }
 
     setBroadcasts(groupBroadcastMessages(data ?? []))
     setBcastLoading(false)
@@ -309,7 +328,18 @@ export default function TeacherMessages() {
       .select('id, content, created_at, sender_id, receiver_id, batch_id, is_broadcast')
 
     if (error) {
-      toast.error(error.message)
+      if (
+        error.code === '42703' ||
+        error.code === 'PGRST204' ||
+        error.message?.includes('is_broadcast') ||
+        error.message?.includes('batch_id') ||
+        error.message?.includes('schema cache')
+      ) {
+        setIsBroadcastSchemaMissing(true)
+        toast.error('Batch broadcast requires Migration 032 to be executed in Supabase.')
+      } else {
+        toast.error(error.message)
+      }
     } else {
       isBcastNearBottomRef.current = true
       const groupedNew = groupBroadcastMessages(data ?? [])
@@ -591,16 +621,36 @@ export default function TeacherMessages() {
 
     setSending(true)
     const content = text.trim()
-    const { data, error } = await supabase
+    const insertPayload = {
+      sender_id: user.id,
+      receiver_id: selected.id,
+      content,
+      is_broadcast: false,
+    }
+
+    let { data, error } = await supabase
       .from('messages')
-      .insert({
-        sender_id: user.id,
-        receiver_id: selected.id,
-        content,
-        is_broadcast: false,
-      })
+      .insert(insertPayload)
       .select()
       .maybeSingle()
+
+    // Automatic fallback if is_broadcast is not in schema cache or does not exist
+    if (
+      error &&
+      (error.code === '42703' ||
+        error.code === 'PGRST204' ||
+        error.message?.includes('is_broadcast') ||
+        error.message?.includes('schema cache'))
+    ) {
+      delete insertPayload.is_broadcast
+      const retry = await supabase
+        .from('messages')
+        .insert(insertPayload)
+        .select()
+        .maybeSingle()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       toast.error(error.message)
@@ -1131,6 +1181,9 @@ export default function TeacherMessages() {
               className="flex-1 overflow-y-auto px-4 py-4"
               onScroll={handleBcastScroll}
             >
+              {isBroadcastSchemaMissing && (
+                <MessagesSchemaAlert onRetry={loadBatchBroadcasts} />
+              )}
               {bcastLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <p className="text-sm text-gray-400">Loading broadcasts…</p>
