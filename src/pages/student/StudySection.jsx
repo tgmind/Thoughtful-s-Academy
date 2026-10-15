@@ -873,25 +873,23 @@ export default function StudySection() {
 
       {/* ── TOP EDTECH NAVIGATION HEADER (Shown on Study Landing View only) ── */}
       {!selectedSubject && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-950 via-indigo-950 to-blue-900 flex items-center justify-center text-amber-400 shadow-md shadow-blue-950/20 ring-1 ring-blue-900/20 shrink-0 mt-0.5 sm:mt-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-950 via-indigo-950 to-blue-900 flex items-center justify-center text-amber-400 shadow-md shadow-blue-950/20 ring-1 ring-blue-900/20 shrink-0">
                 <GraduationCap className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight leading-tight">
-                    Welcome back, {studentName}!
-                  </h1>
-                  <span className="text-lg sm:text-xl">👋</span>
-                </div>
+                <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight leading-tight flex items-center gap-1.5 flex-wrap">
+                  <span>Welcome back, {studentName}!</span>
+                  <span className="text-lg sm:text-xl inline-block origin-bottom-right hover:rotate-12 transition-transform">👋</span>
+                </h1>
                 {batchName ? (
-                  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       Enrolled in
                     </span>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-950 text-white font-extrabold text-xs sm:text-sm shadow-sm ring-1 ring-blue-900/30">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-950 text-white font-extrabold text-xs sm:text-sm shadow-xs ring-1 ring-blue-900/30">
                       <School className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                       <span className="text-amber-300 tracking-tight">{batchName}</span>
                     </div>
@@ -904,16 +902,22 @@ export default function StudySection() {
               </div>
             </div>
 
-            {/* Quick Academic Statistics Pill */}
+            {/* Quick Academic Statistics */}
             {batchName && (
-              <div className="flex items-center gap-2 sm:gap-3 bg-slate-50/90 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200/80 shrink-0 self-start sm:self-center shadow-2xs">
-                <div className="text-center px-2 border-r border-slate-200/80">
-                  <p className="text-xs sm:text-base font-black text-slate-900 leading-none">{studentSubjects.length}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Subjects</p>
+              <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0 self-stretch sm:self-center">
+                <div className="flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50/90 border border-slate-200/80 text-xs shadow-2xs">
+                  <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xs sm:text-sm font-black text-slate-900">{studentSubjects.length}</span>
+                    <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Subjects</span>
+                  </div>
                 </div>
-                <div className="text-center px-2">
-                  <p className="text-xs sm:text-base font-black text-slate-900 leading-none">{cards.length}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Materials</p>
+                <div className="flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50/90 border border-slate-200/80 text-xs shadow-2xs">
+                  <FileText className="h-4 w-4 text-amber-600 shrink-0" />
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xs sm:text-sm font-black text-slate-900">{cards.length}</span>
+                    <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Materials</span>
+                  </div>
                 </div>
               </div>
             )}
