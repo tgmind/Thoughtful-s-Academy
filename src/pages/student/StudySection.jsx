@@ -655,18 +655,51 @@ export default function StudySection() {
       else         query = query.eq('is_public', true)
     } else if (tab === 'Featured') {
       query = query.eq('is_featured', true)
+      if (batchId) {
+        query = query.or(`is_public.eq.true,batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
+      } else {
+        query = query.eq('is_public', true)
+      }
     } else if (tab === 'My Batch') {
       if (batchId) {
         query = query.or(`batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
       } else {
         query = query.or('is_public.eq.true,is_public.eq.false')
       }
-    } else if (tab === 'All' || tab === 'Bookmarked') {
+    } else if (tab === 'All') {
+      // Free Library: strictly public cards allowed on Public/Landing page for student's enrolled batch
+      query = query.eq('is_public', true)
+      if (batchId) {
+        query = query.or(`batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
+      }
+    } else if (tab === 'Bookmarked') {
       if (batchId) query = query.or(`is_public.eq.true,batch_id.eq.${batchId},batch_ids.cs.{${batchId}}`)
       else         query = query.eq('is_public', true)
     }
 
-    query.then(({ data }) => { setCards(data ?? []); setLoading(false) })
+    query.then(({ data, error }) => {
+      if (error && tab === 'All' && batchId) {
+        // Fallback: If PostgREST .or() with array query errors, fetch public cards and filter in memory
+        supabase.from('study_cards')
+          .select('*')
+          .eq('is_active', true)
+          .eq('is_public', true)
+          .order('display_order')
+          .then(({ data: fallbackData }) => {
+            const matched = (fallbackData ?? []).filter(c =>
+              c.is_public && (
+                c.batch_id === batchId ||
+                (Array.isArray(c.batch_ids) && c.batch_ids.includes(batchId))
+              )
+            )
+            setCards(matched)
+            setLoading(false)
+          })
+      } else {
+        setCards(data ?? [])
+        setLoading(false)
+      }
+    })
   }, [tab, batchId, searchQuery, user])
 
   // Fetch bookmarks
@@ -763,7 +796,31 @@ export default function StudySection() {
 
   // Filtered cards list with case-insensitive subject & category matching
   const filteredCards = useMemo(() => {
-    let list = tab === 'Bookmarked' ? cards.filter(c => bookmarks.has(c.id)) : cards
+    let list = cards
+
+    // Free Library tab: strictly public cards allowed on Public/Landing page for student's enrolled batch
+    if (tab === 'All') {
+      list = list.filter(c => {
+        if (!c.is_public) return false
+        if (batchId) {
+          const inBatchId = c.batch_id === batchId
+          const inBatchIds = Array.isArray(c.batch_ids) && c.batch_ids.includes(batchId)
+          return inBatchId || inBatchIds
+        }
+        return true
+      })
+    } else if (tab === 'Bookmarked') {
+      list = list.filter(c => bookmarks.has(c.id))
+    } else if (tab === 'Featured') {
+      list = list.filter(c => {
+        if (!c.is_featured) return false
+        if (c.is_public) return true
+        if (batchId) {
+          return c.batch_id === batchId || (Array.isArray(c.batch_ids) && c.batch_ids.includes(batchId))
+        }
+        return false
+      })
+    }
 
     // Only scope by selectedSubject when inside My Batch tab
     if (tab === 'My Batch' && selectedSubject) {
@@ -787,7 +844,7 @@ export default function StudySection() {
       )
     }
     return list
-  }, [cards, tab, bookmarks, selectedCategory, selectedSubject, searchQuery])
+  }, [cards, tab, bookmarks, selectedCategory, selectedSubject, searchQuery, batchId])
 
   const studentName = profile?.full_name?.split(' ')?.[0] || 'Student'
 
@@ -1406,6 +1463,7 @@ export default function StudySection() {
                 </h2>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {filteredCards.length} {filteredCards.length === 1 ? 'item' : 'items'} available
+                  {tab === 'All' && batchName ? ` • ${batchName} Public Content` : ''}
                 </p>
               </div>
             </div>
@@ -1430,6 +1488,8 @@ export default function StudySection() {
                 <p className="text-sm text-gray-400 mt-1">
                   {tab === 'Bookmarked'
                     ? 'No bookmarked items yet. Tap the heart icon on any card to save it here.'
+                    : tab === 'All'
+                    ? `No public resources available for ${batchName || 'your batch'} in the Free Library yet.`
                     : 'No materials available in this section yet.'}
                 </p>
               </div>
