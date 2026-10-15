@@ -201,8 +201,14 @@ export function useNavBadges(role, userId) {
 
         channel = supabase
           .channel(`nav_badges_s_${suffix}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
-            () => raise('/student/messages'))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                raise('/student/messages')
+              } else {
+                refresh('/student/messages', () => countUnreadMessages(userId).then(c => c > 0))
+              }
+            })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' },
             () => refresh('/student/notifications', () => studentNotifUnread(userId, batchId)))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${userId}` },
@@ -241,8 +247,14 @@ export function useNavBadges(role, userId) {
 
         channel = supabase
           .channel(`nav_badges_t_${suffix}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
-            () => raise('/teacher/messages'))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                raise('/teacher/messages')
+              } else {
+                refresh('/teacher/messages', () => countUnreadMessages(userId).then(c => c > 0))
+              }
+            })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' },
             () => refresh('/teacher/notifications', () => teacherNotifUnread(userId)))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${userId}` },
@@ -266,8 +278,14 @@ export function useNavBadges(role, userId) {
 
         channel = supabase
           .channel(`nav_badges_a_${suffix}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
-            () => raise('/admin/messages'))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                raise('/admin/messages')
+              } else {
+                refresh('/admin/messages', () => countUnreadMessages(userId).then(c => c > 0))
+              }
+            })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records' },
             () => refresh('/admin/fees', () => adminPendingFees()))
           .on('postgres_changes', { event: '*', schema: 'public', table: 'doubts' },
