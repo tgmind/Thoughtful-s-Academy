@@ -102,4 +102,45 @@ describe('ProtectedVideoPlayer: Controls Proportions and Spacing', () => {
     expect(item2x).toHaveClass('py-1.5')
     expect(item2x).toHaveClass('sm:py-2')
   })
+
+  it('keeps right controls anchored with ml-auto and prevents maximize button overflow in playlist mode', () => {
+    const onToggleFullscreen = vi.fn()
+    const onPrevVideo = vi.fn()
+    const onNextVideo = vi.fn()
+
+    render(
+      <ProtectedVideoPlayer
+        videoId="test-video-playlist"
+        title="Web Development Tutorial #1"
+        isPlaylist={true}
+        playlistItems={[{ videoId: 'v1' }, { videoId: 'v2' }]}
+        activeVideoIndex={0}
+        onPrevVideo={onPrevVideo}
+        onNextVideo={onNextVideo}
+        isFullscreen={false}
+        onToggleFullscreen={onToggleFullscreen}
+      />
+    )
+
+    // Previous and Next Lecture buttons are rendered in the playback cluster
+    const prevBtn = screen.getByRole('button', { name: 'Previous Lecture' })
+    const nextBtn = screen.getByRole('button', { name: 'Next Lecture' })
+    const playPauseBtn = screen.getByRole('button', { name: /^Play$|^Pause$/i })
+
+    expect(prevBtn).toBeInTheDocument()
+    expect(nextBtn).toBeInTheDocument()
+    expect(playPauseBtn).toBeInTheDocument()
+
+    // Right controls container is pinned to the right margin with ml-auto shrink-0
+    const eyeBtn = screen.getByLabelText('Toggle clean board view')
+    const rightContainer = eyeBtn.parentElement
+    expect(rightContainer).toHaveClass('ml-auto')
+    expect(rightContainer).toHaveClass('shrink-0')
+
+    // Fullscreen / Maximize button is in right controls and never pushed out
+    const fsBtn = screen.getByLabelText('Enter Fullscreen')
+    expect(fsBtn).toBeInTheDocument()
+    expect(rightContainer).toContainElement(fsBtn)
+  })
 })
+

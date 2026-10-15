@@ -299,8 +299,12 @@ export default function ProtectedVideoPlayer({
         origin: window.location.origin,
       }
 
+      const rawVid = videoIdRef.current
       const currentPlId = playlistIdRef.current
-      if (currentPlId) {
+      // Only fallback to native YouTube playlist mode if no direct videoId is known.
+      // Passing listType='playlist' when videoId is known forces YouTube to render its native mobile header,
+      // center playback buttons, and watermark, overriding controls: 0.
+      if (!rawVid && currentPlId) {
         playerVars.listType = 'playlist'
         playerVars.list = currentPlId
         playerVars.index = activeIndexRef.current || 0
@@ -462,7 +466,6 @@ export default function ProtectedVideoPlayer({
       }
 
       // ONLY pass videoId if non-empty string; never pass empty string '' which causes error 2
-      const rawVid = videoIdRef.current
       if (rawVid && typeof rawVid === 'string' && rawVid.trim().length > 0) {
         playerOptions.videoId = rawVid.trim()
       }
@@ -1405,8 +1408,23 @@ export default function ProtectedVideoPlayer({
             {/* Controls Row */}
             <div className="flex items-center justify-between gap-1.5 sm:gap-2 h-9 sm:h-10 md:h-11">
 
-              {/* Left Controls */}
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Left Controls (Playback & Navigation) */}
+              <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 min-w-0 shrink">
+
+                {/* Playlist Previous Lecture */}
+                {isPlaylist && (
+                  <button
+                    disabled={activeVideoIndex === 0}
+                    onClick={handleSafePrev}
+                    className="p-1.5 sm:p-2 rounded-lg text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
+                    title="Previous Lecture"
+                    aria-label="Previous Lecture"
+                  >
+                    <ChevronLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
+                  </button>
+                )}
+
+                {/* Play / Pause */}
                 <button
                   onClick={(e) => { e.stopPropagation(); togglePlayPause() }}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -1419,13 +1437,28 @@ export default function ProtectedVideoPlayer({
                   )}
                 </button>
 
-                <div className="text-[10px] sm:text-xs md:text-[13px] font-mono text-slate-200 select-none tracking-tight shrink-0 font-medium">
+                {/* Playlist Next Lecture */}
+                {isPlaylist && (
+                  <button
+                    disabled={playlistItems.length > 0 && activeVideoIndex >= playlistItems.length - 1}
+                    onClick={handleSafeNext}
+                    className="p-1.5 sm:p-2 rounded-lg text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
+                    title="Next Lecture"
+                    aria-label="Next Lecture"
+                  >
+                    <ChevronRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
+                  </button>
+                )}
+
+                {/* Time Display */}
+                <div className="text-[10px] sm:text-xs md:text-[13px] font-mono tabular-nums text-slate-200 select-none tracking-tight shrink min-w-0 font-medium whitespace-nowrap">
                   <span>{formatTime(currentTime)}</span>
-                  <span className="text-slate-400 mx-1">/</span>
+                  <span className="text-slate-400 mx-0.5 sm:mx-1">/</span>
                   <span className="text-slate-400">{formatTime(duration)}</span>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-1.5 group/vol ml-1 sm:ml-2">
+                {/* Volume */}
+                <div className={`items-center gap-1 sm:gap-1.5 group/vol ml-0.5 sm:ml-2 shrink-0 ${isPlaylist ? 'hidden sm:flex' : 'flex'}`}>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleMute() }}
                     aria-label={isMuted ? 'Unmute' : 'Mute'}
@@ -1453,7 +1486,7 @@ export default function ProtectedVideoPlayer({
               </div>
 
               {/* Right Controls */}
-              <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0 ml-auto">
 
                 {/* View Board Mode (Single click to hide all controls and inspect blackboard) */}
                 <button
@@ -1480,28 +1513,6 @@ export default function ProtectedVideoPlayer({
                 >
                   <Lock className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
                 </button>
-
-                {/* Playlist Prev / Next */}
-                {isPlaylist && (
-                  <div className="flex items-center gap-1 sm:gap-1.5 border-r border-white/20 pr-1.5 sm:pr-2.5 mr-0.5">
-                    <button
-                      disabled={activeVideoIndex === 0}
-                      onClick={handleSafePrev}
-                      className="p-1.5 sm:p-2 rounded-lg text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
-                      title="Previous Lecture"
-                    >
-                      <ChevronLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
-                    </button>
-                    <button
-                      disabled={playlistItems.length > 0 && activeVideoIndex >= playlistItems.length - 1}
-                      onClick={handleSafeNext}
-                      className="p-1.5 sm:p-2 rounded-lg text-white hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
-                      title="Next Lecture"
-                    >
-                      <ChevronRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
-                    </button>
-                  </div>
-                )}
 
                 {/* Speed Popover */}
                 <div className="relative">
