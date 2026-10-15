@@ -257,12 +257,10 @@ export default function DashboardShell({ navItems, pageTitle }) {
       if (!q) return true
       return item.label.toLowerCase().includes(q)
     })
-    // Compact: show top 4 on empty search, up to 5 when searching
-    const displayNav = !q ? matchingNav.slice(0, 4) : matchingNav.slice(0, 5)
-    if (displayNav.length > 0) {
+    if (matchingNav.length > 0) {
       sections.push({
         title: 'Portal Modules & Pages',
-        items: displayNav.map(item => ({
+        items: matchingNav.map(item => ({
           id: `nav-${item.path}`,
           type: 'module',
           label: item.label,
@@ -279,12 +277,10 @@ export default function DashboardShell({ navItems, pageTitle }) {
     // 2. Subject Workspaces (for enrolled student)
     if (profile?.role === 'student' && studentSubjects.length > 0) {
       const matchingSubjs = studentSubjects.filter(s => !q || s.toLowerCase().includes(q))
-      // Compact: show top 2 on empty search, up to 4 when searching
-      const displaySubjs = !q ? matchingSubjs.slice(0, 2) : matchingSubjs.slice(0, 4)
-      if (displaySubjs.length > 0) {
+      if (matchingSubjs.length > 0) {
         sections.push({
           title: 'Subject Workspaces',
-          items: displaySubjs.map(s => ({
+          items: matchingSubjs.map(s => ({
             id: `subject-${s}`,
             type: 'subject',
             label: `${s} Workspace`,
@@ -961,14 +957,16 @@ export default function DashboardShell({ navItems, pageTitle }) {
                             key={item.id}
                             onClick={item.action}
                             onMouseEnter={() => setSelectedIndex(itemIndex)}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 sm:py-2 rounded-xl text-left transition-colors cursor-pointer group ${
                               isSelected
                                 ? 'bg-blue-950 text-white shadow-xs'
                                 : 'hover:bg-slate-100/90 text-slate-800'
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <span className={`h-4 w-4 shrink-0 flex items-center justify-center ${isSelected ? 'text-amber-400' : 'text-slate-400'}`}>
+                              <span className={`h-4 w-4 shrink-0 flex items-center justify-center transition-colors ${
+                                isSelected ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-600'
+                              }`}>
                                 {item.icon}
                               </span>
                               <div className="min-w-0 flex-1 flex items-baseline gap-2">
@@ -987,7 +985,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
 
                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
                               {item.badgeLabel && (
-                                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
                                   isSelected ? 'bg-white/20 text-white border-white/20' : item.badgeColor
                                 }`}>
                                   {item.badgeLabel}
@@ -995,21 +993,21 @@ export default function DashboardShell({ navItems, pageTitle }) {
                               )}
                               {item.badge && (
                                 item.badge.includes && item.badge.includes('live-class') ? (
-                                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-rose-600 text-white shrink-0 animate-pulse">
+                                  <span className="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-600 text-white shrink-0 animate-pulse">
                                     LIVE
                                   </span>
                                 ) : (
-                                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-white shrink-0">
+                                  <span className="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-white shrink-0">
                                     NEW
                                   </span>
                                 )
                               )}
                               {isSelected ? (
-                                <kbd className="hidden sm:inline-flex items-center text-[10px] font-mono px-1 py-0.5 rounded bg-white/20 text-white border border-white/20">
+                                <kbd className="hidden sm:inline-flex items-center text-[9px] font-mono px-1 py-0.5 rounded bg-white/20 text-white border border-white/20">
                                   ↵
                                 </kbd>
                               ) : (
-                                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                                <ArrowRight className="h-3 w-3 shrink-0 text-slate-300 group-hover:text-slate-400 transition-colors" />
                               )}
                             </div>
                           </button>
