@@ -1530,20 +1530,20 @@ export default function ProtectedVideoPlayer({
                   {showSpeedMenu && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute bottom-11 sm:bottom-12 right-0 bg-[#121316] border border-zinc-800 rounded-xl shadow-2xl py-1.5 w-24 sm:w-28 z-40 overflow-hidden"
+                      className="absolute bottom-full mb-1 sm:mb-1.5 right-0 bg-[#121316] border border-zinc-800 rounded-lg sm:rounded-xl shadow-2xl py-1 w-[72px] sm:w-24 z-40 max-h-[145px] sm:max-h-[220px] overflow-y-auto overscroll-contain"
                     >
                       {PLAYBACK_RATES.map((rate) => (
                         <button
                           key={rate}
                           onClick={() => handleRateChange(rate)}
-                          className={`w-full px-3 py-1.5 sm:py-2 text-left text-xs sm:text-[13px] font-mono transition-colors flex items-center justify-between cursor-pointer ${
+                          className={`w-full px-2 sm:px-2.5 py-1 sm:py-1.5 text-left text-[10px] sm:text-xs font-mono transition-colors flex items-center justify-between cursor-pointer ${
                             playbackRate === rate
-                              ? 'bg-zinc-800 text-white font-bold'
-                              : 'text-white/90 hover:text-white hover:bg-zinc-800/80'
+                              ? 'bg-amber-400/20 text-amber-300 font-bold'
+                              : 'text-slate-300 hover:text-white hover:bg-zinc-800/80'
                           }`}
                         >
-                          <span className="text-white">{rate}x</span>
-                          {playbackRate === rate && <Check className="h-3.5 w-3.5 text-white" />}
+                          <span>{rate}x</span>
+                          {playbackRate === rate && <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-400 shrink-0" />}
                         </button>
                       ))}
                     </div>
@@ -1571,23 +1571,23 @@ export default function ProtectedVideoPlayer({
                   {showQualityMenu && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute bottom-11 sm:bottom-12 right-0 bg-[#121316] border border-zinc-800 rounded-xl shadow-2xl py-1.5 w-40 sm:w-48 z-40 overflow-hidden"
+                      className="absolute bottom-full mb-1 sm:mb-1.5 right-0 bg-[#121316] border border-zinc-800 rounded-lg sm:rounded-xl shadow-2xl py-1 w-36 sm:w-44 z-40 max-h-[150px] sm:max-h-[220px] overflow-y-auto overscroll-contain"
                     >
-                      <div className="px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase text-zinc-400 border-b border-zinc-800 tracking-wider">
+                      <div className="px-2.5 py-1 text-[8px] sm:text-[9px] font-black uppercase text-zinc-400 border-b border-zinc-800 tracking-wider">
                         Quality / Data Saver
                       </div>
                       {QUALITY_OPTIONS.map((q) => (
                         <button
                           key={q.id}
                           onClick={() => handleSelectQuality(q.id)}
-                          className={`w-full px-3 py-2 sm:py-2.5 text-left text-xs sm:text-[13px] transition-colors flex items-center justify-between cursor-pointer ${
+                          className={`w-full px-2.5 py-1 sm:py-1.5 text-left text-[10px] sm:text-xs transition-colors flex items-center justify-between cursor-pointer ${
                             selectedQuality === q.id
-                              ? 'bg-zinc-800 text-white font-bold'
-                              : 'text-white/90 hover:text-white hover:bg-zinc-800/80'
+                              ? 'bg-amber-400/20 text-amber-300 font-bold'
+                              : 'text-slate-300 hover:text-white hover:bg-zinc-800/80'
                           }`}
                         >
-                          <span className="text-white">{q.label}</span>
-                          {selectedQuality === q.id && <Check className="h-3.5 w-3.5 text-white" />}
+                          <span>{q.label}</span>
+                          {selectedQuality === q.id && <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-400 shrink-0" />}
                         </button>
                       ))}
                     </div>

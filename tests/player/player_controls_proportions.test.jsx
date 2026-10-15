@@ -99,8 +99,8 @@ describe('ProtectedVideoPlayer: Controls Proportions and Spacing', () => {
     expect(screen.getByRole('button', { name: '2x' })).toBeInTheDocument()
 
     const item2x = screen.getByRole('button', { name: '2x' })
-    expect(item2x).toHaveClass('py-1.5')
-    expect(item2x).toHaveClass('sm:py-2')
+    expect(item2x).toHaveClass('py-1')
+    expect(item2x).toHaveClass('sm:py-1.5')
   })
 
   it('keeps right controls anchored with ml-auto and prevents maximize button overflow in playlist mode', () => {
