@@ -1458,13 +1458,13 @@ export default function StudySection() {
         <button
           onClick={() => setShowSubjectSwitcher(true)}
           className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 p-3.5 sm:px-4 sm:py-3 bg-blue-950 hover:bg-indigo-900 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all border border-blue-800/60 flex items-center gap-2 group cursor-pointer"
-          title="Switch Subject / View All Subjects"
+          title="Subject Switcher"
         >
           <div className="relative flex items-center justify-center">
             <Layers className="h-5 w-5 text-amber-400 group-hover:rotate-12 transition-transform" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping" />
           </div>
-          <span className="text-xs font-black tracking-wide hidden sm:inline">All Subjects</span>
+          <span className="text-xs font-black tracking-wide hidden sm:inline">Subject Switcher</span>
         </button>
       )}
 
@@ -1485,7 +1485,7 @@ export default function StudySection() {
                   <Layers className="h-4 w-4" />
                 </span>
                 <div>
-                  <h3 className="text-sm font-black text-white tracking-tight">Recent Subjects</h3>
+                  <h3 className="text-sm font-black text-white tracking-tight">Subject Switcher</h3>
                   <p className="text-[10px] text-slate-400 font-medium">Tap any subject to jump instantly</p>
                 </div>
               </div>
