@@ -11,6 +11,7 @@ import {
   Megaphone,
   Paperclip,
   ExternalLink,
+  Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -56,10 +57,10 @@ export default function StudentMessages() {
       .then(({ data }) => setContacts(data ?? []))
   }, [])
 
-  // Auto-select contact if query param ?teacher= or ?contact= is passed in URL
+  // Auto-select contact if query param ?teacher=, ?admin=, or ?contact= is passed in URL
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const targetId = params.get('teacher') || params.get('contact')
+    const targetId = params.get('teacher') || params.get('admin') || params.get('contact')
     if (!targetId || !user) return
 
     // Guard: already selected
@@ -188,7 +189,7 @@ export default function StudentMessages() {
   useEffect(() => {
     if (!user) return
     const ch = supabase
-      .channel(`student_msgs_sync_${user.id}`)
+      .channel(`student_msgs_sync_${user.id}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -205,6 +206,24 @@ export default function StudentMessages() {
             setUnread((u) => ({ ...u, [msg.sender_id]: (u[msg.sender_id] || 0) + 1 }))
           }
           setLastMsgs((lm) => ({ ...lm, [msg.sender_id]: msg }))
+
+          // Ensure sender is present in contacts sidebar
+          setContacts((prev) => {
+            if (prev.some((c) => c.id === msg.sender_id)) return prev
+            supabase
+              .from('profiles')
+              .select('id, full_name, role')
+              .eq('id', msg.sender_id)
+              .maybeSingle()
+              .then(({ data: newProfile }) => {
+                if (newProfile) {
+                  setContacts((current) =>
+                    current.some((c) => c.id === newProfile.id) ? current : [newProfile, ...current]
+                  )
+                }
+              })
+            return prev
+          })
         }
       )
       .on(
@@ -298,6 +317,18 @@ export default function StudentMessages() {
     setSending(false)
   }
 
+  const deleteMessage = async (msgId) => {
+    if (!window.confirm('Delete this message?')) return
+    const { error } = await supabase.from('messages').delete().eq('id', msgId)
+    if (error) {
+      toast.error(error.message)
+    } else {
+      setMessages((m) => m.filter((x) => x.id !== msgId))
+      toast.success('Message deleted')
+      loadSummary()
+    }
+  }
+
   const openConvo = (c) => {
     setSelected(c)
     setShowList(false)
@@ -344,7 +375,7 @@ export default function StudentMessages() {
   }, [messages])
 
   return (
-    <div className="flex flex-1 min-h-0 h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="flex flex-1 min-h-0 h-[calc(100dvh-12rem)] sm:h-[calc(100dvh-12.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
       {/* ── Sidebar ── */}
       <div
         className={`${
@@ -516,7 +547,7 @@ export default function StudentMessages() {
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-end gap-2 ${
+                    className={`group flex items-end gap-2 ${
                       mine ? 'justify-end' : 'justify-start'
                     } ${item.tail ? 'mb-3' : 'mb-0.5'}`}
                   >
@@ -528,6 +559,17 @@ export default function StudentMessages() {
                       >
                         {item.tail ? initials(selected.full_name) : ''}
                       </div>
+                    )}
+
+                    {mine && !item.is_broadcast && (
+                      <button
+                        onClick={() => deleteMessage(item.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-rose-500 transition-opacity"
+                        title="Delete message"
+                        aria-label="Delete message"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     )}
 
                     <div

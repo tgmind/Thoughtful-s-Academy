@@ -397,5 +397,150 @@ describe('Messaging Feature Audit & Hardening Suite', () => {
         expect(screen.getByTitle('Delete message')).toBeInTheDocument()
       })
     })
+
+    it('supports deep-linking via ?teacher= parameter and switches to direct conversation', async () => {
+      mockAuthState.user = { id: 'admin-1' }
+      mockTableData.profiles = [
+        { id: 'teacher-20', full_name: 'Dr. Neha Physics', role: 'teacher', is_active: true },
+      ]
+      mockTableData.messages = [
+        {
+          id: 'msg-teach-1',
+          sender_id: 'teacher-20',
+          receiver_id: 'admin-1',
+          content: 'Requesting syllabus review for Batch 2.',
+          created_at: new Date().toISOString(),
+          is_read: false,
+          is_broadcast: false,
+        },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/admin/messages?teacher=teacher-20']}>
+          <Routes>
+            <Route path="/admin/messages" element={<AdminMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Dr. Neha Physics').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('Requesting syllabus review for Batch 2.').length).toBeGreaterThan(0)
+      })
+    })
+
+    it('supports deep-linking via ?batch= parameter into broadcast mode', async () => {
+      mockAuthState.user = { id: 'admin-1' }
+      mockTableData.batches = [
+        { id: 'batch-99', name: 'JEE Advanced Elite', subject: 'Math', is_active: true },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/admin/messages?batch=batch-99']}>
+          <Routes>
+            <Route path="/admin/messages" element={<AdminMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText(/Broadcast announcement to all students in JEE Advanced Elite/i)
+        ).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('5. Teacher Batch & Broadcast Hardening', () => {
+    it('supports deep-linking via ?batch= parameter into broadcast mode for assigned batch', async () => {
+      mockAuthState.user = { id: 'teacher-1' }
+      mockTableData.teacher_profiles = [
+        { id: 'teacher-1', can_message_students: true },
+      ]
+      mockTableData.batches = [
+        { id: 'batch-77', name: 'Foundation Class 10', subject: 'Science', teacher_id: 'teacher-1', is_active: true },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/teacher/messages?batch=batch-77']}>
+          <Routes>
+            <Route path="/teacher/messages" element={<TeacherMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText(/Broadcast message to all students in Foundation Class 10/i)
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('renders delete action on teacher broadcast announcements', async () => {
+      mockAuthState.user = { id: 'teacher-1' }
+      mockTableData.teacher_profiles = [
+        { id: 'teacher-1', can_message_students: true },
+      ]
+      mockTableData.batches = [
+        { id: 'batch-1', name: 'Class 12 Physics', subject: 'Physics', teacher_id: 'teacher-1', is_active: true },
+      ]
+      mockTableData.messages = [
+        {
+          id: 'bcast-1',
+          batch_id: 'batch-1',
+          sender_id: 'teacher-1',
+          receiver_id: 'student-1',
+          content: 'Test tomorrow at 9 AM',
+          created_at: new Date().toISOString(),
+          is_broadcast: true,
+        },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/teacher/messages?batch=batch-1']}>
+          <Routes>
+            <Route path="/teacher/messages" element={<TeacherMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Test tomorrow at 9 AM')).toBeInTheDocument()
+        expect(screen.getByTitle('Delete broadcast announcement')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('6. Student Self-Deletion Hardening', () => {
+    it('renders delete action on student own sent direct messages', async () => {
+      mockAuthState.user = { id: 'student-1' }
+      mockTableData.profiles = [
+        { id: 'teacher-1', full_name: 'Teacher One', role: 'teacher', is_active: true },
+      ]
+      mockTableData.messages = [
+        {
+          id: 'msg-stud-1',
+          sender_id: 'student-1',
+          receiver_id: 'teacher-1',
+          content: 'Hello sir, sent accidentally',
+          created_at: new Date().toISOString(),
+          is_read: false,
+          is_broadcast: false,
+        },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/student/messages?teacher=teacher-1']}>
+          <Routes>
+            <Route path="/student/messages" element={<StudentMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Hello sir, sent accidentally')).toBeInTheDocument()
+        expect(screen.getByTitle('Delete message')).toBeInTheDocument()
+      })
+    })
   })
 })

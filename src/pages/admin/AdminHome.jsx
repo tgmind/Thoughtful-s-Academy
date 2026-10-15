@@ -369,7 +369,7 @@ export default function AdminHome() {
                     <p className="font-semibold text-gray-900 text-sm truncate">{m.profiles?.full_name}</p>
                     <p className="text-xs text-gray-500 truncate">{m.content}</p>
                   </div>
-                  <Link to="/admin/messages" className="text-xs text-blue-700 font-medium flex-shrink-0 hover:underline">Reply</Link>
+                  <Link to={`/admin/messages?contact=${m.sender_id}`} className="text-xs text-blue-700 font-medium flex-shrink-0 hover:underline">Reply</Link>
                 </div>
               ))}
             </div>

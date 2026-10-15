@@ -168,7 +168,7 @@ export default function TeacherHome() {
           </div>
           <div className="divide-y divide-gray-50">
             {msgs.map(m => (
-              <div key={m.id} className="px-4 py-3 flex items-start gap-3">
+              <div key={m.id} className="px-4 py-3 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-blue-950 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                   {m.profiles?.full_name?.[0]?.toUpperCase() ?? '?'}
                 </div>
@@ -176,6 +176,9 @@ export default function TeacherHome() {
                   <p className="text-sm font-semibold text-gray-900">{m.profiles?.full_name}</p>
                   <p className="text-xs text-gray-500 truncate">{m.content}</p>
                 </div>
+                <Link to={`/teacher/messages?contact=${m.sender_id}`} className="text-xs text-blue-700 font-medium flex-shrink-0 hover:underline">
+                  Reply
+                </Link>
               </div>
             ))}
           </div>

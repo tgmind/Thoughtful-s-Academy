@@ -87,3 +87,16 @@ CREATE POLICY "messages: authenticated insert"
       )
     )
   );
+
+-- 5. Harden messages DELETE policy:
+-- - Admins can delete any message (moderation)
+-- - Senders can delete/retract their own messages or batch broadcasts
+DROP POLICY IF EXISTS "messages: admin delete" ON public.messages;
+DROP POLICY IF EXISTS "messages: delete" ON public.messages;
+CREATE POLICY "messages: delete"
+  ON public.messages FOR DELETE
+  USING (
+    is_admin()
+    OR auth.uid() = sender_id
+  );
+

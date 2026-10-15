@@ -119,10 +119,32 @@ export default function AdminMessages() {
     selectedRef.current = selected
   }, [selected])
 
-  // Auto-select contact if query param ?student= or ?contact= is passed in URL
+  // Load all active batches for broadcast
+  useEffect(() => {
+    supabase
+      .from('batches')
+      .select('id, name, subject, teacher_id')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }) => setBatches(data ?? []))
+  }, [])
+
+  // Auto-select contact or batch if query params are passed in URL
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const targetId = params.get('student') || params.get('contact')
+    const batchId = params.get('batch')
+    if (batchId && batches.length > 0) {
+      const b = batches.find((x) => x.id === batchId)
+      if (b && selectedBatch?.id !== b.id) {
+        setMode('broadcast')
+        setSelectedBatch(b)
+        setShowList(false)
+        return
+      }
+    }
+
+    const targetId =
+      params.get('student') || params.get('teacher') || params.get('admin') || params.get('contact')
     if (!targetId || !user) return
 
     // Guard: already selected
@@ -133,6 +155,9 @@ export default function AdminMessages() {
       setMode('direct')
       setSelected(found)
       setShowList(false)
+      if (found.role && roleTab !== 'all' && roleTab !== found.role) {
+        setRoleTab('all')
+      }
     } else {
       supabase
         .from('profiles')
@@ -145,51 +170,39 @@ export default function AdminMessages() {
             setMode('direct')
             setSelected(data)
             setShowList(false)
+            if (data.role && roleTab !== 'all' && roleTab !== data.role) {
+              setRoleTab('all')
+            }
           }
         })
     }
-  }, [contacts, location.search, user])
-
-  // Load all active batches for broadcast
-  useEffect(() => {
-    supabase
-      .from('batches')
-      .select('id, name, subject, teacher_id')
-      .eq('is_active', true)
-      .order('name')
-      .then(({ data }) => setBatches(data ?? []))
-  }, [])
+  }, [contacts, batches, location.search, user, selectedBatch, roleTab])
 
   // Load past broadcasts strictly matching batch_id and is_broadcast=true
-  useEffect(() => {
+  const loadBatchBroadcasts = useCallback(async () => {
     if (!selectedBatch || !user) return
     setBcastLoading(true)
-    let cancelled = false
-    isBcastNearBottomRef.current = true
+    const { data } = await supabase
+      .from('messages')
+      .select('id, content, created_at, sender_id, receiver_id, batch_id, is_broadcast')
+      .eq('batch_id', selectedBatch.id)
+      .eq('is_broadcast', true)
+      .order('created_at')
 
-    ;(async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('id, content, created_at, sender_id, receiver_id, batch_id, is_broadcast')
-        .eq('batch_id', selectedBatch.id)
-        .eq('is_broadcast', true)
-        .order('created_at')
-
-      if (cancelled) return
-      setBroadcasts(groupBroadcastMessages(data ?? []))
-      setBcastLoading(false)
-    })()
-
-    return () => {
-      cancelled = true
-    }
+    setBroadcasts(groupBroadcastMessages(data ?? []))
+    setBcastLoading(false)
   }, [selectedBatch, user])
+
+  useEffect(() => {
+    loadBatchBroadcasts()
+  }, [loadBatchBroadcasts])
 
   // Realtime subscription for broadcasts in active batch
   useEffect(() => {
     if (!selectedBatch || mode !== 'broadcast') return
+    const suffix = `${selectedBatch.id}_${Date.now()}`
     const ch = supabase
-      .channel(`admin_bcast_${selectedBatch.id}`)
+      .channel(`admin_bcast_${suffix}`)
       .on(
         'postgres_changes',
         {
@@ -200,32 +213,45 @@ export default function AdminMessages() {
         },
         ({ new: newMsg }) => {
           if (!newMsg.is_broadcast) return
-          setBroadcasts((b) => {
-            const key = `${newMsg.created_at}__${newMsg.content}`
-            const exists = b.find((x) => x.id === key)
-            if (exists) {
-              return b.map((x) =>
-                x.id === key ? { ...x, recipients: x.recipients + 1 } : x
-              )
-            }
-            return [
-              ...b,
-              {
-                id: key,
-                created_by: newMsg.sender_id,
-                created_at: newMsg.created_at,
-                body: newMsg.content,
-                recipients: 1,
-                batch_id: newMsg.batch_id,
-              },
-            ]
-          })
+          // If self-sent and already in state from sendBroadcast, ignore duplicate echo
+          if (newMsg.sender_id === user?.id) {
+            setBroadcasts((b) => {
+              const key = `${newMsg.created_at}__${newMsg.content}`
+              if (b.some((x) => x.id === key)) return b
+              return [
+                ...b,
+                {
+                  id: key,
+                  created_by: newMsg.sender_id,
+                  created_at: newMsg.created_at,
+                  body: newMsg.content,
+                  recipients: 1,
+                  batch_id: newMsg.batch_id,
+                },
+              ]
+            })
+            return
+          }
+          // If sent by another admin/educator to this batch, reload full accurate group
+          loadBatchBroadcasts()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `batch_id=eq.${selectedBatch.id}`,
+        },
+        () => {
+          loadBatchBroadcasts()
         }
       )
       .subscribe()
 
     return () => supabase.removeChannel(ch)
-  }, [selectedBatch, mode])
+  }, [selectedBatch, mode, user, loadBatchBroadcasts])
 
   // Smart scroll for broadcast
   const handleBcastScroll = (e) => {
@@ -267,7 +293,12 @@ export default function AdminMessages() {
       toast.error(error.message)
     } else {
       isBcastNearBottomRef.current = true
-      setBroadcasts((b) => [...b, ...groupBroadcastMessages(data ?? [])])
+      const groupedNew = groupBroadcastMessages(data ?? [])
+      setBroadcasts((b) => {
+        const existingKeys = new Set(b.map((x) => x.id))
+        const toAdd = groupedNew.filter((x) => !existingKeys.has(x.id))
+        return [...b, ...toAdd]
+      })
       setBcastText('')
       toast.success(
         `Sent to ${ids.length} student${ids.length !== 1 ? 's' : ''} in ${selectedBatch.name}!`
@@ -426,7 +457,7 @@ export default function AdminMessages() {
   useEffect(() => {
     if (!user) return
     const ch = supabase
-      .channel(`admin_msgs_sync_${user.id}`)
+      .channel(`admin_msgs_sync_${user.id}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -443,6 +474,24 @@ export default function AdminMessages() {
             setUnread((u) => ({ ...u, [msg.sender_id]: (u[msg.sender_id] || 0) + 1 }))
           }
           setLastMsgs((lm) => ({ ...lm, [msg.sender_id]: msg }))
+
+          // Ensure sender is present in contacts sidebar
+          setContacts((prev) => {
+            if (prev.some((c) => c.id === msg.sender_id)) return prev
+            supabase
+              .from('profiles')
+              .select('id, full_name, role')
+              .eq('id', msg.sender_id)
+              .maybeSingle()
+              .then(({ data: newProfile }) => {
+                if (newProfile) {
+                  setContacts((current) =>
+                    current.some((c) => c.id === newProfile.id) ? current : [newProfile, ...current]
+                  )
+                }
+              })
+            return prev
+          })
         }
       )
       .on(
@@ -629,7 +678,7 @@ export default function AdminMessages() {
   }, [broadcasts])
 
   return (
-    <div className="flex flex-1 min-h-0 h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="flex flex-1 min-h-0 h-[calc(100dvh-12rem)] sm:h-[calc(100dvh-12.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
       {/* ── Sidebar ── */}
       <div
         className={`${
