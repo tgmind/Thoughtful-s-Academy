@@ -395,4 +395,33 @@ describe('Study Section Refinement — StudySection.jsx', () => {
       expect(screen.getByTestId('location-display').textContent).toBe('/student/study')
     })
   })
+
+  it('in drive links thumbnail, removes "CHAPTER NOTES" and displays study card title with all other text removed', async () => {
+    render(
+      <MemoryRouter initialEntries={['/student/study']}>
+        <StudySection />
+      </MemoryRouter>
+    )
+
+    // Wait for cards to load
+    await screen.findByText('Class 9 Public Demo Lecture')
+
+    // Find the drive card container for card-2
+    const driveCard = document.getElementById('card-card-2')
+    expect(driveCard).toBeInTheDocument()
+
+    // Thumbnail is the aspect-video container inside the card
+    const thumbnail = driveCard.querySelector('.aspect-video')
+    expect(thumbnail).toBeInTheDocument()
+
+    // 1. "CHAPTER NOTES" text must NOT be present in thumbnail
+    expect(thumbnail.textContent).not.toContain('CHAPTER NOTES')
+
+    // 2. Subject text must NOT be present in thumbnail (removed)
+    expect(thumbnail.textContent).not.toContain('Physics')
+
+    // 3. The card title must be displayed in the thumbnail in place of CHAPTER NOTES
+    expect(thumbnail.textContent).toContain('Class 9 Public Chapter Notes')
+  })
 })
+

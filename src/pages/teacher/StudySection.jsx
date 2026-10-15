@@ -505,30 +505,19 @@ function ManageableStudyCard({
 
             {/* Clean Floating Study Notebook Sheet */}
             <div className="relative z-10 bg-white rounded-xl shadow-md shadow-amber-950/10 p-2.5 sm:p-3 border border-amber-200/90 w-[85%] max-w-[220px] h-[82%] max-h-[125px] flex flex-col justify-between group-hover:scale-105 transition-transform duration-300">
-              {/* Paper Header */}
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider shadow-2xs">
-                  <FileText className="h-2.5 w-2.5" />
-                  <span>CHAPTER NOTES</span>
+              {/* Paper Header / Title Badge (Replaced CHAPTER NOTES with Study Card Title) */}
+              <div className="flex items-start">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:py-1 rounded-md bg-amber-500 text-white text-[9.5px] sm:text-[10.5px] font-bold tracking-tight shadow-2xs max-w-full">
+                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                  <span className="line-clamp-2 leading-tight">{card.title}</span>
                 </span>
-                {card.subject && (
-                  <span className="text-[8.5px] font-bold text-amber-900/80 uppercase tracking-tight truncate max-w-[80px]">
-                    {card.subject}
-                  </span>
-                )}
-              </div>
-
-              {/* Document Title (Clear, bold, prominent with stationery margin guide) */}
-              <div className="my-0.5 pl-1.5 border-l-2 border-amber-400/80">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 tracking-tight leading-snug line-clamp-2">
-                  {card.title}
-                </h4>
               </div>
 
               {/* Notebook Ruled Lines */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="h-0.5 bg-amber-100/90 rounded-full w-full" />
-                <div className="h-0.5 bg-amber-100/90 rounded-full w-3/4" />
+                <div className="h-0.5 bg-amber-100/90 rounded-full w-4/5" />
+                <div className="h-0.5 bg-amber-100/90 rounded-full w-3/5" />
               </div>
             </div>
           </div>

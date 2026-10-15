@@ -679,21 +679,17 @@ export default function BatchDetails() {
                           ) : card.type === 'google_drive' ? (
                             <div className="w-full h-full bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-100 flex items-center justify-center p-3 select-none">
                               <div className="bg-white rounded-xl shadow-md p-2.5 border border-amber-200/90 w-[85%] h-[82%] flex flex-col justify-between">
-                                <div className="flex items-center justify-between">
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider">
-                                    <FileText className="h-2.5 w-2.5" />
-                                    <span>CHAPTER NOTES</span>
+                                <div className="flex items-start">
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500 text-white text-[9.5px] font-bold tracking-tight shadow-2xs max-w-full">
+                                    <FileText className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="line-clamp-2 leading-tight">{card.title}</span>
                                   </span>
-                                  {card.subject && (
-                                    <span className="text-[8px] font-bold text-amber-800/80 uppercase truncate">
-                                      {card.subject}
-                                    </span>
-                                  )}
                                 </div>
-                                <h4 className="text-xs font-bold text-slate-900 line-clamp-2 my-0.5 pl-1.5 border-l-2 border-amber-400">
-                                  {card.title}
-                                </h4>
-                                <div className="h-0.5 bg-amber-100 rounded-full w-full" />
+                                <div className="space-y-1.5">
+                                  <div className="h-0.5 bg-amber-100 rounded-full w-full" />
+                                  <div className="h-0.5 bg-amber-100 rounded-full w-4/5" />
+                                  <div className="h-0.5 bg-amber-100 rounded-full w-3/5" />
+                                </div>
                               </div>
                             </div>
                           ) : (
