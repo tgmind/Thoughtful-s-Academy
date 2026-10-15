@@ -137,23 +137,40 @@ describe('MaterialViewerModal Component - PDF & Protected Notes', () => {
     expect(iframe).toHaveAttribute('src', 'https://drive.google.com/file/d/1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI/preview')
   })
 
-  it('renders the minimalist grey protection shield mask over Google Drive popout without intrusive text', () => {
+  it('renders transparent mask over viewer and neutralizes redirect button without visible shield overlay', () => {
     render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
 
-    const badge = screen.getByTitle("Thoughtful's Academy Protected View — External sharing is disabled")
-    expect(badge).toBeInTheDocument()
-    expect(badge.querySelector('svg')).toBeInTheDocument()
+    // Verify visible text and grey shield are completely absent
     expect(screen.queryByText('Protected Reader')).not.toBeInTheDocument()
     expect(screen.queryByText('Protected')).not.toBeInTheDocument()
 
-    // Clicking protection badge stops propagation and prevents default
+    // Blocker is present and completely transparent
+    const blocker = screen.getByTestId('drive-redirect-blocker')
+    expect(blocker).toBeInTheDocument()
+    expect(blocker.querySelector('svg')).toBeNull()
+    expect(blocker).toHaveClass('pointer-events-auto')
+    expect(blocker).toHaveClass('bg-transparent')
+
+    // Mask container allows full touch pass-through (pointer-events-none) across the viewer
+    const maskContainer = blocker.parentElement
+    expect(maskContainer).toHaveClass('pointer-events-none')
+    expect(maskContainer).toHaveClass('absolute')
+    expect(maskContainer).toHaveClass('inset-0')
+
+    // Clicking/tapping redirect blocker stops propagation and prevents default
     const clickEvt = new MouseEvent('click', { bubbles: true, cancelable: true })
     const stopPropagationSpy = vi.spyOn(clickEvt, 'stopPropagation')
     const preventDefaultSpy = vi.spyOn(clickEvt, 'preventDefault')
-    badge.dispatchEvent(clickEvt)
+    blocker.dispatchEvent(clickEvt)
 
     expect(stopPropagationSpy).toHaveBeenCalled()
     expect(preventDefaultSpy).toHaveBeenCalled()
+
+    // Touch events on the redirect blocker are also intercepted
+    const touchStartEvt = new TouchEvent('touchstart', { bubbles: true, cancelable: true })
+    const touchPreventSpy = vi.spyOn(touchStartEvt, 'preventDefault')
+    blocker.dispatchEvent(touchStartEvt)
+    expect(touchPreventSpy).toHaveBeenCalled()
   })
 
   it('prevents browser print (Ctrl+P) and save (Ctrl+S) inside protected viewer', () => {

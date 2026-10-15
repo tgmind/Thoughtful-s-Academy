@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowLeft, X, Download, FileText,
-  ExternalLink, Loader2, Sparkles, AlertCircle, Shield
+  ExternalLink, Loader2, Sparkles, AlertCircle
 } from 'lucide-react'
 import {
   getMaterialEmbedUrl,
@@ -259,27 +259,54 @@ export default function MaterialViewerModal({ card, onClose }) {
             />
 
             {/* 
-              ─── MINIMALISTIC INSTITUTIONAL PROTECTION SHIELD ───
-              Discreet, elegant grey protection shield overlay that precisely masks
-              Google Drive's external redirect/popout button across all screen sizes,
-              leaving 100% of the document readable without annoying text intrusion.
+              ─── TRANSPARENT INTERACTION MASK & REDIRECT INTERCEPTOR ───
+              1. Masking is completely invisible/transparent with 0 visual intrusion.
+              2. Outer mask uses pointer-events-none so 100% of gestures, multi-touch
+                 pinch-to-zoom, swiping, panning, and trackpad/mouse wheel scrolling
+                 pass directly to the viewer with zero lag or delay.
+              3. The top-right blocker region uses pointer-events-auto to intercept
+                 and neutralize clicks/taps targeting the external popout/redirect button.
             */}
             {isDrive && (
               <div
-                className="absolute top-2 right-2.5 sm:top-2.5 sm:right-3.5 z-20 flex items-center justify-center pointer-events-auto select-none"
-                onContextMenu={(e) => e.preventDefault()}
+                className="absolute inset-0 z-20 pointer-events-none select-none overflow-hidden"
+                aria-hidden="true"
               >
                 <div
-                  className="w-9 h-9 sm:w-10 sm:h-10 bg-[#202124] hover:bg-[#28292c] border border-[#3c4043] rounded-full sm:rounded-xl shadow-md flex items-center justify-center text-neutral-400 hover:text-neutral-300 transition-colors cursor-default"
-                  title="Thoughtful's Academy Protected View — External sharing is disabled"
+                  data-testid="drive-redirect-blocker"
+                  className="absolute top-0 right-0 w-16 h-14 sm:w-20 sm:h-16 pointer-events-auto bg-transparent cursor-default select-none"
+                  style={{ touchAction: 'none' }}
+                  title=""
                   aria-label="Protected View"
                   onClick={(e) => {
-                    e.stopPropagation()
                     e.preventDefault()
+                    e.stopPropagation()
                   }}
-                >
-                  <Shield className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-neutral-400 shrink-0" />
-                </div>
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onMouseUp={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                />
               </div>
             )}
           </div>
