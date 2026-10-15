@@ -11,8 +11,13 @@ import {
   Grid,
   ShieldCheck,
   ArrowRight,
+  BookOpen,
+  PlayCircle,
+  FileText,
+  School,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../lib/supabase'
 import { useNavBadges } from '../../hooks/useNavBadges'
 import { syncPush } from '../../utils/push'
 import { INSTITUTE_NAME } from '../../lib/constants'
@@ -59,6 +64,9 @@ export default function DashboardShell({ navItems, pageTitle }) {
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [studentSubjects, setStudentSubjects] = useState([])
+  const [studyCards, setStudyCards] = useState([])
+  const [adminBatches, setAdminBatches] = useState([])
 
   const searchInputRef = useRef(null)
   const dropdownRef = useRef(null)
@@ -167,6 +175,57 @@ export default function DashboardShell({ navItems, pageTitle }) {
     }
   }, [showCommandPalette])
 
+  // Fetch account-specific data for Global Search
+  useEffect(() => {
+    if (!user?.id) return
+
+    if (profile?.role === 'student') {
+      supabase
+        .from('student_profiles')
+        .select('batch_id, subjects, batches(name)')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          const bId = data?.batch_id ?? null
+          setStudentSubjects(data?.subjects ?? [])
+
+          let query = supabase
+            .from('study_cards')
+            .select('id, title, description, subject, type, is_public, batch_id, batch_ids')
+            .eq('is_active', true)
+            .order('display_order', { ascending: true })
+
+          if (bId) {
+            query = query.or(`is_public.eq.true,batch_id.eq.${bId},batch_ids.cs.{${bId}}`)
+          } else {
+            query = query.eq('is_public', true)
+          }
+
+          query.then(({ data: cardData, error }) => {
+            if (!error && cardData) {
+              setStudyCards(cardData)
+            } else {
+              // Resilient fallback for public cards
+              supabase
+                .from('study_cards')
+                .select('id, title, description, subject, type, is_public, batch_id, batch_ids')
+                .eq('is_active', true)
+                .eq('is_public', true)
+                .then(({ data: pubData }) => {
+                  setStudyCards(pubData || [])
+                })
+            }
+          })
+        })
+    } else if (profile?.role === 'admin') {
+      supabase
+        .from('batches')
+        .select('id, name, is_active')
+        .order('name')
+        .then(({ data }) => setAdminBatches(data || []))
+    }
+  }, [user?.id, profile?.role])
+
   const handleSignOut = async () => {
     await signOut()
     navigate('/')
@@ -179,12 +238,147 @@ export default function DashboardShell({ navItems, pageTitle }) {
   const primaryMobileTabs = useMemo(() => navItems.slice(0, 4), [navItems])
   const secondaryMobileTabs = useMemo(() => navItems.slice(4), [navItems])
 
-  // Filtered items for ⌘K Command Palette
-  const filteredNavItems = useMemo(() => {
-    if (!searchQuery.trim()) return navItems
+  // Unified Global Search across:
+  // 1. Portal Modules & Pages
+  // 2. Subject Workspaces
+  // 3. Lectures & Study Materials
+  // 4. Quick Actions
+  const groupedSearchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
-    return navItems.filter(item => item.label.toLowerCase().includes(q))
-  }, [navItems, searchQuery])
+    const sections = []
+
+    // 1. Portal Modules & Pages
+    const matchingNav = (navItems || []).filter(item => {
+      if (!q) return true
+      return item.label.toLowerCase().includes(q)
+    })
+    if (matchingNav.length > 0) {
+      sections.push({
+        title: 'Portal Modules & Pages',
+        items: matchingNav.map(item => ({
+          id: `nav-${item.path}`,
+          type: 'module',
+          label: item.label,
+          subtext: `Navigate to ${item.label}`,
+          icon: item.icon,
+          badge: badges[item.path],
+          action: () => {
+            navigate(item.path)
+            setShowCommandPalette(false)
+          }
+        }))
+      })
+    }
+
+    // 2. Subject Workspaces (for enrolled student)
+    if (profile?.role === 'student' && studentSubjects.length > 0) {
+      const matchingSubjs = studentSubjects.filter(s => !q || s.toLowerCase().includes(q))
+      if (matchingSubjs.length > 0) {
+        sections.push({
+          title: 'Subject Workspaces',
+          items: matchingSubjs.map(s => ({
+            id: `subject-${s}`,
+            type: 'subject',
+            label: `${s} Workspace`,
+            subtext: `Explore ${s} lectures & study notes`,
+            icon: <BookOpen className="h-4 w-4 text-amber-500" />,
+            action: () => {
+              navigate(`/student/study?subject=${encodeURIComponent(s)}`)
+              setShowCommandPalette(false)
+            }
+          }))
+        })
+      }
+    }
+
+    // 3. Lectures & Study Materials (for students)
+    if (profile?.role === 'student' && studyCards.length > 0 && q) {
+      const matchingCards = studyCards.filter(c => {
+        return (
+          (c.title || '').toLowerCase().includes(q) ||
+          (c.subject || '').toLowerCase().includes(q) ||
+          (c.description || '').toLowerCase().includes(q)
+        )
+      }).slice(0, 8)
+
+      if (matchingCards.length > 0) {
+        sections.push({
+          title: 'Lectures & Study Materials',
+          items: matchingCards.map(card => {
+            const isVideo = card.type === 'youtube_video' || card.type === 'youtube_playlist'
+            const isDrive = card.type === 'google_drive'
+            return {
+              id: `card-${card.id}`,
+              type: 'study',
+              label: card.title,
+              subtext: `${card.subject || 'General'} • ${card.type === 'youtube_playlist' ? 'Playlist' : isDrive ? 'Notes / Drive' : 'Video Lecture'}`,
+              icon: isVideo ? <PlayCircle className="h-4 w-4 text-rose-500" /> : <FileText className="h-4 w-4 text-emerald-500" />,
+              badgeLabel: card.type === 'youtube_playlist' ? 'Playlist' : isVideo ? 'Video' : 'Notes',
+              badgeColor: isVideo ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+              action: () => {
+                if (isVideo) {
+                  navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(card.subject || '')}`)
+                } else {
+                  navigate(`/student/study?subject=${encodeURIComponent(card.subject || '')}&cardId=${card.id}`)
+                }
+                setShowCommandPalette(false)
+              }
+            }
+          })
+        })
+      }
+    }
+
+    // 3 (Admin variant): Batches
+    if (profile?.role === 'admin' && adminBatches.length > 0 && q) {
+      const matchingBatches = adminBatches.filter(b => (b.name || '').toLowerCase().includes(q)).slice(0, 5)
+      if (matchingBatches.length > 0) {
+        sections.push({
+          title: 'Batches',
+          items: matchingBatches.map(b => ({
+            id: `batch-${b.id}`,
+            type: 'batch',
+            label: b.name,
+            subtext: 'Manage batch enrollment and curriculum',
+            icon: <School className="h-4 w-4 text-indigo-500" />,
+            action: () => {
+              navigate('/admin/batches')
+              setShowCommandPalette(false)
+            }
+          }))
+        })
+      }
+    }
+
+    // 4. Quick Actions
+    const quickActions = []
+    if (profile?.role === 'student' && q) {
+      quickActions.push({
+        id: 'action-search-study',
+        type: 'action',
+        label: `Filter Study Hub for "${searchQuery.trim()}"`,
+        subtext: 'View and filter all matching cards in the Study Hub',
+        icon: <Search className="h-4 w-4 text-blue-600" />,
+        action: () => {
+          navigate(`/student/study?search=${encodeURIComponent(searchQuery.trim())}`)
+          setShowCommandPalette(false)
+        }
+      })
+    }
+
+    if (quickActions.length > 0) {
+      sections.push({
+        title: 'Quick Actions',
+        items: quickActions
+      })
+    }
+
+    return sections
+  }, [searchQuery, navItems, profile?.role, studentSubjects, studyCards, adminBatches, badges, navigate])
+
+  const flatResults = useMemo(() => {
+    return groupedSearchResults.flatMap(s => s.items)
+  }, [groupedSearchResults])
 
   useEffect(() => {
     setSelectedIndex(0)
@@ -193,15 +387,14 @@ export default function DashboardShell({ navItems, pageTitle }) {
   const handleCommandKeyNav = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelectedIndex(prev => (prev + 1) % (filteredNavItems.length || 1))
+      setSelectedIndex(prev => (prev + 1) % (flatResults.length || 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setSelectedIndex(prev => (prev - 1 + filteredNavItems.length) % (filteredNavItems.length || 1))
+      setSelectedIndex(prev => (prev - 1 + flatResults.length) % (flatResults.length || 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (filteredNavItems[selectedIndex]) {
-        navigate(filteredNavItems[selectedIndex].path)
-        setShowCommandPalette(false)
+      if (flatResults[selectedIndex]) {
+        flatResults[selectedIndex].action()
       }
     }
   }
@@ -276,7 +469,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
             >
               <span className="flex items-center gap-2">
                 <Search className="h-3.5 w-3.5 text-slate-400" />
-                <span>Jump to module…</span>
+                <span>Global Search…</span>
               </span>
               <kbd className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-400">
                 ⌘K
@@ -410,7 +603,8 @@ export default function DashboardShell({ navItems, pageTitle }) {
             <button
               onClick={() => setShowCommandPalette(true)}
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 border border-slate-200/80 transition-all text-xs font-semibold active:scale-95 shadow-sm"
-              title="Search modules and actions (⌘K / Ctrl+K)"
+              title="Global Search (⌘K / Ctrl+K)"
+              aria-label="Global Search (⌘K / Ctrl+K)"
             >
               <Search className="h-3.5 w-3.5 text-slate-500" />
               <span className="hidden sm:inline">Search</span>
@@ -456,7 +650,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
                           className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                         >
                           <Search className="h-4 w-4 text-slate-500" />
-                          <span>Quick Switcher (⌘K)</span>
+                          <span>Global Search (⌘K)</span>
                         </button>
 
                         <button
@@ -725,7 +919,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Jump to module, page, or section..."
+                  placeholder="Search modules, subjects, lectures, or notes…"
                   className="w-full bg-transparent border-none text-slate-900 placeholder-slate-400 text-sm font-semibold focus:outline-none"
                 />
                 <button
@@ -736,59 +930,83 @@ export default function DashboardShell({ navItems, pageTitle }) {
                 </button>
               </div>
 
-              {/* Items List */}
-              <div className="p-2 max-h-80 overflow-y-auto space-y-1">
-                {filteredNavItems.length === 0 ? (
+              {/* Grouped Search Results List */}
+              <div className="p-2 max-h-84 overflow-y-auto space-y-3 custom-scrollbar">
+                {flatResults.length === 0 ? (
                   <div className="py-8 text-center text-xs text-slate-400">
-                    No matching modules found for &quot;{searchQuery}&quot;
+                    No matching results found for &quot;{searchQuery}&quot;
                   </div>
                 ) : (
-                  filteredNavItems.map((item, idx) => {
-                    const isSelected = idx === selectedIndex
-                    return (
-                      <button
-                        key={item.path}
-                        onClick={() => {
-                          navigate(item.path)
-                          setShowCommandPalette(false)
-                        }}
-                        onMouseEnter={() => setSelectedIndex(idx)}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-left transition-all ${
-                          isSelected
-                            ? 'bg-blue-950 text-white shadow-sm'
-                            : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className={`shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`}>
-                            {item.icon}
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold truncate">
-                            {item.label}
-                          </span>
-                          {badges[item.path] && (
-                            item.path.includes('live-class') ? (
-                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-600 text-white shrink-0 flex items-center gap-1 shadow-xs animate-pulse">
-                                <span className="w-1 h-1 rounded-full bg-white" />
-                                LIVE
+                  groupedSearchResults.map((section) => (
+                    <div key={section.title} className="space-y-1">
+                      <div className="px-3 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        {section.title}
+                      </div>
+                      {section.items.map((item) => {
+                        const itemIndex = flatResults.findIndex(fi => fi.id === item.id)
+                        const isSelected = itemIndex === selectedIndex
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={item.action}
+                            onMouseEnter={() => setSelectedIndex(itemIndex)}
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-left transition-all ${
+                              isSelected
+                                ? 'bg-blue-950 text-white shadow-sm'
+                                : 'hover:bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span className={`shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`}>
+                                {item.icon}
                               </span>
-                            ) : (
-                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">
-                                NEW
-                              </span>
-                            )
-                          )}
-                        </div>
-                        <ArrowRight className={`h-3.5 w-3.5 shrink-0 ${isSelected ? 'text-amber-400 translate-x-0.5' : 'text-slate-300'}`} />
-                      </button>
-                    )
-                  })
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm font-bold truncate">
+                                  {item.label}
+                                </p>
+                                {item.subtext && (
+                                  <p className={`text-[10px] sm:text-[11px] truncate mt-0.5 ${
+                                    isSelected ? 'text-slate-300' : 'text-slate-400'
+                                  }`}>
+                                    {item.subtext}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                              {item.badgeLabel && (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                  isSelected ? 'bg-white/20 text-white border-white/20' : item.badgeColor
+                                }`}>
+                                  {item.badgeLabel}
+                                </span>
+                              )}
+                              {item.badge && (
+                                item.badge.includes && item.badge.includes('live-class') ? (
+                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-600 text-white shrink-0 flex items-center gap-1 shadow-xs animate-pulse">
+                                    <span className="w-1 h-1 rounded-full bg-white" />
+                                    LIVE
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">
+                                    NEW
+                                  </span>
+                                )
+                              )}
+                              <ArrowRight className={`h-3.5 w-3.5 shrink-0 ${isSelected ? 'text-amber-400 translate-x-0.5' : 'text-slate-300'}`} />
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))
                 )}
               </div>
 
               {/* Palette Footer Tip */}
               <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Use ↑↓ arrows to navigate, Enter to jump</span>
+                <span>Use ↑↓ arrows to navigate, Enter to select</span>
                 <span className="font-mono">ESC to close</span>
               </div>
             </motion.div>
