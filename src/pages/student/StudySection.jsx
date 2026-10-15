@@ -931,22 +931,25 @@ export default function StudySection() {
               </div>
             </div>
 
-            {/* Quick Academic Statistics */}
+            {/* Quick Academic Statistics - Apple / Google Style Typographic Formatting */}
             {batchName && (
-              <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0 self-stretch sm:self-center">
-                <div className="flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50/90 border border-slate-200/80 text-xs shadow-2xs">
-                  <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs sm:text-sm font-black text-slate-900">{studentSubjects.length}</span>
-                    <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Subjects</span>
-                  </div>
+              <div className="flex items-center gap-2.5 sm:gap-3.5 text-xs sm:text-[13px] text-slate-600 shrink-0 self-start sm:self-center pl-14 sm:pl-0 font-medium">
+                <div className="inline-flex items-center gap-1.5">
+                  <BookOpen className="h-4 w-4 text-blue-600 shrink-0" strokeWidth={2} />
+                  <span className="font-bold text-slate-800 text-xs sm:text-sm">{studentSubjects.length}</span>
+                  <span className="font-medium text-slate-500 text-xs sm:text-[13px]">
+                    {studentSubjects.length === 1 ? 'Subject' : 'Subjects'}
+                  </span>
                 </div>
-                <div className="flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50/90 border border-slate-200/80 text-xs shadow-2xs">
-                  <FileText className="h-4 w-4 text-amber-600 shrink-0" />
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs sm:text-sm font-black text-slate-900">{cards.length}</span>
-                    <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Materials</span>
-                  </div>
+
+                <span className="text-slate-300 font-bold select-none text-xs" aria-hidden="true">•</span>
+
+                <div className="inline-flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-amber-600 shrink-0" strokeWidth={2} />
+                  <span className="font-bold text-slate-800 text-xs sm:text-sm">{cards.length}</span>
+                  <span className="font-medium text-slate-500 text-xs sm:text-[13px]">
+                    {cards.length === 1 ? 'Material' : 'Materials'}
+                  </span>
                 </div>
               </div>
             )}
