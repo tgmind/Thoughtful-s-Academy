@@ -5,7 +5,7 @@ import {
   BookOpen, PlayCircle, Heart, Youtube,
   Link as LinkIcon, ChevronLeft, ChevronRight, BookMarked, GraduationCap,
   Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
-  Dna, Calculator, ArrowRight, Play, School, FileText, Video, Home
+  Dna, Calculator, ArrowRight, Play, FileText, Video, Home
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -881,18 +881,47 @@ export default function StudySection() {
               </div>
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight leading-tight flex items-center gap-1.5 flex-wrap">
-                  <span>Welcome back, {studentName}!</span>
+                  <span>Welcome, {studentName}!</span>
                   <span className="text-lg sm:text-xl inline-block origin-bottom-right hover:rotate-12 transition-transform">👋</span>
                 </h1>
                 {batchName ? (
                   <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Enrolled in
                     </span>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-950 text-white font-extrabold text-xs sm:text-sm shadow-xs ring-1 ring-blue-900/30">
-                      <School className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                      <span className="text-amber-300 tracking-tight">{batchName}</span>
-                    </div>
+                    <span className="relative inline-block px-1.5 py-0.5 mx-0.5">
+                      <span className="relative z-10 font-black text-slate-900 tracking-tight text-xs sm:text-sm select-none">
+                        {batchName}
+                      </span>
+                      <svg
+                        className="absolute inset-0 w-[calc(100%+8px)] -left-1 h-full -z-0 pointer-events-none overflow-visible"
+                        viewBox="0 0 240 36"
+                        preserveAspectRatio="none"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <defs>
+                          <linearGradient id="roughHighlighterGrad" x1="0" y1="0" x2="240" y2="0" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8" />
+                            <stop offset="20%" stopColor="#fde047" stopOpacity="0.88" />
+                            <stop offset="85%" stopColor="#fde047" stopOpacity="0.9" />
+                            <stop offset="100%" stopColor="#facc15" stopOpacity="0.75" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          d="M 5,10 C 18,6 45,7 80,6 C 130,5 180,6 218,5 C 228,5 234,7 238,11 C 240,14 236,17 239,20 C 235,23 238,26 232,28 C 218,31 180,30 140,31 C 90,32 45,30 18,29 C 8,28 3,25 2,21 C 0,17 2,13 5,10 Z"
+                          fill="url(#roughHighlighterGrad)"
+                        />
+                        <path
+                          d="M 208,13 C 218,14 228,14 236,16 M 202,21 C 216,22 228,23 235,24 M 18,24 C 60,26 120,25 170,25"
+                          stroke="#ca8a04"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          opacity="0.35"
+                        />
+                      </svg>
+                    </span>
                   </div>
                 ) : (
                   <p className="text-xs text-gray-500 font-medium mt-1">

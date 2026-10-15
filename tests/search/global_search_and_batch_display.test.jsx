@@ -320,7 +320,7 @@ describe('Study Section Refinement — StudySection.jsx', () => {
     )
 
     // 1. Welcome card rendered
-    expect(await screen.findByText(/Welcome back, Student!/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Welcome, Student!/i)).toBeInTheDocument()
 
     // 2. Middle search bar is REMOVED
     expect(screen.queryByPlaceholderText(/Search lectures, topics, or notes/i)).not.toBeInTheDocument()
@@ -337,7 +337,7 @@ describe('Study Section Refinement — StudySection.jsx', () => {
     )
 
     // Enrolled in Class 9 Marathon inside the card badge
-    await screen.findByText(/Welcome back, Student!/i)
+    await screen.findByText(/Welcome, Student!/i)
     const enrolledBadge = screen.getByText(/Enrolled in/i).parentElement
     expect(enrolledBadge).toHaveTextContent('Class 9 Marathon')
 
