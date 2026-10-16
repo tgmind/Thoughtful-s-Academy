@@ -223,7 +223,7 @@ export default function NotificationPopup() {
       if (!senderName) {
         const { data: sender } = await supabase
           .from('profiles').select('full_name').eq('id', msg.sender_id).maybeSingle()
-        senderName = sender?.full_name || 'Someone'
+        senderName = sender?.full_name || (msg.is_broadcast ? 'Announcement' : 'Faculty / Staff')
         senderNameCache.set(msg.sender_id, senderName)
       }
       enqueue([{

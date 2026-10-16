@@ -36,6 +36,7 @@ export default function StudentMessages() {
   const [sending, setSending] = useState(false)
   const [showList, setShowList] = useState(true)
   const [search, setSearch] = useState('')
+  const [studentBatchId, setStudentBatchId] = useState(null)
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
@@ -46,13 +47,26 @@ export default function StudentMessages() {
     selectedRef.current = selected
   }, [selected])
 
+  // Resolve student enrolled batch ID for batch announcements
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('student_profiles')
+      .select('batch_id')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.batch_id) setStudentBatchId(data.batch_id)
+      })
+  }, [user])
+
   // Load contacts: active teachers + admins
   useEffect(() => {
     supabase
       .from('profiles')
       .select('id, full_name, role')
       .in('role', ['teacher', 'admin'])
-      .eq('is_active', true)
+      .or('is_active.eq.true,is_active.is.null')
       .order('role')
       .then(({ data }) => setContacts(data ?? []))
   }, [])
@@ -103,18 +117,23 @@ export default function StudentMessages() {
     })
     setUnread(ur)
 
-    // 2. Recent messages for previews
+    // 2. Recent messages for previews (including batch announcements if enrolled)
+    const bcastFilter = studentBatchId
+      ? `,and(is_broadcast.eq.true,batch_id.eq.${studentBatchId})`
+      : ''
     const { data: recentMsgs } = await supabase
       .from('messages')
       .select('*')
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}${bcastFilter}`)
       .order('created_at', { ascending: false })
       .limit(300)
 
     const lm = {}
     ;(recentMsgs || []).forEach((m) => {
       const other = m.sender_id === user.id ? m.receiver_id : m.sender_id
-      if (!lm[other]) lm[other] = m
+      if (other && (!lm[other] || (lm[other].is_broadcast && !m.is_broadcast))) {
+        lm[other] = m
+      }
     })
     setLastMsgs(lm)
 
@@ -131,10 +150,16 @@ export default function StudentMessages() {
           .select('id, full_name, role')
           .in('id', missing)
           .then(({ data: extraProfiles }) => {
-            if (extraProfiles?.length) {
+            const foundIds = new Set((extraProfiles ?? []).map((p) => p.id))
+            const fallbacks = missing
+              .filter((id) => !foundIds.has(id))
+              .map((id) => ({ id, full_name: 'Admin / Faculty', role: 'admin' }))
+            const allExtra = [...(extraProfiles ?? []), ...fallbacks]
+
+            if (allExtra.length > 0) {
               setContacts((current) => {
                 const curKnown = new Set(current.map((c) => c.id))
-                const toAdd = extraProfiles.filter((p) => !curKnown.has(p.id))
+                const toAdd = allExtra.filter((p) => !curKnown.has(p.id))
                 return toAdd.length > 0 ? [...current, ...toAdd] : current
               })
             }
@@ -142,7 +167,7 @@ export default function StudentMessages() {
         return prev
       })
     }
-  }, [user])
+  }, [user, studentBatchId])
 
   useEffect(() => {
     loadSummary()
@@ -154,17 +179,21 @@ export default function StudentMessages() {
     let cancelled = false
     isNearBottomRef.current = true
 
+    const bcastFilter = studentBatchId
+      ? `,and(sender_id.eq.${selected.id},is_broadcast.eq.true,batch_id.eq.${studentBatchId})`
+      : ''
+
     supabase
       .from('messages')
       .select('*')
       .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${selected.id}),and(sender_id.eq.${selected.id},receiver_id.eq.${user.id})`
+        `and(sender_id.eq.${user.id},receiver_id.eq.${selected.id}),and(sender_id.eq.${selected.id},receiver_id.eq.${user.id})${bcastFilter}`
       )
       .order('created_at')
       .then(({ data }) => {
         if (cancelled) return
         setMessages(data ?? [])
-        // Mark incoming messages as read
+        // Mark incoming direct messages as read
         supabase
           .from('messages')
           .update({ is_read: true })
@@ -183,31 +212,73 @@ export default function StudentMessages() {
     return () => {
       cancelled = true
     }
-  }, [selected, user])
+  }, [selected, user, studentBatchId])
 
   // Realtime synchronization: INSERT, UPDATE, DELETE
   useEffect(() => {
     if (!user) return
-    const ch = supabase
-      .channel(`student_msgs_sync_${user.id}_${Date.now()}`)
-      .on(
+    let channel = supabase.channel(`student_msgs_sync_${user.id}_${Date.now()}`)
+
+    // 1. Direct messages to student
+    channel = channel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${user.id}`,
+      },
+      ({ new: msg }) => {
+        if (msg.sender_id === selectedRef.current?.id) {
+          setMessages((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg]))
+          supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then(() => {})
+        } else {
+          setUnread((u) => ({ ...u, [msg.sender_id]: (u[msg.sender_id] || 0) + 1 }))
+        }
+        setLastMsgs((lm) => ({ ...lm, [msg.sender_id]: msg }))
+
+        // Ensure sender is present in contacts sidebar
+        setContacts((prev) => {
+          if (prev.some((c) => c.id === msg.sender_id)) return prev
+          supabase
+            .from('profiles')
+            .select('id, full_name, role')
+            .eq('id', msg.sender_id)
+            .maybeSingle()
+            .then(({ data: newProfile }) => {
+              const resolved = newProfile || {
+                id: msg.sender_id,
+                full_name: 'Admin / Faculty',
+                role: 'admin',
+              }
+              setContacts((current) =>
+                current.some((c) => c.id === resolved.id) ? current : [resolved, ...current]
+              )
+            })
+          return prev
+        })
+      }
+    )
+
+    // 2. Broadcast announcements for student's enrolled batch
+    if (studentBatchId) {
+      channel = channel.on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `receiver_id=eq.${user.id}`,
+          filter: `batch_id=eq.${studentBatchId}`,
         },
         ({ new: msg }) => {
+          if (!msg.is_broadcast) return
           if (msg.sender_id === selectedRef.current?.id) {
             setMessages((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg]))
-            supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then(() => {})
           } else {
             setUnread((u) => ({ ...u, [msg.sender_id]: (u[msg.sender_id] || 0) + 1 }))
           }
           setLastMsgs((lm) => ({ ...lm, [msg.sender_id]: msg }))
 
-          // Ensure sender is present in contacts sidebar
           setContacts((prev) => {
             if (prev.some((c) => c.id === msg.sender_id)) return prev
             supabase
@@ -216,16 +287,23 @@ export default function StudentMessages() {
               .eq('id', msg.sender_id)
               .maybeSingle()
               .then(({ data: newProfile }) => {
-                if (newProfile) {
-                  setContacts((current) =>
-                    current.some((c) => c.id === newProfile.id) ? current : [newProfile, ...current]
-                  )
+                const resolved = newProfile || {
+                  id: msg.sender_id,
+                  full_name: 'Faculty Announcement',
+                  role: 'teacher',
                 }
+                setContacts((current) =>
+                  current.some((c) => c.id === resolved.id) ? current : [resolved, ...current]
+                )
               })
             return prev
           })
         }
       )
+    }
+
+    // 3. Message updates (read receipts)
+    channel = channel
       .on(
         'postgres_changes',
         {
@@ -274,8 +352,8 @@ export default function StudentMessages() {
       )
       .subscribe()
 
-    return () => supabase.removeChannel(ch)
-  }, [user, loadSummary])
+    return () => supabase.removeChannel(channel)
+  }, [user, studentBatchId, loadSummary])
 
   // Smart auto-scroll: only scrolls to bottom if user is already near the bottom
   const handleScroll = (e) => {
@@ -372,6 +450,20 @@ export default function StudentMessages() {
         (lastMsgs[b.id]?.created_at || '').localeCompare(lastMsgs[a.id]?.created_at || '')
       )
   }, [contacts, search, lastMsgs])
+
+  // Auto-select conversation with unread message or latest message on desktop screens
+  useEffect(() => {
+    if (selected || filteredContacts.length === 0) return
+    const params = new URLSearchParams(location.search)
+    if (params.get('teacher') || params.get('admin') || params.get('contact')) return
+
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      const topContact = filteredContacts[0]
+      if (topContact && (lastMsgs[topContact.id] || unread[topContact.id])) {
+        setSelected(topContact)
+      }
+    }
+  }, [contacts, filteredContacts, selected, location.search, lastMsgs, unread])
 
   // Group messages by date + compute tail
   const grouped = useMemo(() => {

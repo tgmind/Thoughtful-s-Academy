@@ -454,10 +454,16 @@ export default function TeacherMessages() {
           .select('id, full_name, role')
           .in('id', missing)
           .then(({ data: extraProfiles }) => {
-            if (extraProfiles?.length) {
+            const foundIds = new Set((extraProfiles ?? []).map((p) => p.id))
+            const fallbacks = missing
+              .filter((id) => !foundIds.has(id))
+              .map((id) => ({ id, full_name: 'Student / User', role: 'student' }))
+            const allExtra = [...(extraProfiles ?? []), ...fallbacks]
+
+            if (allExtra.length > 0) {
               setContacts((current) => {
                 const curKnown = new Set(current.map((c) => c.id))
-                const toAdd = extraProfiles.filter((p) => !curKnown.has(p.id))
+                const toAdd = allExtra.filter((p) => !curKnown.has(p.id))
                 return toAdd.length > 0 ? [...current, ...toAdd] : current
               })
             }

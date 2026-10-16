@@ -97,10 +97,23 @@ function createChainableQueryBuilder(table, getTableData) {
       }
 
       if (updateData) {
+        for (const f of filterConditions) {
+          if (f.op === 'eq') {
+            allRows.forEach((r) => {
+              if (r[f.col] === f.val) Object.assign(r, updateData)
+            })
+          }
+        }
         return Promise.resolve({ data: rows, error: null }).then(resolve)
       }
 
       if (isDelete) {
+        for (const f of filterConditions) {
+          if (f.op === 'eq') {
+            const idx = allRows.findIndex((r) => r[f.col] === f.val)
+            if (idx !== -1) allRows.splice(idx, 1)
+          }
+        }
         return Promise.resolve({ data: [], error: null }).then(resolve)
       }
 
@@ -111,6 +124,22 @@ function createChainableQueryBuilder(table, getTableData) {
           rows = rows.filter((r) => r[f.col] !== f.val)
         } else if (f.op === 'in') {
           rows = rows.filter((r) => f.val.includes(r[f.col]))
+        } else if (f.op === 'or') {
+          if (f.expr.includes('is_active')) {
+            rows = rows.filter((r) => r.is_active === true || r.is_active == null)
+          } else if (f.expr.includes('sender_id.eq.') && !f.expr.includes('and(')) {
+            const m = f.expr.match(/sender_id\.eq\.([^,]+),receiver_id\.eq\.([^,]+)/)
+            if (m) {
+              rows = rows.filter((r) => r.sender_id === m[1] || r.receiver_id === m[2])
+            }
+          } else if (f.expr.includes('and(')) {
+            const pairs = [...f.expr.matchAll(/and\(sender_id\.eq\.([^,]+),receiver_id\.eq\.([^)]+)\)/g)]
+            if (pairs.length > 0) {
+              rows = rows.filter((r) =>
+                pairs.some((p) => r.sender_id === p[1] && r.receiver_id === p[2])
+              )
+            }
+          }
         }
       }
 
@@ -260,6 +289,125 @@ describe('Messaging Feature Audit & Hardening Suite', () => {
         expect(screen.getByText('Announcement')).toBeInTheDocument()
         expect(screen.getAllByText(/Formula sheet uploaded/).length).toBeGreaterThan(0)
         expect(screen.getByText('View Attachment')).toBeInTheDocument()
+      })
+    })
+
+    it('renders incoming admin message in student sidebar with unread counter and marks as read on open', async () => {
+      mockAuthState.user = { id: 'student-1' }
+      mockTableData.profiles = [
+        { id: 'admin-1', full_name: 'Subodh', role: 'admin', is_active: true },
+        { id: 'student-1', full_name: 'Test Student', role: 'student', is_active: true },
+      ]
+      mockTableData.messages = [
+        {
+          id: 'admin-msg-1',
+          sender_id: 'admin-1',
+          receiver_id: 'student-1',
+          content: 'what happened ?',
+          created_at: new Date().toISOString(),
+          is_read: false,
+          is_broadcast: false,
+        },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/student/messages']}>
+          <Routes>
+            <Route path="/student/messages" element={<StudentMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      // Subodh appears in sidebar with snippet and unread counter
+      await waitFor(() => {
+        expect(screen.getAllByText('Subodh').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('what happened ?').length).toBeGreaterThan(0)
+      })
+
+      // Clicking conversation opens it and marks incoming message as read
+      const contactBtn = screen.getAllByText('Subodh')[0].closest('button')
+      fireEvent.click(contactBtn)
+
+      await waitFor(() => {
+        const adminMsg = mockTableData.messages.find((m) => m.id === 'admin-msg-1')
+        expect(adminMsg.is_read).toBe(true)
+      })
+    })
+
+    it('allows student to send a reply to admin and renders it in thread', async () => {
+      mockAuthState.user = { id: 'student-1' }
+      mockTableData.profiles = [
+        { id: 'admin-1', full_name: 'Subodh', role: 'admin', is_active: true },
+      ]
+      mockTableData.messages = [
+        {
+          id: 'admin-msg-1',
+          sender_id: 'admin-1',
+          receiver_id: 'student-1',
+          content: 'what happened ?',
+          created_at: new Date().toISOString(),
+          is_read: false,
+          is_broadcast: false,
+        },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/student/messages?contact=admin-1']}>
+          <Routes>
+            <Route path="/student/messages" element={<StudentMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Type a message…')).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('Type a message…')
+      fireEvent.change(input, { target: { value: 'All good sir, preparing for test!' } })
+
+      const sendBtn = screen.getByRole('button', { name: 'Send message' })
+      fireEvent.click(sendBtn)
+
+      await waitFor(() => {
+        expect(screen.getAllByText('All good sir, preparing for test!').length).toBeGreaterThan(0)
+      })
+
+      const inserted = mockTableData.messages.find(
+        (m) => m.content === 'All good sir, preparing for test!'
+      )
+      expect(inserted).toBeDefined()
+      expect(inserted.sender_id).toBe('student-1')
+      expect(inserted.receiver_id).toBe('admin-1')
+      expect(inserted.is_broadcast).toBe(false)
+    })
+
+    it('hydrates partner contact via fallback if initial profiles query was delayed or empty', async () => {
+      mockAuthState.user = { id: 'student-1' }
+      mockTableData.profiles = []
+      mockTableData.messages = [
+        {
+          id: 'admin-msg-2',
+          sender_id: 'admin-unknown',
+          receiver_id: 'student-1',
+          content: 'Important announcement regarding exams',
+          created_at: new Date().toISOString(),
+          is_read: false,
+          is_broadcast: false,
+        },
+      ]
+
+      render(
+        <MemoryRouter initialEntries={['/student/messages']}>
+          <Routes>
+            <Route path="/student/messages" element={<StudentMessages />} />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Admin / Faculty')).toBeInTheDocument()
+        expect(screen.getByText('Important announcement regarding exams')).toBeInTheDocument()
       })
     })
   })

@@ -107,6 +107,7 @@ describe('Material URL Utilities', () => {
 
   describe('downloadMaterialFile', () => {
     it('initiates direct download without setting target=_blank', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network fallback'))
       const appendChildSpy = vi.spyOn(document.body, 'appendChild')
       const removeChildSpy = vi.spyOn(document.body, 'removeChild')
 
@@ -121,6 +122,7 @@ describe('Material URL Utilities', () => {
         expect(a.getAttribute('target')).toBeNull()
       })
 
+      fetchSpy.mockRestore()
       appendChildSpy.mockRestore()
       removeChildSpy.mockRestore()
     })
