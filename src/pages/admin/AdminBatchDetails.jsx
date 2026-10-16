@@ -156,10 +156,11 @@ export default function AdminBatchDetails() {
 
   // Study Cards State for Selected Batch
   const [studyCards, setStudyCards] = useState([])
+  const [batchChapters, setBatchChapters] = useState([])
   const [loadingCards, setLoadingCards] = useState(false)
   const [showCardModal, setShowCardModal] = useState(false)
   const [cardForm, setCardForm] = useState({
-    title: '', description: '', type: 'youtube_video', url: '', subject: '', chapter: '', is_public: true
+    title: '', description: '', type: 'youtube_video', url: '', subject: '', chapter: '', chapter_id: null, is_public: true
   })
   const [savingCard, setSavingCard] = useState(false)
   const [showActivityLog, setShowActivityLog] = useState(false)
@@ -185,6 +186,19 @@ export default function AdminBatchDetails() {
     setDetailedInfo(batch.detailed_info || '')
     setFacultyImages(Array.isArray(batch.faculty_images) ? batch.faculty_images : [])
     fetchBatchStudyCards(batch.id)
+    fetchBatchChapters(batch.id)
+  }
+
+  const fetchBatchChapters = async (batchId) => {
+    try {
+      const { data } = await supabase.from('chapters')
+        .select('*')
+        .or(`batch_id.is.null,batch_id.eq.${batchId}`)
+        .order('display_order')
+      setBatchChapters(data || [])
+    } catch {
+      setBatchChapters([])
+    }
   }
 
   const fetchBatchStudyCards = async (batchId) => {
@@ -295,6 +309,24 @@ export default function AdminBatchDetails() {
     }
 
     setSavingCard(true)
+
+    let chId = cardForm.chapter_id || null
+    let chTitle = cardForm.chapter?.trim() || null
+
+    if (chTitle && !chId) {
+      const matched = batchChapters.find(ch =>
+        ch.title?.trim().toLowerCase() === chTitle.toLowerCase() &&
+        (!cardForm.subject || ch.subject?.toLowerCase() === cardForm.subject.trim().toLowerCase())
+      )
+      if (matched) {
+        chId = matched.id
+        chTitle = matched.title
+      }
+    } else if (chId) {
+      const matched = batchChapters.find(ch => ch.id === chId)
+      if (matched) chTitle = matched.title
+    }
+
     const payload = {
       title: cardForm.title.trim(),
       description: cardForm.description?.trim() || null,
@@ -302,7 +334,8 @@ export default function AdminBatchDetails() {
       url: trimmedUrl,
       thumbnail_url: thumb || null,
       subject: cardForm.subject?.trim() || null,
-      chapter: cardForm.chapter?.trim() || null,
+      chapter: chTitle,
+      chapter_id: chId,
       is_public: cardForm.is_public,
       batch_id: selectedBatchId,
       batch_ids: [selectedBatchId],
@@ -316,6 +349,7 @@ export default function AdminBatchDetails() {
     if (error && (error.code === '42703' || error.message?.includes('chapter'))) {
       const cleanPayload = { ...payload }
       delete cleanPayload.chapter
+      delete cleanPayload.chapter_id
       const retryResult = await supabase.from('study_cards').insert(cleanPayload).select().maybeSingle()
       data = retryResult.data
       error = retryResult.error
@@ -328,7 +362,7 @@ export default function AdminBatchDetails() {
     } else {
       toast.success('Public Study Card added!')
       setShowCardModal(false)
-      setCardForm({ title: '', description: '', type: 'youtube_video', url: '', subject: '', chapter: '', is_public: true })
+      setCardForm({ title: '', description: '', type: 'youtube_video', url: '', subject: '', chapter: '', chapter_id: null, is_public: true })
       if (data) {
         setStudyCards(prev => [data, ...prev])
         logActivity({
@@ -694,13 +728,50 @@ export default function AdminBatchDetails() {
 
               <div>
                 <label className="block font-bold text-gray-700 mb-1">Chapter (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Electric Charges and Fields"
-                  value={cardForm.chapter || ''}
-                  onChange={e => setCardForm(f => ({ ...f, chapter: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none text-xs"
-                />
+                {batchChapters.filter(ch => !cardForm.subject || ch.subject?.toLowerCase() === cardForm.subject.trim().toLowerCase()).length > 0 ? (
+                  <div className="space-y-1.5">
+                    <select
+                      value={cardForm.chapter_id || (cardForm.chapter ? '__custom__' : '')}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val === '__custom__') {
+                          setCardForm(f => ({ ...f, chapter_id: null }))
+                        } else if (!val) {
+                          setCardForm(f => ({ ...f, chapter_id: null, chapter: '' }))
+                        } else {
+                          const chosen = batchChapters.find(ch => ch.id === val)
+                          setCardForm(f => ({ ...f, chapter_id: val, chapter: chosen?.title || '' }))
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none text-xs bg-white"
+                    >
+                      <option value="">None / General (No Chapter)</option>
+                      {batchChapters
+                        .filter(ch => !cardForm.subject || ch.subject?.toLowerCase() === cardForm.subject.trim().toLowerCase())
+                        .map(ch => (
+                          <option key={ch.id} value={ch.id}>{ch.title}</option>
+                        ))}
+                      <option value="__custom__">+ Custom Chapter Name...</option>
+                    </select>
+                    {(!cardForm.chapter_id && cardForm.chapter !== '') && (
+                      <input
+                        type="text"
+                        placeholder="Type new chapter name..."
+                        value={cardForm.chapter || ''}
+                        onChange={e => setCardForm(f => ({ ...f, chapter: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none text-xs mt-1"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. Electric Charges and Fields"
+                    value={cardForm.chapter || ''}
+                    onChange={e => setCardForm(f => ({ ...f, chapter: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none text-xs"
+                  />
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-2">

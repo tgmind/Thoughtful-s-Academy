@@ -270,14 +270,10 @@ describe('Chapter-Based Video Lectures Architecture', () => {
         expect(screen.queryByText(/Loading Study Workspace/i)).not.toBeInTheDocument()
       })
 
-      // Click on Chapter 1 button
-      const ch1Btn = await screen.findByRole('button', { name: /Electrostatics & Electric Field/i })
+      const heading = await screen.findByText('Electrostatics & Electric Field')
+      const ch1Btn = heading.closest('button')
       const reactPropsKey = Object.keys(ch1Btn).find(k => k.startsWith('__reactProps'))
-      if (ch1Btn[reactPropsKey]?.onClick) {
-        ch1Btn[reactPropsKey].onClick()
-      } else {
-        fireEvent.click(ch1Btn)
-      }
+      ch1Btn[reactPropsKey].onClick()
 
       // Lecture belonging to Chapter 1 is visible
       expect(await screen.findByText('Coulomb Law Fundamentals')).toBeInTheDocument()

@@ -640,9 +640,10 @@ export default function StudySection() {
     }
   }, [user, batchId])
 
-  // Fetch chapters for student's batch
+  // Fetch chapters for student's batch with realtime updates
   useEffect(() => {
     if (!user) return
+
     let q = supabase.from('chapters').select('*').order('display_order', { ascending: true })
     if (batchId) {
       q = q.or(`batch_id.is.null,batch_id.eq.${batchId}`)
@@ -652,6 +653,49 @@ export default function StudySection() {
         setChapters(data)
       }
     }).catch(() => {})
+
+    const channel = supabase.channel(`chapters_study_student_${user.id}_${batchId || 'all'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chapters' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          if (!payload.new.batch_id || payload.new.batch_id === batchId) {
+            setChapters(prev => {
+              if (prev.some(ch => ch.id === payload.new.id)) return prev
+              return [...prev, payload.new].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+            })
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          setChapters(prev => prev.map(ch => ch.id === payload.new.id ? payload.new : ch))
+          if (payload.new.title) {
+            setCards(prev => prev.map(c => c.chapter_id === payload.new.id ? { ...c, chapter: payload.new.title } : c))
+          }
+        } else if (payload.eventType === 'DELETE') {
+          setChapters(prev => prev.filter(ch => ch.id !== payload.old.id))
+          setCards(prev => prev.map(c => c.chapter_id === payload.old.id ? { ...c, chapter_id: null, chapter: null } : c))
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_cards' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          if (payload.new.is_active) {
+            setCards(prev => {
+              if (prev.some(c => c.id === payload.new.id)) return prev
+              return [...prev, payload.new].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+            })
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          if (!payload.new.is_active) {
+            setCards(prev => prev.filter(c => c.id !== payload.new.id))
+          } else {
+            setCards(prev => prev.map(c => c.id === payload.new.id ? payload.new : c))
+          }
+        } else if (payload.eventType === 'DELETE') {
+          setCards(prev => prev.filter(c => c.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user, batchId])
 
   // Auto-resolve target card subject, category & chapter if navigating directly from Dashboard
@@ -794,17 +838,22 @@ export default function StudySection() {
     return subjectCards.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
   }, [subjectCards])
 
-  // Chapters belonging to the selected subject (DB chapters + virtual chapters derived from cards)
+  // Chapters belonging to the selected subject (DB chapters + legacy virtual chapters strictly derived from orphaned cards)
   const subjectChapters = useMemo(() => {
     if (!selectedSubject) return []
     const s = selectedSubject.toLowerCase()
     const dbChapters = chapters.filter(ch => ch.subject?.toLowerCase() === s)
     const existingTitles = new Set(dbChapters.map(ch => (ch.title || '').trim().toLowerCase()))
+    const existingIds = new Set(dbChapters.map(ch => ch.id))
 
     const virtualChapters = []
     subjectVideoCards.forEach(card => {
+      // If card already has a valid chapter_id, NEVER generate a virtual chapter
+      if (card.chapter_id && existingIds.has(card.chapter_id)) {
+        return
+      }
       const chName = card.chapter?.trim()
-      if (chName && !existingTitles.has(chName.toLowerCase())) {
+      if (!card.chapter_id && chName && !existingTitles.has(chName.toLowerCase())) {
         existingTitles.add(chName.toLowerCase())
         virtualChapters.push({
           id: `virtual_${chName}`,
@@ -825,8 +874,8 @@ export default function StudySection() {
     const knownTitles = new Set(subjectChapters.map(ch => (ch.title || '').trim().toLowerCase()))
     return subjectVideoCards.filter(c => {
       if (!c.chapter_id && !c.chapter) return true
-      if (c.chapter_id && !knownIds.has(c.chapter_id)) return true
-      if (!c.chapter_id && c.chapter && !knownTitles.has(c.chapter.trim().toLowerCase())) return true
+      if (c.chapter_id) return !knownIds.has(c.chapter_id)
+      if (c.chapter) return !knownTitles.has(c.chapter.trim().toLowerCase())
       return false
     })
   }, [subjectVideoCards, subjectChapters])
@@ -847,8 +896,14 @@ export default function StudySection() {
     if (!selectedChapter) return []
     if (selectedChapter === 'general') return unassignedVideoCards
     return subjectVideoCards.filter(c => {
-      if (c.chapter_id && activeChapterObj?.id && c.chapter_id === activeChapterObj.id) return true
-      if (c.chapter && activeChapterObj?.title && c.chapter.toLowerCase() === activeChapterObj.title.toLowerCase()) return true
+      // 1. Strict primary match by chapter_id
+      if (c.chapter_id && activeChapterObj?.id) {
+        return c.chapter_id === activeChapterObj.id
+      }
+      // 2. Fallback title match ONLY for legacy cards without chapter_id
+      if (!c.chapter_id && c.chapter && activeChapterObj?.title) {
+        return c.chapter.trim().toLowerCase() === activeChapterObj.title.trim().toLowerCase()
+      }
       return false
     })
   }, [selectedChapter, unassignedVideoCards, subjectVideoCards, activeChapterObj])
@@ -857,8 +912,12 @@ export default function StudySection() {
   const getChapterVideoCount = (ch) => {
     if (!ch) return 0
     return subjectVideoCards.filter(c => {
-      if (c.chapter_id && c.chapter_id === ch.id) return true
-      if (c.chapter && ch.title && c.chapter.toLowerCase() === ch.title.toLowerCase()) return true
+      if (c.chapter_id && ch.id) {
+        return c.chapter_id === ch.id
+      }
+      if (!c.chapter_id && c.chapter && ch.title) {
+        return c.chapter.trim().toLowerCase() === ch.title.trim().toLowerCase()
+      }
       return false
     }).length
   }

@@ -347,8 +347,14 @@ function CustomChapterSelect({ value, chapterId, onChange, availableChapters }) 
             type="text"
             value={customText}
             onChange={(e) => {
-              setCustomText(e.target.value)
-              onChange(e.target.value, null)
+              const text = e.target.value
+              setCustomText(text)
+              const matched = availableChapters.find(ch => ch.title && ch.title.trim().toLowerCase() === text.trim().toLowerCase())
+              if (matched) {
+                onChange(matched.title, matched.id)
+              } else {
+                onChange(text, null)
+              }
             }}
             placeholder="Type new chapter name..."
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -876,6 +882,50 @@ export default function StudySection({ isAdmin = false }) {
     fetchData()
   }, [fetchData])
 
+  // Realtime synchronization for chapters and study_cards across Teacher & Admin sessions
+  useEffect(() => {
+    if (!user) return
+    let unmounted = false
+
+    const channel = supabase.channel(`teacher_study_realtime_${user.id}_${isAdmin ? 'admin' : 'teacher'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chapters' }, (payload) => {
+        if (unmounted) return
+        if (payload.eventType === 'INSERT') {
+          setChapters(prev => {
+            if (prev.some(ch => ch.id === payload.new.id)) return prev
+            return [...prev, payload.new].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setChapters(prev => prev.map(ch => ch.id === payload.new.id ? payload.new : ch))
+          if (payload.new.title) {
+            setCards(prev => prev.map(c => c.chapter_id === payload.new.id ? { ...c, chapter: payload.new.title } : c))
+          }
+        } else if (payload.eventType === 'DELETE') {
+          setChapters(prev => prev.filter(ch => ch.id !== payload.old.id))
+          setCards(prev => prev.map(c => c.chapter_id === payload.old.id ? { ...c, chapter_id: null, chapter: null } : c))
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'study_cards' }, (payload) => {
+        if (unmounted) return
+        if (payload.eventType === 'INSERT') {
+          setCards(prev => {
+            if (prev.some(c => c.id === payload.new.id)) return prev
+            return [...prev, payload.new].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setCards(prev => prev.map(c => c.id === payload.new.id ? payload.new : c))
+        } else if (payload.eventType === 'DELETE') {
+          setCards(prev => prev.filter(c => c.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      unmounted = true
+      supabase.removeChannel(channel)
+    }
+  }, [user, isAdmin])
+
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const batchParam = params.get('batch')
@@ -1050,10 +1100,13 @@ export default function StudySection({ isAdmin = false }) {
   }
 
   const openEditChapter = (ch) => {
+    const order = ch.isVirtual || ch.display_order === 999
+      ? (batchSubjectChapters.length > 0 ? Math.max(...batchSubjectChapters.filter(c => !c.isVirtual && c.display_order !== 999).map(c => c.display_order || 0), 0) + 1 : 1)
+      : (ch.display_order || 0)
     setChapterForm({
       title: ch.title,
       description: ch.description || '',
-      display_order: ch.display_order || 0
+      display_order: order
     })
     setEditingChapterId(ch.id)
     setShowChapterModal(true)
@@ -1078,8 +1131,11 @@ export default function StudySection({ isAdmin = false }) {
       subject: selectedSubject,
     }
 
+    const isVirtualEdit = editingChapterId && String(editingChapterId).startsWith('virtual_')
+    const isLocalEdit = editingChapterId && String(editingChapterId).startsWith('ch_local_')
+
     // Graceful offline/unmigrated fallback if chapters table is not yet created in Supabase
-    if (isChaptersTableMissing) {
+    if (isChaptersTableMissing || isLocalEdit) {
       if (editingChapterId) {
         const updated = { ...payload, id: editingChapterId, updated_at: new Date().toISOString() }
         setChapters(prev => prev.map(ch => ch.id === editingChapterId ? updated : ch))
@@ -1101,7 +1157,18 @@ export default function StudySection({ isAdmin = false }) {
     }
 
     try {
-      if (editingChapterId) {
+      if (editingChapterId && !isVirtualEdit) {
+        // Check for duplicate chapter name in same batch & subject
+        const duplicate = batchSubjectChapters.find(ch =>
+          ch.id !== editingChapterId &&
+          ch.title?.trim().toLowerCase() === payload.title.toLowerCase()
+        )
+        if (duplicate) {
+          toast.error(`A chapter titled "${duplicate.title}" already exists for this subject.`)
+          setSavingChapter(false)
+          return
+        }
+
         const { data, error } = await supabase
           .from('chapters')
           .update(payload)
@@ -1122,6 +1189,7 @@ export default function StudySection({ isAdmin = false }) {
         setChapters(prev => prev.map(ch => ch.id === editingChapterId ? data : ch))
         if (data?.title) {
           setCards(prev => prev.map(c => c.chapter_id === editingChapterId ? { ...c, chapter: data.title } : c))
+          await supabase.from('study_cards').update({ chapter: data.title }).eq('chapter_id', editingChapterId)
         }
         logActivity({
           batchId: selectedBatch.id,
@@ -1134,7 +1202,46 @@ export default function StudySection({ isAdmin = false }) {
           details: `Subject: ${selectedSubject} • Chapter updated`
         })
         toast.success('Chapter updated successfully')
+      } else if (isVirtualEdit) {
+        // Converting/promoting virtual chapter into canonical database chapter
+        const oldVirtualTitle = editingChapterId.replace('virtual_', '')
+        const { data, error } = await supabase
+          .from('chapters')
+          .insert({ ...payload, created_by: user.id })
+          .select()
+          .maybeSingle()
+        if (error) throw error
+        setChapters(prev => [...prev.filter(ch => ch.id !== editingChapterId), data])
+        setCards(prev => prev.map(c => (!c.chapter_id && c.chapter?.trim().toLowerCase() === oldVirtualTitle.trim().toLowerCase()) ? { ...c, chapter_id: data.id, chapter: data.title } : c))
+        await supabase.from('study_cards')
+          .update({ chapter_id: data.id, chapter: data.title })
+          .eq('batch_id', selectedBatch.id)
+          .ilike('chapter', oldVirtualTitle)
+        if (selectedChapter === editingChapterId) {
+          setSelectedChapter(data.id)
+        }
+        logActivity({
+          batchId: selectedBatch.id,
+          user,
+          userName: user?.user_metadata?.full_name,
+          userRole: isAdmin ? 'admin' : 'teacher',
+          actionType: 'create',
+          entityType: 'chapter',
+          entityTitle: data.title,
+          details: `Subject: ${selectedSubject} • Promoted virtual chapter to database`
+        })
+        toast.success('Chapter saved and linked to database')
       } else {
+        // Create new chapter
+        const duplicate = batchSubjectChapters.find(ch =>
+          ch.title?.trim().toLowerCase() === payload.title.toLowerCase()
+        )
+        if (duplicate) {
+          toast.error(`A chapter titled "${duplicate.title}" already exists for this subject.`)
+          setSavingChapter(false)
+          return
+        }
+
         const { data, error } = await supabase
           .from('chapters')
           .insert({ ...payload, created_by: user.id })
@@ -1186,7 +1293,11 @@ export default function StudySection({ isAdmin = false }) {
 
     if (isChaptersTableMissing || String(chapterId).startsWith('ch_local_') || String(chapterId).startsWith('virtual_')) {
       setChapters(prev => prev.filter(c => c.id !== chapterId))
-      setCards(prev => prev.map(c => c.chapter_id === chapterId ? { ...c, chapter_id: null, chapter: null } : c))
+      setCards(prev => prev.map(c => {
+        if (c.chapter_id === chapterId) return { ...c, chapter_id: null, chapter: null }
+        if (chToDelete?.title && c.chapter?.trim().toLowerCase() === chToDelete.title.trim().toLowerCase()) return { ...c, chapter_id: null, chapter: null }
+        return c
+      }))
       if (selectedChapter === chapterId) {
         setSelectedChapter(null)
       }
@@ -1195,6 +1306,12 @@ export default function StudySection({ isAdmin = false }) {
     }
 
     try {
+      // Disassociate study cards in DB first so cards remain safely preserved in General Lectures
+      await supabase
+        .from('study_cards')
+        .update({ chapter_id: null, chapter: null })
+        .eq('chapter_id', chapterId)
+
       const { error } = await supabase.from('chapters').delete().eq('id', chapterId)
       if (error) {
         if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
@@ -1284,6 +1401,7 @@ export default function StudySection({ isAdmin = false }) {
   }
 
   const editCard = (card) => {
+    const canonicalCh = card.chapter_id ? chapters.find(ch => ch.id === card.chapter_id) : null
     setForm({
       title: card.title,
       description: card.description || '',
@@ -1293,7 +1411,7 @@ export default function StudySection({ isAdmin = false }) {
       batch_ids: card.batch_ids || (card.batch_id ? [card.batch_id] : []),
       subject: card.subject || '',
       chapter_id: card.chapter_id || null,
-      chapter: card.chapter || '',
+      chapter: canonicalCh?.title || card.chapter || '',
       display_order: card.display_order || 0,
       is_featured: card.is_featured || false,
     })
@@ -1323,25 +1441,46 @@ export default function StudySection({ isAdmin = false }) {
     let finalChapterId = form.chapter_id || null
     let finalChapterName = form.chapter ? form.chapter.trim() : null
 
-    // If teacher typed a new chapter name and it doesn't have an ID yet, create the chapter in chapters table
+    // If teacher typed/selected a chapter name and it doesn't have an ID yet, check if it matches an existing DB chapter first
     if (finalChapterName && !finalChapterId && form.batch_ids.length > 0 && form.subject) {
-      try {
-        if (!isChaptersTableMissing) {
-          const { data: newCh, error: chErr } = await supabase
-            .from('chapters')
-            .insert({
-              title: finalChapterName,
-              subject: form.subject,
-              batch_id: form.batch_ids[0],
-              created_by: user.id
-            })
-            .select()
-            .maybeSingle()
-          if (!chErr && newCh) {
-            finalChapterId = newCh.id
-            setChapters(prev => [...prev, newCh])
-          } else if (chErr && (chErr.code === 'PGRST205' || chErr.message?.includes('schema cache'))) {
-            setIsChaptersTableMissing(true)
+      const match = chapters.find(ch =>
+        (ch.batch_id === form.batch_ids[0] || !ch.batch_id) &&
+        ch.subject?.toLowerCase() === form.subject.toLowerCase() &&
+        ch.title?.trim().toLowerCase() === finalChapterName.toLowerCase()
+      )
+      if (match) {
+        finalChapterId = match.id
+        finalChapterName = match.title
+      } else {
+        try {
+          if (!isChaptersTableMissing) {
+            const { data: newCh, error: chErr } = await supabase
+              .from('chapters')
+              .insert({
+                title: finalChapterName,
+                subject: form.subject,
+                batch_id: form.batch_ids[0],
+                created_by: user.id
+              })
+              .select()
+              .maybeSingle()
+            if (!chErr && newCh) {
+              finalChapterId = newCh.id
+              finalChapterName = newCh.title
+              setChapters(prev => [...prev, newCh])
+            } else if (chErr && (chErr.code === 'PGRST205' || chErr.message?.includes('schema cache'))) {
+              setIsChaptersTableMissing(true)
+              const localCh = {
+                id: `ch_local_${Date.now()}`,
+                title: finalChapterName,
+                subject: form.subject,
+                batch_id: form.batch_ids[0],
+                created_by: user.id
+              }
+              finalChapterId = localCh.id
+              setChapters(prev => [...prev, localCh])
+            }
+          } else {
             const localCh = {
               id: `ch_local_${Date.now()}`,
               title: finalChapterName,
@@ -1352,19 +1491,14 @@ export default function StudySection({ isAdmin = false }) {
             finalChapterId = localCh.id
             setChapters(prev => [...prev, localCh])
           }
-        } else {
-          const localCh = {
-            id: `ch_local_${Date.now()}`,
-            title: finalChapterName,
-            subject: form.subject,
-            batch_id: form.batch_ids[0],
-            created_by: user.id
-          }
-          finalChapterId = localCh.id
-          setChapters(prev => [...prev, localCh])
+        } catch (err) {
+          console.warn('Could not auto-create chapter:', err)
         }
-      } catch (err) {
-        console.warn('Could not auto-create chapter:', err)
+      }
+    } else if (finalChapterId) {
+      const canonicalCh = chapters.find(ch => ch.id === finalChapterId)
+      if (canonicalCh) {
+        finalChapterName = canonicalCh.title
       }
     }
 
@@ -1577,17 +1711,22 @@ export default function StudySection({ isAdmin = false }) {
     return subjectCards.filter(c => c.type === 'youtube_video' || c.type === 'youtube_playlist')
   }, [subjectCards])
 
-  // Batch & Subject specific chapters (DB chapters + virtual chapters derived from card chapter strings)
+  // Batch & Subject specific chapters (DB chapters + legacy virtual chapters strictly derived from orphaned cards)
   const batchSubjectChapters = useMemo(() => {
     if (!selectedBatch || !selectedSubject) return []
     const s = selectedSubject.toLowerCase()
     const dbChapters = chapters.filter(ch => (ch.batch_id === selectedBatch.id || !ch.batch_id) && ch.subject?.toLowerCase() === s)
     const existingTitles = new Set(dbChapters.map(ch => (ch.title || '').trim().toLowerCase()))
+    const existingIds = new Set(dbChapters.map(ch => ch.id))
 
     const virtualChapters = []
     batchSubjectVideoCards.forEach(card => {
+      // If card already has a valid chapter_id, NEVER generate a virtual chapter
+      if (card.chapter_id && existingIds.has(card.chapter_id)) {
+        return
+      }
       const chName = card.chapter?.trim()
-      if (chName && !existingTitles.has(chName.toLowerCase())) {
+      if (!card.chapter_id && chName && !existingTitles.has(chName.toLowerCase())) {
         existingTitles.add(chName.toLowerCase())
         virtualChapters.push({
           id: `virtual_${chName}`,
@@ -1609,8 +1748,8 @@ export default function StudySection({ isAdmin = false }) {
     const knownTitles = new Set(batchSubjectChapters.map(ch => (ch.title || '').trim().toLowerCase()))
     return batchSubjectVideoCards.filter(c => {
       if (!c.chapter_id && !c.chapter) return true
-      if (c.chapter_id && !knownIds.has(c.chapter_id)) return true
-      if (!c.chapter_id && c.chapter && !knownTitles.has(c.chapter.trim().toLowerCase())) return true
+      if (c.chapter_id) return !knownIds.has(c.chapter_id)
+      if (c.chapter) return !knownTitles.has(c.chapter.trim().toLowerCase())
       return false
     })
   }, [batchSubjectVideoCards, batchSubjectChapters])
@@ -1631,8 +1770,14 @@ export default function StudySection({ isAdmin = false }) {
     if (!selectedChapter) return []
     if (selectedChapter === 'general') return unassignedVideos
     return batchSubjectVideoCards.filter(c => {
-      if (c.chapter_id && activeChapterObj?.id && c.chapter_id === activeChapterObj.id) return true
-      if (c.chapter && activeChapterObj?.title && c.chapter.toLowerCase() === activeChapterObj.title.toLowerCase()) return true
+      // 1. Strict primary match by chapter_id
+      if (c.chapter_id && activeChapterObj?.id) {
+        return c.chapter_id === activeChapterObj.id
+      }
+      // 2. Fallback title match ONLY for legacy cards without chapter_id
+      if (!c.chapter_id && c.chapter && activeChapterObj?.title) {
+        return c.chapter.trim().toLowerCase() === activeChapterObj.title.trim().toLowerCase()
+      }
       return false
     })
   }, [selectedChapter, unassignedVideos, batchSubjectVideoCards, activeChapterObj])
@@ -1641,8 +1786,12 @@ export default function StudySection({ isAdmin = false }) {
   const getChapterVideoCount = (ch) => {
     if (!ch) return 0
     return batchSubjectVideoCards.filter(c => {
-      if (c.chapter_id && c.chapter_id === ch.id) return true
-      if (c.chapter && ch.title && c.chapter.toLowerCase() === ch.title.toLowerCase()) return true
+      if (c.chapter_id && ch.id) {
+        return c.chapter_id === ch.id
+      }
+      if (!c.chapter_id && c.chapter && ch.title) {
+        return c.chapter.trim().toLowerCase() === ch.title.trim().toLowerCase()
+      }
       return false
     }).length
   }
