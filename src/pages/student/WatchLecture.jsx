@@ -62,6 +62,7 @@ export default function WatchLecture() {
   const [studentProfileError, setStudentProfileError] = useState(null)
   const [cardBatchName, setCardBatchName] = useState(location.state?.card?.batches?.name || '')
   const [studentFeeRecords, setStudentFeeRecords] = useState([])
+  const [studentOverrides, setStudentOverrides] = useState([])
 
   const cinemaStageRef = useRef(null)
   const queueScrollRef = useRef(null)
@@ -283,7 +284,7 @@ export default function WatchLecture() {
     setStudentProfileError(null)
 
     try {
-      const [spRes, feeRes] = await Promise.all([
+      const [spRes, feeRes, ovRes] = await Promise.all([
         supabase
           .from('student_profiles')
           .select('roll_number, batch_id, subjects, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)')
@@ -292,12 +293,17 @@ export default function WatchLecture() {
         supabase
           .from('fee_records')
           .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+          .eq('student_id', uid),
+        supabase
+          .from('admin_access_overrides')
+          .select('*')
           .eq('student_id', uid)
       ])
 
       if (spRes.error) throw spRes.error
       setStudentProfile(spRes.data ?? { batch_id: null, roll_number: null, batches: null, subjects: [] })
       setStudentFeeRecords(feeRes.data ?? [])
+      setStudentOverrides(ovRes.data ?? [])
     } catch (err) {
       setStudentProfileError(err)
     } finally {
@@ -311,6 +317,12 @@ export default function WatchLecture() {
       if (typeof supabase?.channel === 'function') {
         const channel = supabase.channel(`watch_fee_sync_${user.id}`)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` }, () => {
+            fetchStudentProfile(user.id)
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_access_overrides', filter: `student_id=eq.${user.id}` }, () => {
+            fetchStudentProfile(user.id)
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'student_profiles', filter: `id=eq.${user.id}` }, () => {
             fetchStudentProfile(user.id)
           })
           .subscribe()
@@ -739,6 +751,7 @@ export default function WatchLecture() {
         student: { id: user?.id, trial_ends_at: studentProfile.trial_ends_at },
         batch: studentProfile.batches,
         feeRecords: studentFeeRecords,
+        adminOverrides: studentOverrides,
       })
     : null
 

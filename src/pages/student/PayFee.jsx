@@ -286,7 +286,10 @@ export default function PayFee() {
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
           <h2 className="font-bold text-xl text-gray-900">Payment Submitted!</h2>
-          <p className="text-gray-500 text-sm mt-2 mb-4">Your payment is pending verification by the admin.</p>
+          <p className="text-gray-500 text-sm mt-1 mb-3">Your payment has been received and is pending administrative verification.</p>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 text-xs text-emerald-800">
+            <span className="font-bold">✓ Provisional Access Unlocked:</span> You have full active access to all batch lectures, live classes, and homework while administration verifies your receipt.
+          </div>
           <div className="bg-gray-50 rounded-xl p-4 text-left space-y-1 text-sm mb-6">
             <p><span className="text-gray-500">Amount:</span> <span className="font-semibold">₹{success.amount}</span></p>
             <p><span className="text-gray-500">Mode:</span> <span className="font-semibold capitalize">{success.fee_mode || 'monthly'}</span></p>
@@ -341,9 +344,21 @@ export default function PayFee() {
                     <td className="px-3.5 py-3 font-semibold">₹{r.amount}</td>
                     <td className="px-3.5 py-3 text-gray-500 font-mono text-xs">{r.reference_id || '—'}</td>
                     <td className="px-3.5 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${FEE_STATUS[r.status]?.color}`}>
-                        {FEE_STATUS[r.status]?.label}
-                      </span>
+                      <div>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${FEE_STATUS[r.status]?.color}`}>
+                          {FEE_STATUS[r.status]?.label}
+                        </span>
+                        {r.status === 'rejected' && r.notes && (
+                          <p className="text-[11px] text-red-600 mt-0.5 max-w-[160px] truncate" title={r.notes}>
+                            Reason: {r.notes}
+                          </p>
+                        )}
+                        {r.status === 'pending' && (
+                          <p className="text-[10px] text-sky-600 mt-0.5 font-medium">
+                            Provisional Active
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3.5 py-3 text-gray-500 text-xs">
                       {r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '—'}

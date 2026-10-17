@@ -40,7 +40,7 @@ export default function StudentLiveClass() {
 
     const init = async () => {
       try {
-        const [spRes, feeRes] = await Promise.all([
+        const [spRes, feeRes, ovRes] = await Promise.all([
           supabase
             .from('student_profiles')
             .select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)')
@@ -49,6 +49,10 @@ export default function StudentLiveClass() {
           supabase
             .from('fee_records')
             .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+            .eq('student_id', user.id),
+          supabase
+            .from('admin_access_overrides')
+            .select('*')
             .eq('student_id', user.id)
         ])
 
@@ -59,7 +63,8 @@ export default function StudentLiveClass() {
           const status = checkBatchFeeStatus({
             student: { id: user.id, trial_ends_at: sp.trial_ends_at },
             batch: sp.batches,
-            feeRecords: feeRes.data ?? []
+            feeRecords: feeRes.data ?? [],
+            adminOverrides: ovRes.data ?? []
           })
           setBatchFeeStatus(status)
         }

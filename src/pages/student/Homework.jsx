@@ -53,8 +53,12 @@ export default function StudentHomework() {
         supabase
           .from('fee_records')
           .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+          .eq('student_id', user.id),
+        supabase
+          .from('admin_access_overrides')
+          .select('*')
           .eq('student_id', user.id)
-      ]).then(([spRes, feeRes]) => {
+      ]).then(([spRes, feeRes, ovRes]) => {
         if (cancelled) return
         const sp = spRes.data
         setBatchId(sp?.batch_id ?? null)
@@ -62,7 +66,8 @@ export default function StudentHomework() {
           const status = checkBatchFeeStatus({
             student: { id: user.id, trial_ends_at: sp.trial_ends_at },
             batch: sp.batches,
-            feeRecords: feeRes.data ?? []
+            feeRecords: feeRes.data ?? [],
+            adminOverrides: ovRes.data ?? []
           })
           setBatchFeeStatus(status)
         }
@@ -74,6 +79,12 @@ export default function StudentHomework() {
 
     const channel = supabase.channel(`homework_fee_sync_${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` }, () => {
+        if (!cancelled) loadBatchAndFees()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_access_overrides', filter: `student_id=eq.${user.id}` }, () => {
+        if (!cancelled) loadBatchAndFees()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_profiles', filter: `id=eq.${user.id}` }, () => {
         if (!cancelled) loadBatchAndFees()
       })
       .subscribe()

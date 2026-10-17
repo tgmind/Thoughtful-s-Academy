@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { checkBatchFeeStatus, BATCH_ACCESS_STATUS } from '../../utils/feeAccess'
 
 function todayISO() {
   const d = new Date()
@@ -53,7 +54,7 @@ export default function AdminHome() {
       const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
       const now = new Date().toISOString()
 
-      const [s, t, att, lc, recentFees, recentMsgs, newSt, expiredSt, newTch] = await Promise.all([
+      const [s, t, att, lc, recentFees, recentMsgs, newSt, expiredSt, newTch, allFees, allOverrides] = await Promise.all([
         supabase.from('profiles').select('id', { count:'exact' }).eq('role','student'),
         supabase.from('profiles').select('id', { count:'exact' }).eq('role','teacher').eq('is_active',true),
         supabase.from('attendance').select('status').eq('date', todayISO()),
@@ -67,17 +68,19 @@ export default function AdminHome() {
           .order('created_at', { ascending: false })
           .limit(10),
         supabase.from('student_profiles')
-          .select('id, trial_ends_at, batch_id, batches(name), profiles!id(full_name, email, is_active)')
+          .select('id, trial_ends_at, batch_id, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date), profiles!id(full_name, email, is_active)')
           .not('trial_ends_at', 'is', null)
           .lt('trial_ends_at', now)
           .order('trial_ends_at', { ascending: false })
-          .limit(10),
+          .limit(20),
         supabase.from('profiles')
           .select('id, full_name, email, created_at, teacher_profiles(subject)')
           .eq('role','teacher')
           .gte('created_at', fortyEightHoursAgo)
           .order('created_at', { ascending: false })
           .limit(10),
+        supabase.from('fee_records').select('student_id, batch_id, payment_month, status, valid_until'),
+        supabase.from('admin_access_overrides').select('*'),
       ])
 
       if (cancelled) return
@@ -97,7 +100,31 @@ export default function AdminHome() {
       setFees(recentFees.data ?? [])
       setMsgs(recentMsgs.data ?? [])
       setNewStudents(newSt.data ?? [])
-      setTrialExpired(expiredSt.data ?? [])
+
+      // Filter truly expired trials (exclude students who have paid, have waivers, are in free batches, or have pending verification)
+      const feeList = allFees.data ?? []
+      const overrideList = allOverrides.data ?? []
+      const trulyExpired = (expiredSt.data ?? []).filter(sp => {
+        const p = sp.profiles ?? {}
+        if (!p.is_active) return false
+        const b = sp.batches
+        if (!b) return true
+        if (Number(b.fee_amount) === 0) return false
+
+        const studentFees = feeList.filter(f => f.student_id === sp.id)
+        const studentOverrides = overrideList.filter(o => o.student_id === sp.id)
+
+        const feeStatus = checkBatchFeeStatus({
+          student: { id: sp.id, is_active: p.is_active, trial_ends_at: sp.trial_ends_at },
+          batch: b,
+          feeRecords: studentFees,
+          adminOverrides: studentOverrides,
+        })
+
+        return feeStatus.status === BATCH_ACCESS_STATUS.TRIAL_EXPIRED || (!feeStatus.isActive && feeStatus.isFrozen)
+      })
+
+      setTrialExpired(trulyExpired)
       setNewTeachers(newTch.data ?? [])
       setLoading(false)
     }

@@ -63,6 +63,7 @@ if (targetFile) {
         "034_messaging_architecture_and_profiles_rls.sql",
         "035_dual_mode_fees_and_validity.sql",
         "036_fee_access_hardening_and_resource_rls.sql",
+        "037_universal_trial_and_rejection_recovery.sql",
       ]
 
   console.log(`Starting automated database migration (${targetFiles.length} migrations)...`)

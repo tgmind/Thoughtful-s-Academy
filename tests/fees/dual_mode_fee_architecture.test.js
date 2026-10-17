@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   checkBatchFeeStatus,
   formatBatchFeeBadge,
+  formatAccessStatusBadge,
   BATCH_ACCESS_STATUS,
   getCurrentPaymentMonth,
 } from '../../src/utils/feeAccess'
@@ -68,7 +69,7 @@ describe('Dual-Mode Batch Fee Architecture & Access Control Logic', () => {
       expect(result.message).toContain('Batch access frozen')
     })
 
-    it('freezes access when payment is submitted but still pending verification on Day 11+', () => {
+    it('grants provisional active access when payment is submitted and pending verification on Day 11+', () => {
       const refDate = new Date('2026-10-14T09:00:00+05:30')
       const currentMonth = getCurrentPaymentMonth(refDate)
       const pendingRecord = {
@@ -87,10 +88,11 @@ describe('Dual-Mode Batch Fee Architecture & Access Control Logic', () => {
         referenceDate: refDate,
       })
 
-      expect(result.isActive).toBe(false)
-      expect(result.isFrozen).toBe(true)
+      expect(result.isActive).toBe(true)
+      expect(result.isFrozen).toBe(false)
+      expect(result.isPendingVerification).toBe(true)
       expect(result.status).toBe(BATCH_ACCESS_STATUS.PENDING_VERIFICATION)
-      expect(result.message).toContain('under review')
+      expect(result.message).toContain('Provisional access active')
     })
 
     it('automatically restores active access when admin verifies monthly payment on Day 11+', () => {
@@ -412,6 +414,138 @@ describe('Dual-Mode Batch Fee Architecture & Access Control Logic', () => {
     it('formats free batch badge', () => {
       const badge = formatBatchFeeBadge({ fee_mode: 'monthly', fee_amount: 0 })
       expect(badge.text).toBe('Free Batch')
+    })
+  })
+
+  describe('Suspension, Admin Overrides, and Rejection Recovery', () => {
+    it('suspends access strictly when student account is inactive (profiles.is_active = false)', () => {
+      const suspendedStudent = { id: 's-susp', is_active: false, trial_ends_at: '2026-10-30T00:00:00Z' }
+      const verifiedRecord = {
+        id: 'fee-v',
+        student_id: 's-susp',
+        batch_id: monthlyBatch.id,
+        amount: 1500,
+        payment_month: 'October 2026',
+        status: 'verified',
+      }
+      const override = {
+        student_id: 's-susp',
+        batch_id: monthlyBatch.id,
+        grant_type: 'monthly_fee_waiver',
+        billing_month: 'October 2026',
+      }
+
+      const result = checkBatchFeeStatus({
+        student: suspendedStudent,
+        batch: monthlyBatch,
+        feeRecords: [verifiedRecord],
+        adminOverrides: [override],
+        referenceDate: new Date('2026-10-15T10:00:00Z'),
+      })
+
+      expect(result.isActive).toBe(false)
+      expect(result.isFrozen).toBe(true)
+      expect(result.status).toBe(BATCH_ACCESS_STATUS.SUSPENDED)
+      expect(result.message).toContain('Account is suspended')
+    })
+
+    it('grants access when an audited admin monthly fee waiver exists for current month', () => {
+      const unpaidStudent = { id: 's-waiver', is_active: true, trial_ends_at: null }
+      const override = {
+        student_id: 's-waiver',
+        batch_id: monthlyBatch.id,
+        grant_type: 'monthly_fee_waiver',
+        billing_month: 'October 2026',
+      }
+
+      const result = checkBatchFeeStatus({
+        student: unpaidStudent,
+        batch: monthlyBatch,
+        feeRecords: [],
+        adminOverrides: [override],
+        referenceDate: new Date('2026-10-15T10:00:00Z'),
+      })
+
+      expect(result.isActive).toBe(true)
+      expect(result.isFrozen).toBe(false)
+      expect(result.isWaived).toBe(true)
+      expect(result.status).toBe(BATCH_ACCESS_STATUS.ADMIN_OVERRIDE)
+      expect(result.message).toContain('waived by administrator')
+    })
+
+    it('grants access when an audited admin full access override exists for one-time course', () => {
+      const unpaidStudent = { id: 's-ot-override', is_active: true, trial_ends_at: null }
+      const oneTimeBatch = { id: 'b-ot', fee_mode: 'one_time', fee_amount: 5000 }
+      const override = {
+        student_id: 's-ot-override',
+        batch_id: 'b-ot',
+        grant_type: 'full_access_override',
+        valid_until: '2026-12-31T23:59:59Z',
+      }
+
+      const result = checkBatchFeeStatus({
+        student: unpaidStudent,
+        batch: oneTimeBatch,
+        feeRecords: [],
+        adminOverrides: [override],
+        referenceDate: new Date('2026-10-15T10:00:00Z'),
+      })
+
+      expect(result.isActive).toBe(true)
+      expect(result.isFrozen).toBe(false)
+      expect(result.status).toBe(BATCH_ACCESS_STATUS.ADMIN_OVERRIDE)
+    })
+
+    it('locks access upon rejection and restores upon recovery to verified', () => {
+      const student = { id: 's-rej', is_active: true }
+      const rejectedRecord = {
+        id: 'rec-rej-1',
+        student_id: 's-rej',
+        batch_id: monthlyBatch.id,
+        amount: 1500,
+        payment_month: 'October 2026',
+        status: 'rejected',
+        notes: 'Invalid UTR reference',
+      }
+
+      const rejResult = checkBatchFeeStatus({
+        student,
+        batch: monthlyBatch,
+        feeRecords: [rejectedRecord],
+        referenceDate: new Date('2026-10-15T10:00:00Z'),
+      })
+
+      expect(rejResult.isActive).toBe(false)
+      expect(rejResult.isFrozen).toBe(true)
+      expect(rejResult.status).toBe(BATCH_ACCESS_STATUS.REJECTED)
+      expect(rejResult.message).toContain('Fee Payment was Rejected')
+
+      // Recovery: admin marks it verified
+      const recoveredRecord = { ...rejectedRecord, status: 'verified', notes: 'Recovered by admin' }
+      const recResult = checkBatchFeeStatus({
+        student,
+        batch: monthlyBatch,
+        feeRecords: [recoveredRecord],
+        referenceDate: new Date('2026-10-15T10:00:00Z'),
+      })
+
+      expect(recResult.isActive).toBe(true)
+      expect(recResult.isFrozen).toBe(false)
+      expect(recResult.status).toBe(BATCH_ACCESS_STATUS.ACTIVE)
+    })
+  })
+
+  describe('formatAccessStatusBadge formatting', () => {
+    it('formats badges appropriately for all statuses', () => {
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.ACTIVE }).label).toBe('Active')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.TRIAL, trialHoursLeft: 12 }).label).toBe('Trial Active (12h)')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.TRIAL_EXPIRED }).label).toBe('Trial Over')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.PENDING_VERIFICATION }).label).toBe('Under Review')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.REJECTED }).label).toBe('Payment Rejected')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.ADMIN_OVERRIDE, isWaived: true }).label).toBe('Fee Waived')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.ADMIN_OVERRIDE, isWaived: false }).label).toBe('Access Granted')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.FROZEN }).label).toBe('Access Frozen')
+      expect(formatAccessStatusBadge({ status: BATCH_ACCESS_STATUS.SUSPENDED }).label).toBe('Suspended')
     })
   })
 })

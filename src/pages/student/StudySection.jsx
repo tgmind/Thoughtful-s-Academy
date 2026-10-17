@@ -491,6 +491,7 @@ export default function StudySection() {
   const [batchDetails, setBatchDetails] = useState(null)
   const [trialEndsAt, setTrialEndsAt] = useState(null)
   const [feeRecords, setFeeRecords] = useState([])
+  const [adminOverrides, setAdminOverrides] = useState([])
 
   const batchFeeStatus = useMemo(() => {
     if (!user || !batchDetails) return null
@@ -498,8 +499,9 @@ export default function StudySection() {
       student: { id: user.id, trial_ends_at: trialEndsAt },
       batch: batchDetails,
       feeRecords: feeRecords,
+      adminOverrides: adminOverrides,
     })
-  }, [user, batchDetails, trialEndsAt, feeRecords])
+  }, [user, batchDetails, trialEndsAt, feeRecords, adminOverrides])
 
   const handleOpenNotes = (card) => {
     if (Array.isArray(card?.attached_notes) && card.attached_notes.length === 1) {
@@ -628,12 +630,26 @@ export default function StudySection() {
           if (unmounted) return
           setFeeRecords(data ?? [])
         })
+
+      supabase.from('admin_access_overrides')
+        .select('*')
+        .eq('student_id', user.id)
+        .then(({ data }) => {
+          if (unmounted) return
+          setAdminOverrides(data ?? [])
+        })
     }
 
     loadProfileAndFees()
 
     const channel = supabase.channel(`study_fee_sync_${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` }, () => {
+        if (!unmounted) loadProfileAndFees()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_access_overrides', filter: `student_id=eq.${user.id}` }, () => {
+        if (!unmounted) loadProfileAndFees()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_profiles', filter: `id=eq.${user.id}` }, () => {
         if (!unmounted) loadProfileAndFees()
       })
       .subscribe()

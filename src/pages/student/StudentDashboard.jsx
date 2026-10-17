@@ -277,12 +277,13 @@ export default function StudentDashboard() {
     try {
       const today = todayISO()
 
-      // Primary phase: fetch student profile and direct records in parallel (optimized: derive today's attendance from attRes, limit attendance history to 60 days)
-      const [attRes, feeRes, msgRes, spRes] = await Promise.allSettled([
+      // Primary phase: fetch student profile, fee records, and admin overrides in parallel
+      const [attRes, feeRes, msgRes, spRes, overridesRes] = await Promise.allSettled([
         supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }).limit(60),
-        supabase.from('fee_records').select('id, batch_id, amount, payment_month, fee_mode, valid_until, status').eq('student_id', uid),
+        supabase.from('fee_records').select('id, batch_id, amount, payment_month, fee_mode, valid_until, status, notes').eq('student_id', uid),
         supabase.from('messages').select('id', { count: 'exact', head: true }).eq('receiver_id', uid).eq('is_read', false),
         supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('id', uid).maybeSingle(),
+        supabase.from('admin_access_overrides').select('*').eq('student_id', uid),
       ])
 
       // Check if this request was superseded by another render or unmounted
@@ -308,10 +309,12 @@ export default function StudentDashboard() {
 
       // Calculate authoritative batch fee status
       const feeData = (feeRes.status === 'fulfilled' && feeRes.value?.data) ? feeRes.value.data : []
+      const overrideData = (overridesRes.status === 'fulfilled' && overridesRes.value?.data) ? overridesRes.value.data : []
       const feeStatus = checkBatchFeeStatus({
         student: { id: uid, trial_ends_at: currentTrialEnds },
         batch: currentBatchObj,
         feeRecords: feeData,
+        adminOverrides: overrideData,
       })
       setBatchFeeStatus(feeStatus)
 
@@ -535,15 +538,17 @@ export default function StudentDashboard() {
     })
 
     const syncFees = () => debounce('fees', async () => {
-      const [feeR, spR] = await Promise.all([
-        supabase.from('fee_records').select('id, batch_id, amount, payment_month, fee_mode, valid_until, status').eq('student_id', uid),
-        supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('id', uid).maybeSingle()
+      const [feeR, spR, ovR] = await Promise.all([
+        supabase.from('fee_records').select('id, batch_id, amount, payment_month, fee_mode, valid_until, status, notes').eq('student_id', uid),
+        supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('id', uid).maybeSingle(),
+        supabase.from('admin_access_overrides').select('*').eq('student_id', uid),
       ])
       if (isSubscribed) {
         const fStatus = checkBatchFeeStatus({
           student: { id: uid, trial_ends_at: spR.data?.trial_ends_at },
           batch: spR.data?.batches || null,
           feeRecords: feeR.data ?? [],
+          adminOverrides: ovR.data ?? [],
         })
         setBatchFeeStatus(fStatus)
         setStats(s => ({
@@ -629,6 +634,8 @@ export default function StudentDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'study_cards' }, syncStudyCards)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${uid}` }, syncMessages)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${uid}` }, syncFees)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_access_overrides', filter: `student_id=eq.${uid}` }, syncFees)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_profiles', filter: `id=eq.${uid}` }, syncFees)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${uid}` }, syncAttendance)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, syncNotifications)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${uid}` }, syncNotifications)
@@ -828,65 +835,207 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-5 sm:space-y-6 pb-24 lg:pb-8 max-w-7xl mx-auto w-full">
 
-      {/* ── 1. Free Trial Banner (if active or expired) ── */}
+      {/* ── 1. Authoritative Batch Access & Fee Banner ── */}
       {(() => {
-        if (!trialEndsAt) return null
-        const msLeft = new Date(trialEndsAt) - Date.now()
-        const expired = msLeft <= 0
+        if (loading || !batchFeeStatus) return null
 
-        if (expired) {
+        // 1. Pending Verification -> Provisional active access banner
+        if (batchFeeStatus.isPendingVerification) {
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl bg-gradient-to-r from-red-600/90 to-rose-700/90 text-white px-4 py-3.5 shadow-lg border border-red-500/40 flex items-start sm:items-center gap-3 backdrop-blur-md"
+              className="rounded-2xl bg-gradient-to-r from-sky-600 to-blue-700 text-white px-4 py-3.5 shadow-md border border-sky-400/30 flex items-start sm:items-center justify-between gap-3"
             >
-              <div className="p-2 rounded-xl bg-white/20 shrink-0">
-                <AlertCircle className="h-5 w-5 text-white" />
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                  <Clock className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm leading-snug">Fee Payment Submitted · Under Review</p>
+                    <span className="bg-sky-400/30 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Provisional Access</span>
+                  </div>
+                  <p className="text-xs text-sky-100 mt-0.5 leading-tight">
+                    Your payment receipt is being verified by administration. All lectures, live classes, and homework remain fully unlocked.
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm leading-snug">Your free trial has ended</p>
-                <p className="text-xs text-red-100 mt-0.5 leading-relaxed">
-                  Your batch preview access has expired. Please contact institute administration to unlock full semester access.
-                </p>
-              </div>
+              <Link
+                to="/student/pay-fee"
+                className="text-xs font-semibold bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-lg border border-white/20 transition-colors shrink-0"
+              >
+                View Status
+              </Link>
             </motion.div>
           )
         }
 
-        if (trialBannerDismissed) return null
-
-        const hoursLeft = Math.floor(msLeft / 3600000)
-        const timeLabel = hoursLeft < 24
-          ? `${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`
-          : `${Math.floor(hoursLeft / 24)} day${Math.floor(hoursLeft / 24) !== 1 ? 's' : ''}`
-
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-gradient-to-r from-amber-500/95 to-orange-500/95 text-white px-4 py-3.5 shadow-md border border-amber-400/30 flex items-start sm:items-center justify-between gap-3"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-white/20 shrink-0">
-                <Clock className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-bold text-sm leading-snug">Free Trial Active — {timeLabel} remaining</p>
-                <p className="text-xs text-amber-100 mt-0.5 leading-tight">
-                  Enjoy full access to your lectures, homework, and live batches.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setTrialBannerDismissed(true)}
-              className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-black/10 transition-colors shrink-0"
-              title="Dismiss"
+        // 2. Rejected Payment -> Red alert with reason and resubmit CTA
+        if (batchFeeStatus.status === BATCH_ACCESS_STATUS.REJECTED) {
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 text-white p-4 shadow-lg border border-red-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
-              <X className="h-4 w-4" />
-            </button>
-          </motion.div>
-        )
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                  <AlertCircle className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm leading-snug">Fee Payment Rejected</p>
+                    <span className="bg-red-400/30 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Action Required</span>
+                  </div>
+                  <p className="text-xs text-red-100 mt-0.5 leading-relaxed">
+                    {batchFeeStatus.rejectedRecord?.notes
+                      ? `Reason: ${batchFeeStatus.rejectedRecord.notes}. Please submit a corrected payment receipt to restore access.`
+                      : 'Your fee payment submission was rejected by administration. Please submit a valid receipt or contact administration.'}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={`/student/pay-fee?batch_id=${batchId || ''}&amount=${batchFeeStatus.feeAmount || ''}`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white text-rose-700 hover:bg-rose-50 text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+              >
+                <span>Resubmit Receipt</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </motion.div>
+          )
+        }
+
+        // 3. Free Trial Active -> Amber trial countdown (dismissible)
+        if (batchFeeStatus.status === BATCH_ACCESS_STATUS.TRIAL) {
+          if (trialBannerDismissed) return null
+          const timeLabel = batchFeeStatus.trialHoursLeft < 24
+            ? `${batchFeeStatus.trialHoursLeft} hour${batchFeeStatus.trialHoursLeft !== 1 ? 's' : ''}`
+            : `${Math.floor(batchFeeStatus.trialHoursLeft / 24)} day${Math.floor(batchFeeStatus.trialHoursLeft / 24) !== 1 ? 's' : ''}`
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl bg-gradient-to-r from-amber-500/95 to-orange-500/95 text-white px-4 py-3.5 shadow-md border border-amber-400/30 flex items-start sm:items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                  <Clock className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm leading-snug">Free Trial Active — {timeLabel} remaining</p>
+                  <p className="text-xs text-amber-100 mt-0.5 leading-tight">
+                    Enjoy full access to your lectures, homework, and live batches.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTrialBannerDismissed(true)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-black/10 transition-colors shrink-0"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          )
+        }
+
+        // 4. Free Trial Expired (Unpaid and frozen) -> Red banner with Pay CTA
+        if (batchFeeStatus.status === BATCH_ACCESS_STATUS.TRIAL_EXPIRED) {
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl bg-gradient-to-r from-red-600/95 to-rose-700/95 text-white p-4 shadow-lg border border-red-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 backdrop-blur-md"
+            >
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                  <AlertCircle className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm leading-snug">Your free trial has ended</p>
+                  <p className="text-xs text-red-100 mt-0.5 leading-relaxed">
+                    Your 2-day batch preview access has expired. Please complete your fee payment to unlock uninterrupted semester access.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={`/student/pay-fee?batch_id=${batchId || ''}&amount=${batchFeeStatus.feeAmount || ''}`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white text-rose-700 hover:bg-rose-50 text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+              >
+                <span>Pay Batch Fee</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </motion.div>
+          )
+        }
+
+        // 5. Monthly Grace Period Active (Days 1-10) -> Amber warning
+        if (batchFeeStatus.inGracePeriod) {
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 border-amber-200/90 text-amber-950"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 rounded-xl shrink-0 bg-amber-200/70 text-amber-800">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900">
+                    MONTHLY TUITION FEE · GRACE PERIOD ACTIVE ({batchFeeStatus.daysRemainingInGrace}D REMAINING)
+                  </span>
+                  <p className="text-xs sm:text-sm font-bold mt-0.5 text-amber-950">
+                    {batchFeeStatus.message}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={`/student/pay-fee?batch_id=${batchId || ''}&amount=${batchFeeStatus.feeAmount || ''}`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0 bg-amber-600 hover:bg-amber-700"
+              >
+                <span>Pay Monthly Fee</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </motion.div>
+          )
+        }
+
+        // 6. Frozen (Day 11+ monthly or one-time expired)
+        if (batchFeeStatus.isFrozen) {
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-rose-50 border-rose-200/90 text-rose-950"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 rounded-xl shrink-0 bg-rose-200/70 text-rose-800">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-200/80 text-rose-900">
+                    {batchFeeStatus.status === BATCH_ACCESS_STATUS.EXPIRED ? 'SUBSCRIPTION EXPIRED' : 'BATCH ACCESS FROZEN'}
+                  </span>
+                  <p className="text-xs sm:text-sm font-bold mt-0.5 text-rose-950">
+                    {batchFeeStatus.message}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={`/student/pay-fee?batch_id=${batchId || ''}&amount=${batchFeeStatus.feeAmount || ''}`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0 bg-rose-600 hover:bg-rose-700"
+              >
+                <span>Pay Fee to Restore Access</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </motion.div>
+          )
+        }
+
+        return null
       })()}
 
       {/* ── 2. Live Class High-Urgency Broadcast Alert Bar ── */}
@@ -949,51 +1098,6 @@ export default function StudentDashboard() {
         </motion.div>
       )}
 
-      {/* ── 3. Dual-Mode Fee Alert Bar ── */}
-      {!loading && batchFeeStatus && (batchFeeStatus.isFrozen || batchFeeStatus.inGracePeriod) && (
-        <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`rounded-2xl border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-            batchFeeStatus.isFrozen
-              ? 'bg-rose-50 border-rose-200/90 text-rose-950'
-              : 'bg-amber-50 border-amber-200/90 text-amber-950'
-          }`}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`p-2.5 rounded-xl shrink-0 ${
-              batchFeeStatus.isFrozen ? 'bg-rose-200/70 text-rose-800' : 'bg-amber-200/70 text-amber-800'
-            }`}>
-              {batchFeeStatus.isFrozen ? <AlertCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-            </div>
-            <div className="min-w-0">
-              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                batchFeeStatus.isFrozen ? 'bg-rose-200/80 text-rose-900' : 'bg-amber-200/80 text-amber-900'
-              }`}>
-                {batchFeeStatus.isFrozen
-                  ? (batchFeeStatus.status === BATCH_ACCESS_STATUS.EXPIRED ? 'SUBSCRIPTION EXPIRED' : 'BATCH ACCESS FROZEN')
-                  : `MONTHLY TUITION FEE · GRACE PERIOD ACTIVE (${batchFeeStatus.daysRemainingInGrace}D REMAINING)`}
-              </span>
-              <p className={`text-xs sm:text-sm font-bold mt-0.5 ${
-                batchFeeStatus.isFrozen ? 'text-rose-950' : 'text-amber-950'
-              }`}>
-                {batchFeeStatus.message}
-              </p>
-            </div>
-          </div>
-          <Link
-            to={`/student/pay-fee?batch_id=${batchId || ''}&amount=${batchFeeStatus.feeAmount || ''}`}
-            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer ${
-              batchFeeStatus.isFrozen
-                ? 'bg-rose-600 hover:bg-rose-700'
-                : 'bg-amber-600 hover:bg-amber-700'
-            }`}
-          >
-            <span>{batchFeeStatus.isFrozen ? 'Pay Fee to Restore Access' : 'Pay Monthly Fee'}</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </motion.div>
-      )}
 
       {/* ── 4. High-Impact Student Command Hero Deck ── */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-6 sm:p-8 text-white shadow-xl shadow-blue-950/20 border border-white/10">

@@ -107,25 +107,16 @@ vi.mock('../../src/lib/supabase', () => ({
       return createChainableQueryBuilder(() => [])
     }),
     channel: vi.fn((chanName) => {
-      return {
+      const chan = {
         on: vi.fn((eventType, filter, cb) => {
           const callback = cb || filter
           const tbl = filter?.table || 'all'
           realtimeCallbacks[`${chanName}_${tbl}`] = callback
-          return {
-            on: vi.fn((e2, f2, cb2) => {
-              const callback2 = cb2 || f2
-              const tbl2 = f2?.table || 'all'
-              realtimeCallbacks[`${chanName}_${tbl2}`] = callback2
-              return {
-                subscribe: vi.fn().mockReturnThis()
-              }
-            }),
-            subscribe: vi.fn().mockReturnThis()
-          }
+          return chan
         }),
         subscribe: vi.fn().mockReturnThis(),
       }
+      return chan
     }),
     removeChannel: vi.fn(),
   },

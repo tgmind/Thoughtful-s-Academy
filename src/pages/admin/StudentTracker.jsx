@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Search, Download, X, Edit2, Clock } from 'lucide-react'
+import { Search, Download, X, Edit2, Clock, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 import CustomSelect from '../../components/ui/CustomSelect'
-
-function monthLabel() { return new Date().toLocaleDateString('en-IN', { month:'long', year:'numeric' }) }
+import {
+  checkBatchFeeStatus,
+  formatAccessStatusBadge,
+  getCurrentPaymentMonth
+} from '../../utils/feeAccess'
 
 function AttBar({ pct }) {
   const color = pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
@@ -19,6 +23,7 @@ function AttBar({ pct }) {
 }
 
 export default function StudentTracker() {
+  const { user } = useAuth()
   const [students,      setStudents]      = useState([])
   const [batches,       setBatches]       = useState([])
   const [search,        setSearch]        = useState('')
@@ -27,6 +32,7 @@ export default function StudentTracker() {
   const [loading,       setLoading]       = useState(true)
   const [selected,      setSelected]      = useState(null)
   const [deacting,      setDeacting]      = useState(null)
+  const [actingAction,  setActingAction]  = useState(false)
   
   const [editEnroll,    setEditEnroll]    = useState(false)
   const [enrollBatch,   setEnrollBatch]   = useState('')
@@ -34,21 +40,34 @@ export default function StudentTracker() {
   const [batchSubjects, setBatchSubjects] = useState([])
   const [savingEnroll,  setSavingEnroll]  = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      // Ordered by newest first to act as a notification list for admins
-      supabase.from('profiles').select('id, full_name, email, phone, is_active, created_at')
-        .eq('role','student').order('created_at', { ascending: false }),
-      // Extracting the new extra data properly
-      supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, date_of_birth, trial_ends_at, batches(name)'),
-      supabase.from('attendance').select('student_id, status'),
-      supabase.from('fee_records').select('student_id, status, payment_month').eq('payment_month', monthLabel()),
-      supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
-    ]).then(([p, sp, att, fees, b]) => {
-      if (cancelled) return
+  const loadData = async () => {
+    try {
+      const [p, sp, att, fees, b, overrides] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email, phone, is_active, created_at')
+          .eq('role','student').order('created_at', { ascending: false }),
+        supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, date_of_birth, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)'),
+        supabase.from('attendance').select('student_id, status'),
+        supabase.from('fee_records').select('*').order('created_at', { ascending: false }),
+        supabase.from('batches').select('*').order('name'),
+        supabase.from('admin_access_overrides').select('*'),
+      ])
+
       const spMap  = {}; (sp.data ?? []).forEach(s => { spMap[s.id] = s })
-      const feeMap = {}; (fees.data ?? []).forEach(f => { feeMap[f.student_id] = f.status })
+      const batchesList = b.data ?? []
+      const batchMap = {}; batchesList.forEach(item => { batchMap[item.id] = item })
+      
+      const studentFeesMap = {}
+      ;(fees.data ?? []).forEach(f => {
+        if (!studentFeesMap[f.student_id]) studentFeesMap[f.student_id] = []
+        studentFeesMap[f.student_id].push(f)
+      })
+
+      const studentOverridesMap = {}
+      ;(overrides.data ?? []).forEach(o => {
+        if (!studentOverridesMap[o.student_id]) studentOverridesMap[o.student_id] = []
+        studentOverridesMap[o.student_id].push(o)
+      })
+
       const attMap = {}
       ;(att.data ?? []).forEach(a => {
         if (!attMap[a.student_id]) attMap[a.student_id] = { present:0, late:0, total:0 }
@@ -56,23 +75,55 @@ export default function StudentTracker() {
         if (a.status === 'present') attMap[a.student_id].present++
         else if (a.status === 'late') attMap[a.student_id].late++
       })
-      const enriched = (p.data ?? []).map(s => ({
-        ...s,
-        batch_name:    spMap[s.id]?.batches?.name ?? '—',
-        batch_id:      spMap[s.id]?.batch_id ?? null,
-        roll_number:   spMap[s.id]?.roll_number ?? '—',
-        parent_phone:  spMap[s.id]?.parent_phone ?? '—',
-        date_of_birth: spMap[s.id]?.date_of_birth ?? '—',
-        trial_ends_at: spMap[s.id]?.trial_ends_at ?? null,
-        att_pct:       attMap[s.id]
-          ? Math.round(((attMap[s.id].present + attMap[s.id].late * 0.5) / attMap[s.id].total) * 100) : 0,
-        fee_status:    feeMap[s.id] ?? 'not_paid',
-      }))
+
+      const enriched = (p.data ?? []).map(s => {
+        const studentProfile = spMap[s.id]
+        const studentBatch = studentProfile?.batch_id ? batchMap[studentProfile.batch_id] : null
+        const studentFees = studentFeesMap[s.id] || []
+        const studentOverrides = studentOverridesMap[s.id] || []
+
+        const feeStatus = checkBatchFeeStatus({
+          student: { id: s.id, is_active: s.is_active, trial_ends_at: studentProfile?.trial_ends_at },
+          batch: studentBatch,
+          feeRecords: studentFees,
+          adminOverrides: studentOverrides,
+        })
+        const accessBadge = formatAccessStatusBadge(feeStatus)
+
+        return {
+          ...s,
+          batch_name:    studentProfile?.batches?.name ?? studentBatch?.name ?? '—',
+          batch_id:      studentProfile?.batch_id ?? null,
+          roll_number:   studentProfile?.roll_number ?? '—',
+          parent_phone:  studentProfile?.parent_phone ?? '—',
+          date_of_birth: studentProfile?.date_of_birth ?? '—',
+          trial_ends_at: studentProfile?.trial_ends_at ?? null,
+          att_pct:       attMap[s.id]
+            ? Math.round(((attMap[s.id].present + attMap[s.id].late * 0.5) / attMap[s.id].total) * 100) : 0,
+          fee_status:    feeStatus.status,
+          feeStatus,
+          accessBadge,
+          feeRecords:    studentFees,
+          adminOverrides: studentOverrides,
+        }
+      })
       setStudents(enriched)
-      setBatches(b.data ?? [])
+      setBatches(batchesList)
       setLoading(false)
-    })
-    return () => { cancelled = true }
+
+      if (selected) {
+        const updatedSelected = enriched.find(x => x.id === selected.id)
+        if (updatedSelected) setSelected(updatedSelected)
+      }
+    } catch (err) {
+      console.error('Error loading student tracker data:', err)
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openStudent = async (s) => {
@@ -114,6 +165,7 @@ export default function StudentTracker() {
     setSelected(s => ({ ...s, batch_id: enrollBatch || null, batch_name: batchName }))
     setEditEnroll(false)
     toast.success('Enrollment updated')
+    loadData()
   }
 
   const toggleActive = async (s) => {
@@ -122,12 +174,14 @@ export default function StudentTracker() {
     setDeacting(null)
     if (error) { toast.error(error.message); return }
     setStudents(list => list.map(x => x.id === s.id ? { ...x, is_active: !x.is_active } : x))
-    toast.success(s.is_active ? 'Account deactivated' : 'Account reactivated')
+    if (selected?.id === s.id) setSelected(prev => ({ ...prev, is_active: !prev.is_active }))
+    toast.success(s.is_active ? 'Account suspended' : 'Account restored')
+    loadData()
   }
 
   const exportCSV = () => {
-    const rows = [['Name','Email','Phone','Parent Phone','Batch','Roll','Attendance%','Fee Status','Active']]
-    filtered.forEach(s => rows.push([s.full_name, s.email, s.phone||'', s.parent_phone||'', s.batch_name, s.roll_number, s.att_pct+'%', s.fee_status, s.is_active?'Yes':'No']))
+    const rows = [['Name','Email','Phone','Parent Phone','Batch','Roll','Attendance%','Access Status','Active']]
+    filtered.forEach(s => rows.push([s.full_name, s.email, s.phone||'', s.parent_phone||'', s.batch_name, s.roll_number, s.att_pct+'%', s.accessBadge?.label || s.fee_status, s.is_active?'Yes':'No']))
     const csv = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\n')
     const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
     a.download = 'students.csv'; a.click()
@@ -135,19 +189,16 @@ export default function StudentTracker() {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  // Check if a student's free trial has expired
   const isTrialExpired = (trialEndsAt) => {
     if (!trialEndsAt) return false
     return new Date(trialEndsAt) < new Date()
   }
 
-  // Check if trial is still active (not expired, not null)
   const isTrialActive = (trialEndsAt) => {
     if (!trialEndsAt) return false
     return new Date(trialEndsAt) > new Date()
   }
 
-  // How much trial time is left as a readable string
   const trialLabel = (trialEndsAt) => {
     if (!trialEndsAt) return null
     const diff = new Date(trialEndsAt) - Date.now()
@@ -157,14 +208,136 @@ export default function StudentTracker() {
     return `${Math.floor(h / 24)}d left`
   }
 
-  // Admin action: clear trial (grants full access)
-  const clearTrial = async (studentId) => {
-    const { error } = await supabase.from('student_profiles')
-      .upsert({ id: studentId, trial_ends_at: null }, { onConflict: 'id' })
-    if (error) { toast.error(error.message); return }
-    setStudents(list => list.map(x => x.id === studentId ? { ...x, trial_ends_at: null } : x))
-    setSelected(s => s ? { ...s, trial_ends_at: null } : s)
-    toast.success('Trial cleared — student now has full access')
+  // ── Authoritative Admin Actions ─────────────────────────────────────────────
+
+  // 1. Approve & Grant Full Access (Audited administrative override / monthly fee waiver)
+  const grantFullAccess = async (studentId) => {
+    const st = students.find(x => x.id === studentId) || selected
+    if (!st || !st.batch_id) {
+      toast.error('Student must be enrolled in a batch to grant access.')
+      return
+    }
+    const currentBatch = batches.find(b => b.id === st.batch_id)
+    const currentMonth = getCurrentPaymentMonth()
+    setActingAction(true)
+
+    const isOneTime = currentBatch?.fee_mode === 'one_time'
+    const grantType = isOneTime ? 'full_access_override' : 'monthly_fee_waiver'
+    let validUntil = null
+    if (isOneTime) {
+      if (currentBatch?.validity_end_date) {
+        validUntil = new Date(`${currentBatch.validity_end_date}T23:59:59+05:30`).toISOString()
+      } else if (currentBatch?.validity_days) {
+        validUntil = new Date(Date.now() + currentBatch.validity_days * 86400000).toISOString()
+      }
+    }
+
+    const payload = {
+      student_id: studentId,
+      batch_id: st.batch_id,
+      grant_type: grantType,
+      billing_month: isOneTime ? null : currentMonth,
+      valid_until: validUntil,
+      granted_by: user.id,
+      reason: 'Approve & Grant Full Access by Administrator',
+    }
+
+    const { error } = await supabase.from('admin_access_overrides').insert(payload)
+    if (error) {
+      setActingAction(false)
+      toast.error(error.message)
+      return
+    }
+
+    // Activity log
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        user_name: 'Admin',
+        user_role: 'admin',
+        action_type: 'admin_access_granted',
+        entity_type: 'batch_access',
+        entity_title: `Full Access Granted - ${st.full_name}`,
+        batch_id: st.batch_id || null,
+        details: JSON.stringify({ grant_type: grantType, student_id: studentId, billing_month: payload.billing_month }),
+      })
+    } catch (aErr) {
+      console.warn(aErr)
+    }
+
+    // Notify student
+    try {
+      await supabase.from('notifications').insert({
+        title: 'Batch Access Approved',
+        body: `The administrator has approved and granted full access to ${currentBatch?.name || 'your batch'}.`,
+        type: 'fee',
+        target_role: 'individual',
+        target_user_id: studentId,
+        target_batch_id: st.batch_id || null,
+        created_by: user.id,
+        is_active: true,
+      })
+      await supabase.from('messages').insert({
+        sender_id: user.id,
+        receiver_id: studentId,
+        content: `The administrator has approved and granted full access to your batch (${currentBatch?.name || 'Batch'}).`,
+        batch_id: st.batch_id || null,
+        is_broadcast: false,
+      })
+    } catch (mErr) {
+      console.warn(mErr)
+    }
+
+    setActingAction(false)
+    toast.success('Full access granted & student notified!')
+    loadData()
+  }
+
+  // 2. Extend Trial by N days
+  const extendTrial = async (studentId, days = 2) => {
+    const st = students.find(x => x.id === studentId) || selected
+    if (!st) return
+    setActingAction(true)
+
+    const base = (st.trial_ends_at && new Date(st.trial_ends_at) > new Date()) ? new Date(st.trial_ends_at) : new Date()
+    const newExpiry = new Date(base.getTime() + days * 86400000).toISOString()
+
+    const { error } = await supabase.from('student_profiles').update({ trial_ends_at: newExpiry }).eq('id', studentId)
+    if (error) {
+      setActingAction(false)
+      toast.error(error.message)
+      return
+    }
+
+    // Activity log & notification
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        user_name: 'Admin',
+        user_role: 'admin',
+        action_type: 'trial_extended',
+        entity_type: 'student_trial',
+        entity_title: `Trial Extended (${days} days) - ${st.full_name}`,
+        batch_id: st.batch_id || null,
+        details: JSON.stringify({ days, new_expiry: newExpiry }),
+      })
+      await supabase.from('notifications').insert({
+        title: 'Free Trial Extended',
+        body: `Your free batch trial has been extended by ${days} day(s).`,
+        type: 'announcement',
+        target_role: 'individual',
+        target_user_id: studentId,
+        target_batch_id: st.batch_id || null,
+        created_by: user.id,
+        is_active: true,
+      })
+    } catch (err) {
+      console.warn(err)
+    }
+
+    setActingAction(false)
+    toast.success(`Trial extended by ${days} days!`)
+    loadData()
   }
 
   // Identify new students that registered in last 3 days
@@ -184,9 +357,6 @@ export default function StudentTracker() {
       || (attF==='trial_expired' && isTrialExpired(s.trial_ends_at))
     return matchSearch && matchBatch && matchAtt
   })
-
-  const FEE_COLORS = { verified:'bg-green-100 text-green-800', pending:'bg-amber-100 text-amber-800', rejected:'bg-red-100 text-red-800', not_paid:'bg-gray-100 text-gray-600' }
-  const FEE_LABELS = { verified:'Verified', pending:'Pending', rejected:'Rejected', not_paid:'Not Paid' }
 
   return (
     <div className="space-y-4 pb-20 lg:pb-0">
@@ -233,7 +403,7 @@ export default function StudentTracker() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                {['Student','Batch','Phone','Attendance','Fee Status','Status','Actions'].map(h => (
+                {['Student','Batch','Phone','Attendance','Access & Fee','Account','Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -276,8 +446,8 @@ export default function StudentTracker() {
                     <td className="px-4 py-3 text-gray-500">{s.phone || '—'}</td>
                     <td className="px-4 py-3 w-32"><AttBar pct={s.att_pct} /></td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${FEE_COLORS[s.fee_status]}`}>
-                        {FEE_LABELS[s.fee_status]}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${s.accessBadge?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                        {s.accessBadge?.label || s.fee_status}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -358,9 +528,11 @@ export default function StudentTracker() {
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-500">This Month Fee</p>
-                  <p className={`font-semibold mt-0.5 capitalize ${selected.fee_status==='verified'?'text-green-700':selected.fee_status==='pending'?'text-amber-700':'text-red-600'}`}>
-                    {selected.fee_status.replace('_',' ')}
+                  <p className="text-xs text-gray-500">Access Status</p>
+                  <p className="mt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${selected.accessBadge?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                      {selected.accessBadge?.label || selected.fee_status}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -371,36 +543,67 @@ export default function StudentTracker() {
                 </p>
               </div>
 
-              {/* Free Trial Status */}
-              {selected.trial_ends_at && (
-                <div className={`rounded-xl p-4 border ${
-                  isTrialExpired(selected.trial_ends_at)
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-amber-50 border-amber-200'
-                }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className={`text-xs font-bold uppercase tracking-wide ${
-                      isTrialExpired(selected.trial_ends_at) ? 'text-red-700' : 'text-amber-700'
-                    }`}>
-                      {isTrialExpired(selected.trial_ends_at) ? '🔴 Free Trial Expired' : '⏳ Free Trial Active'}
+              {/* Access & Trial Controls */}
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Access & Trial Controls</h4>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${selected.accessBadge?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                    {selected.accessBadge?.label || selected.fee_status}
+                  </span>
+                </div>
+
+                {selected.trial_ends_at && (
+                  <div className={`rounded-lg p-3 text-xs border ${
+                    isTrialExpired(selected.trial_ends_at)
+                      ? 'bg-red-50 border-red-200 text-red-800'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}>
+                    <div className="font-semibold mb-0.5 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {isTrialExpired(selected.trial_ends_at) ? 'Free Trial Expired' : 'Free Trial Active'}
+                    </div>
+                    <p className="text-gray-600">
+                      {isTrialExpired(selected.trial_ends_at)
+                        ? `Expired on ${new Date(selected.trial_ends_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}`
+                        : `Valid until ${new Date(selected.trial_ends_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })} (${trialLabel(selected.trial_ends_at)})`
+                      }
                     </p>
                   </div>
-                  <p className="text-sm text-gray-700">
-                    {isTrialExpired(selected.trial_ends_at)
-                      ? `Expired on ${new Date(selected.trial_ends_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}`
-                      : `Ends on ${new Date(selected.trial_ends_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })} · ${trialLabel(selected.trial_ends_at)}`
-                    }
+                )}
+
+                {selected.feeStatus?.message && (
+                  <p className="text-xs text-gray-500 italic">
+                    Status info: {selected.feeStatus.message}
                   </p>
-                  {isTrialExpired(selected.trial_ends_at) && (
+                )}
+
+                <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+                  <button
+                    onClick={() => grantFullAccess(selected.id)}
+                    disabled={actingAction}
+                    className="w-full py-2 px-3 text-xs font-semibold bg-blue-950 text-white hover:bg-blue-900 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    {actingAction ? 'Processing...' : 'Approve & Grant Full Access'}
+                  </button>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => clearTrial(selected.id)}
-                      className="mt-3 w-full py-2 text-sm font-semibold bg-white border border-red-300 text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      onClick={() => extendTrial(selected.id, 2)}
+                      disabled={actingAction}
+                      className="flex-1 py-1.5 px-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 text-center"
                     >
-                      ✓ Approve & Grant Full Access
+                      +2 Days Trial
                     </button>
-                  )}
+                    <button
+                      onClick={() => extendTrial(selected.id, 7)}
+                      disabled={actingAction}
+                      className="flex-1 py-1.5 px-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 text-center"
+                    >
+                      +7 Days Trial
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
 
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">

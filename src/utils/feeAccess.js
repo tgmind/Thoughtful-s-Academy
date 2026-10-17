@@ -28,7 +28,11 @@ export const BATCH_ACCESS_STATUS = {
   FROZEN: 'frozen',
   EXPIRED: 'expired',
   TRIAL: 'trial',
+  TRIAL_EXPIRED: 'trial_expired',
   PENDING_VERIFICATION: 'pending_verification',
+  REJECTED: 'rejected',
+  ADMIN_OVERRIDE: 'admin_override',
+  SUSPENDED: 'suspended',
   UNENROLLED: 'unenrolled',
 }
 
@@ -71,13 +75,25 @@ export function getAvailablePaymentMonths(past = 3, future = 2, baseDate = new D
 }
 
 /**
- * Evaluates whether a student has active access to a specific batch based on fee mode,
- * grace period, and subscription validity.
+ * Authoritative Batch Access-Control Evaluator
+ *
+ * Precedence:
+ * 1. Account Suspended (profiles.is_active = false) -> Denied
+ * 2. Public Content (batch_id is null) -> Granted
+ * 3. Free Batch (fee_amount <= 0) -> Granted
+ * 4. Administrative Override / Monthly Fee Waiver -> Granted
+ * 5. Active Universal 2-Day Trial -> Granted
+ * 6. Verified Payment -> Granted
+ * 7. Pending Payment -> Provisional Unlock Granted during verification
+ * 8. Rejected Payment -> Denied / Frozen (unless other valid entitlement)
+ * 9. Monthly Grace Period (Days 1–10 IST) -> Granted for eligible enrolled students
+ * 10. Trial Expired / Grace Expired / Validity Expired -> Denied / Frozen
  */
 export function checkBatchFeeStatus({
   student,
   batch,
   feeRecords = [],
+  adminOverrides = [],
   referenceDate = new Date(),
 } = {}) {
   // If no batch is provided, access cannot be evaluated (treat as open/global)
@@ -95,7 +111,20 @@ export function checkBatchFeeStatus({
   const feeMode = batch.fee_mode || FEE_MODES.MONTHLY
   const feeAmount = Number(batch.fee_amount) || 0
 
-  // 1. Free Batches (fee_amount <= 0) are always accessible
+  // 1. Account Suspension: Highest precedence restriction
+  if (student?.is_active === false) {
+    return {
+      isActive: false,
+      isFrozen: true,
+      isSuspended: true,
+      status: BATCH_ACCESS_STATUS.SUSPENDED,
+      feeMode,
+      feeAmount,
+      message: 'Account is suspended. Please contact the administrator.',
+    }
+  }
+
+  // 2. Free Batches (fee_amount <= 0) are always accessible
   if (feeAmount <= 0) {
     return {
       isActive: true,
@@ -107,10 +136,59 @@ export function checkBatchFeeStatus({
     }
   }
 
-  // 2. Free Trial bypass
+  const currentMonth = getCurrentPaymentMonth(referenceDate)
+
+  // 3. Administrative Access Overrides & Fee Waivers
+  const applicableOverrides = (adminOverrides || []).filter(o => {
+    if (o.student_id && student?.id && o.student_id !== student.id) return false
+    if (o.batch_id && batch.id && o.batch_id !== batch.id) return false
+    return true
+  })
+
+  // Full access override (indefinite or within validity)
+  const fullOverride = applicableOverrides.find(o => 
+    o.grant_type === 'full_access_override' &&
+    (!o.valid_until || new Date(o.valid_until) >= referenceDate)
+  )
+  if (fullOverride) {
+    return {
+      isActive: true,
+      isFrozen: false,
+      isAdminOverride: true,
+      status: BATCH_ACCESS_STATUS.ADMIN_OVERRIDE,
+      feeMode,
+      feeAmount,
+      override: fullOverride,
+      message: 'Full access granted by administrator',
+    }
+  }
+
+  // Current month fee waiver
+  const monthlyWaiver = applicableOverrides.find(o =>
+    o.grant_type === 'monthly_fee_waiver' && o.billing_month === currentMonth
+  )
+  if (monthlyWaiver) {
+    return {
+      isActive: true,
+      isFrozen: false,
+      isAdminOverride: true,
+      isWaived: true,
+      status: BATCH_ACCESS_STATUS.ADMIN_OVERRIDE,
+      feeMode,
+      feeAmount,
+      paymentMonth: currentMonth,
+      override: monthlyWaiver,
+      message: `Monthly fee for ${currentMonth} waived by administrator`,
+    }
+  }
+
+  // 4. Universal 2-Day Free Trial Check
+  let isTrialExpired = false
   if (student?.trial_ends_at) {
     const trialEnd = new Date(student.trial_ends_at)
     if (trialEnd > referenceDate) {
+      const msLeft = trialEnd - referenceDate
+      const hoursLeft = Math.max(1, Math.floor(msLeft / 3600000))
       return {
         isActive: true,
         isFrozen: false,
@@ -119,8 +197,11 @@ export function checkBatchFeeStatus({
         feeMode,
         feeAmount,
         trialEndsAt: student.trial_ends_at,
-        message: 'Active free trial',
+        trialHoursLeft: hoursLeft,
+        message: `Active free trial (${hoursLeft} hour${hoursLeft === 1 ? '' : 's'} remaining)`,
       }
+    } else {
+      isTrialExpired = true
     }
   }
 
@@ -133,9 +214,8 @@ export function checkBatchFeeStatus({
     return feeMode === FEE_MODES.MONTHLY
   })
 
-  // 3. MONTHLY FEE MODE
+  // 5. MONTHLY FEE MODE
   if (feeMode === FEE_MODES.MONTHLY) {
-    const currentMonth = getCurrentPaymentMonth(referenceDate)
     const dayOfMonth = getIndianDay(referenceDate)
 
     const verifiedRecord = batchRecords.find(
@@ -144,8 +224,11 @@ export function checkBatchFeeStatus({
     const pendingRecord = batchRecords.find(
       r => r.payment_month === currentMonth && r.status === 'pending'
     )
+    const rejectedRecord = batchRecords.find(
+      r => r.payment_month === currentMonth && r.status === 'rejected'
+    )
 
-    // Verified fee paid for current month
+    // A. Verified fee paid for current month
     if (verifiedRecord) {
       return {
         isActive: true,
@@ -159,24 +242,39 @@ export function checkBatchFeeStatus({
       }
     }
 
-    // Days 1 to 10: Grace Period Active
+    // B. Submitted payment pending verification -> Provisional Unlock Granted!
+    if (pendingRecord) {
+      return {
+        isActive: true, // Provisional access active during verification
+        isFrozen: false,
+        isPendingVerification: true,
+        status: BATCH_ACCESS_STATUS.PENDING_VERIFICATION,
+        feeMode: FEE_MODES.MONTHLY,
+        feeAmount,
+        paymentMonth: currentMonth,
+        pendingRecord,
+        message: `Payment submitted for ${currentMonth} · Provisional access active under admin review`,
+      }
+    }
+
+    // C. Rejected Payment for current month (and no pending/verified) -> Frozen & Notify
+    if (rejectedRecord) {
+      return {
+        isActive: false,
+        isFrozen: true,
+        isRejected: true,
+        status: BATCH_ACCESS_STATUS.REJECTED,
+        feeMode: FEE_MODES.MONTHLY,
+        feeAmount,
+        paymentMonth: currentMonth,
+        rejectedRecord,
+        message: 'Fee Payment was Rejected By the Admin. Please contact the Admin.',
+      }
+    }
+
+    // D. Days 1 to 10: Grace Period Active (for enrolled students)
     if (dayOfMonth <= 10) {
       const daysRemaining = 11 - dayOfMonth
-      if (pendingRecord) {
-        return {
-          isActive: true,
-          isFrozen: false,
-          inGracePeriod: true,
-          daysRemainingInGrace: daysRemaining,
-          status: BATCH_ACCESS_STATUS.GRACE_PERIOD,
-          feeMode: FEE_MODES.MONTHLY,
-          feeAmount,
-          paymentMonth: currentMonth,
-          pendingRecord,
-          message: `Payment under verification · Grace period active (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining)`,
-        }
-      }
-
       return {
         isActive: true,
         isFrozen: false,
@@ -190,63 +288,72 @@ export function checkBatchFeeStatus({
       }
     }
 
-    // Day 11+: Grace Period Expired -> Batch Access Frozen
-    if (pendingRecord) {
-      return {
-        isActive: false,
-        isFrozen: true,
-        inGracePeriod: false,
-        status: BATCH_ACCESS_STATUS.PENDING_VERIFICATION,
-        feeMode: FEE_MODES.MONTHLY,
-        feeAmount,
-        paymentMonth: currentMonth,
-        pendingRecord,
-        message: `Fee payment for ${currentMonth} is under review. Access will activate upon verification.`,
-      }
-    }
-
+    // E. Day 11+: Grace Period Expired -> Batch Access Frozen
+    const freezeStatus = isTrialExpired ? BATCH_ACCESS_STATUS.TRIAL_EXPIRED : BATCH_ACCESS_STATUS.FROZEN
     return {
       isActive: false,
       isFrozen: true,
       inGracePeriod: false,
-      status: BATCH_ACCESS_STATUS.FROZEN,
+      status: freezeStatus,
       feeMode: FEE_MODES.MONTHLY,
       feeAmount,
       paymentMonth: currentMonth,
-      message: `Batch access frozen. Monthly fee for ${currentMonth} was due by the 10th.`,
+      message: isTrialExpired
+        ? 'Free trial has ended. Monthly fee payment required to continue.'
+        : `Batch access frozen. Monthly fee for ${currentMonth} was due by the 10th.`,
     }
   }
 
-  // 4. ONE-TIME FEE MODE
+  // 6. ONE-TIME FEE MODE
   if (feeMode === FEE_MODES.ONE_TIME) {
-    // Find latest verified record for this batch
     const verifiedRecords = batchRecords.filter(r => r.status === 'verified')
     const pendingRecord = batchRecords.find(r => r.status === 'pending')
+    const rejectedRecord = batchRecords.find(r => r.status === 'rejected')
 
-    if (verifiedRecords.length === 0) {
-      if (pendingRecord) {
-        return {
-          isActive: false,
-          isFrozen: true,
-          status: BATCH_ACCESS_STATUS.PENDING_VERIFICATION,
-          feeMode: FEE_MODES.ONE_TIME,
-          feeAmount,
-          pendingRecord,
-          message: 'One-time course payment is pending admin verification.',
-        }
-      }
-
+    // A. Submitted payment pending verification -> Provisional Unlock Granted!
+    if (pendingRecord) {
       return {
-        isActive: false,
-        isFrozen: true,
-        status: BATCH_ACCESS_STATUS.FROZEN,
+        isActive: true, // Provisional access active during verification
+        isFrozen: false,
+        isPendingVerification: true,
+        status: BATCH_ACCESS_STATUS.PENDING_VERIFICATION,
         feeMode: FEE_MODES.ONE_TIME,
         feeAmount,
-        message: `Course enrollment payment of ₹${feeAmount} is required for ${batch.name}.`,
+        pendingRecord,
+        message: 'One-time course payment submitted · Provisional access active under admin review',
       }
     }
 
-    // Pick the verified record with the latest validity
+    // B. Rejected payment (and no verified record) -> Frozen & Notify
+    if (rejectedRecord && verifiedRecords.length === 0) {
+      return {
+        isActive: false,
+        isFrozen: true,
+        isRejected: true,
+        status: BATCH_ACCESS_STATUS.REJECTED,
+        feeMode: FEE_MODES.ONE_TIME,
+        feeAmount,
+        rejectedRecord,
+        message: 'Fee Payment was Rejected By the Admin. Please contact the Admin.',
+      }
+    }
+
+    // C. No verified records and no pending payment -> Frozen
+    if (verifiedRecords.length === 0) {
+      const freezeStatus = isTrialExpired ? BATCH_ACCESS_STATUS.TRIAL_EXPIRED : BATCH_ACCESS_STATUS.FROZEN
+      return {
+        isActive: false,
+        isFrozen: true,
+        status: freezeStatus,
+        feeMode: FEE_MODES.ONE_TIME,
+        feeAmount,
+        message: isTrialExpired
+          ? 'Free trial has ended. Course enrollment payment required to continue.'
+          : `Course enrollment payment of ₹${feeAmount} is required for ${batch.name}.`,
+      }
+    }
+
+    // D. Pick the verified record with the latest validity
     let bestRecord = verifiedRecords[0]
     let maxValidUntil = null
 
@@ -344,3 +451,41 @@ export function formatBatchFeeBadge(batch) {
     color: 'bg-purple-100 text-purple-800 border-purple-200',
   }
 }
+
+/**
+ * Formats a clean status badge for student management tables and dashboards
+ */
+export function formatAccessStatusBadge(feeStatus) {
+  if (!feeStatus) return { label: 'Active', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
+
+  switch (feeStatus.status) {
+    case BATCH_ACCESS_STATUS.SUSPENDED:
+      return { label: 'Suspended', color: 'bg-rose-100 text-rose-800 border-rose-300' }
+    case BATCH_ACCESS_STATUS.TRIAL:
+      return {
+        label: `Trial Active${feeStatus.trialHoursLeft ? ` (${feeStatus.trialHoursLeft}h)` : ''}`,
+        color: 'bg-amber-100 text-amber-800 border-amber-300',
+      }
+    case BATCH_ACCESS_STATUS.TRIAL_EXPIRED:
+      return { label: 'Trial Over', color: 'bg-red-100 text-red-800 border-red-300' }
+    case BATCH_ACCESS_STATUS.ADMIN_OVERRIDE:
+      return {
+        label: feeStatus.isWaived ? 'Fee Waived' : 'Access Granted',
+        color: 'bg-teal-100 text-teal-800 border-teal-300',
+      }
+    case BATCH_ACCESS_STATUS.PENDING_VERIFICATION:
+      return { label: 'Under Review', color: 'bg-sky-100 text-sky-800 border-sky-300' }
+    case BATCH_ACCESS_STATUS.REJECTED:
+      return { label: 'Payment Rejected', color: 'bg-rose-100 text-rose-800 border-rose-300' }
+    case BATCH_ACCESS_STATUS.GRACE_PERIOD:
+      return { label: 'Due Soon', color: 'bg-amber-100 text-amber-800 border-amber-300' }
+    case BATCH_ACCESS_STATUS.FROZEN:
+      return { label: 'Access Frozen', color: 'bg-rose-100 text-rose-800 border-rose-300' }
+    case BATCH_ACCESS_STATUS.EXPIRED:
+      return { label: 'Validity Expired', color: 'bg-gray-100 text-gray-800 border-gray-300' }
+    case BATCH_ACCESS_STATUS.ACTIVE:
+    default:
+      return { label: 'Active', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' }
+  }
+}
+

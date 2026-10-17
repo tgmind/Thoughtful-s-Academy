@@ -152,18 +152,148 @@ export default function FeeManager() {
 
   const reject = async () => {
     if (!rejectId) return
+    const rec = pending.find(p => p.id === rejectId) || allFeeRecords.find(a => a.id === rejectId)
     setActing(rejectId)
+
     const { error } = await supabase.from('fee_records').update({
       status: 'rejected',
       notes: reason,
       verified_by: user.id,
       verified_at: new Date().toISOString()
     }).eq('id', rejectId)
+
+    if (error) {
+      setActing(null)
+      toast.error(error.message)
+      return
+    }
+
+    // 1. Send mandatory student notification
+    if (rec?.student_id) {
+      try {
+        await supabase.from('notifications').insert({
+          title: 'Fee Payment Rejected',
+          body: 'Fee Payment was Rejected By the Admin. Please contact the Admin.',
+          type: 'fee',
+          target_role: 'individual',
+          target_user_id: rec.student_id,
+          target_batch_id: rec.batch_id || null,
+          created_by: user.id,
+          is_active: true,
+        })
+      } catch (nErr) {
+        console.warn('Failed to insert rejection notification:', nErr)
+      }
+
+      // 2. Send personal message
+      try {
+        await supabase.from('messages').insert({
+          sender_id: user.id,
+          receiver_id: rec.student_id,
+          content: `Fee Payment was Rejected By the Admin. Please contact the Admin.${reason ? ` Reason: ${reason}` : ''}`,
+          batch_id: rec.batch_id || null,
+          is_broadcast: false,
+        })
+      } catch (mErr) {
+        console.warn('Failed to insert rejection message:', mErr)
+      }
+    }
+
+    // 3. Log to activity_logs
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        user_name: 'Admin',
+        user_role: 'admin',
+        action_type: 'fee_rejected',
+        entity_type: 'fee_record',
+        entity_title: `Fee Rejection - ${rec?.profiles?.full_name || 'Student'}`,
+        batch_id: rec?.batch_id || null,
+        details: JSON.stringify({
+          fee_record_id: rejectId,
+          student_id: rec?.student_id,
+          amount: rec?.amount,
+          reason: reason || 'Not provided',
+        }),
+      })
+    } catch (aErr) {
+      console.warn('Failed to log rejection activity:', aErr)
+    }
+
     setActing(null)
-    if (error) { toast.error(error.message); return }
-    toast.success('Fee payment rejected')
+    toast.success('Fee payment rejected and student notified')
     setRejectId(null)
     setReason('')
+    loadAllData()
+  }
+
+  const recoverRejection = async (recordOrId) => {
+    const id = typeof recordOrId === 'object' ? recordOrId.id : recordOrId
+    const rec = typeof recordOrId === 'object' ? recordOrId : allFeeRecords.find(a => a.id === id)
+    if (!rec) return
+    setActing(id)
+
+    let validUntil = null
+    if (rec.fee_mode === 'one_time' && rec.batch_id) {
+      const b = batches.find(x => x.id === rec.batch_id) || rec.batches
+      if (b?.validity_end_date) {
+        validUntil = new Date(`${b.validity_end_date}T23:59:59+05:30`).toISOString()
+      } else if (b?.validity_days) {
+        validUntil = new Date(Date.now() + b.validity_days * 86400000).toISOString()
+      }
+    }
+
+    const payload = {
+      status: 'verified',
+      notes: rec.notes ? `${rec.notes} (Rejection recovered by Admin)` : 'Rejection recovered by Admin',
+      verified_by: user.id,
+      verified_at: new Date().toISOString()
+    }
+    if (validUntil) payload.valid_until = validUntil
+
+    const { error } = await supabase.from('fee_records').update(payload).eq('id', id)
+    if (error) {
+      setActing(null)
+      toast.error(error.message)
+      return
+    }
+
+    // Activity log
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        user_name: 'Admin',
+        user_role: 'admin',
+        action_type: 'fee_rejection_recovered',
+        entity_type: 'fee_record',
+        entity_title: `Fee Rejection Recovered - ${rec.profiles?.full_name || 'Student'}`,
+        batch_id: rec.batch_id || null,
+        details: JSON.stringify({ fee_record_id: id, student_id: rec.student_id, amount: rec.amount }),
+      })
+    } catch (aErr) {
+      console.warn('Failed to log recovery activity:', aErr)
+    }
+
+    // Notify student
+    if (rec.student_id) {
+      try {
+        await supabase.from('notifications').insert({
+          title: 'Fee Payment Verified',
+          body: 'Your fee payment has been verified and batch access is restored.',
+          type: 'fee',
+          target_role: 'individual',
+          target_user_id: rec.student_id,
+          target_batch_id: rec.batch_id || null,
+          created_by: user.id,
+          is_active: true,
+        })
+      } catch (nErr) {
+        console.warn('Failed to insert recovery notification:', nErr)
+      }
+    }
+
+    setActing(null)
+    toast.success('Fee rejection recovered & payment verified ✓')
     loadAllData()
   }
 
@@ -897,13 +1027,35 @@ export default function FeeManager() {
                         {r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                       </td>
                       <td className="px-3.5 py-2.5 sm:py-3">
-                        <button
-                          onClick={() => navigate(`/admin/messages?student=${r.student_id}`)}
-                          className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
-                          title="Message Student"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          {r.status === 'rejected' && (
+                            <button
+                              onClick={() => recoverRejection(r)}
+                              disabled={acting === r.id}
+                              className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
+                              title="Recover Rejection & Verify Access"
+                            >
+                              <CheckCircle className="h-3 w-3" /> Recover
+                            </button>
+                          )}
+                          {r.status === 'pending' && (
+                            <button
+                              onClick={() => verify(r)}
+                              disabled={acting === r.id}
+                              className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
+                              title="Verify Payment"
+                            >
+                              <CheckCircle className="h-3 w-3" /> Verify
+                            </button>
+                          )}
+                          <button
+                            onClick={() => navigate(`/admin/messages?student=${r.student_id}`)}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
+                            title="Message Student"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
