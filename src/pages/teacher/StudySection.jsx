@@ -6,7 +6,7 @@ import {
   Link as LinkIcon, Sparkles, Globe, Search, X, FolderOpen,
   ArrowRight, Play, School, FileText, Plus, Edit2,
   Trash2, Lock, Eye, EyeOff, ChevronDown, Check,
-  Folder, ArrowLeft, Grid, List, Clock, Layers, ChevronRight, ChevronLeft
+  Folder, ArrowLeft, Grid, List, Clock, ChevronRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'

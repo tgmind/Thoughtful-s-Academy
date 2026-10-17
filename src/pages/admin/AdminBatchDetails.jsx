@@ -16,6 +16,7 @@ import { logActivity } from '../../lib/activityLogger'
 
 import DriveImage from '../../components/shared/DriveImage'
 import { getYTThumb, getYTPlaylistId, fetchYouTubeOEmbed } from '../../utils/youtube'
+import { formatBatchFeeBadge } from '../../utils/feeAccess'
 
 // Rich Text Editor Toolbar Component
 function RichTextEditor({ value, onChange }) {
@@ -434,7 +435,17 @@ export default function AdminBatchDetails() {
         />
         {selectedBatchId && (
           <div className="flex items-center justify-between pt-3 border-t border-gray-100 flex-wrap gap-2">
-            <span className="text-xs text-gray-500 font-medium">Batch Security & Audit Trail</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">Batch Security & Audit Trail</span>
+              {(() => {
+                const badge = formatBatchFeeBadge(selectedBatch)
+                return badge ? (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${badge.color}`}>
+                    {badge.text}
+                  </span>
+                ) : null
+              })()}
+            </div>
             <button
               type="button"
               onClick={() => setShowActivityLog(true)}

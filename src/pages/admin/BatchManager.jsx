@@ -4,8 +4,20 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import CustomSelect from '../../components/ui/CustomSelect'
 import DriveImage from '../../components/shared/DriveImage'
+import { formatBatchFeeBadge } from '../../utils/feeAccess'
 
-const EMPTY = { name: '', description: '', subjects: [], teacher_ids: [], poster_url: '' }
+const EMPTY = {
+  name: '',
+  description: '',
+  subjects: [],
+  teacher_ids: [],
+  poster_url: '',
+  fee_mode: 'monthly',
+  fee_amount: '',
+  validity_type: 'days',
+  validity_days: '',
+  validity_end_date: '',
+}
 
 // Tag input: lets admin type a subject name and press Enter or comma to add it
 function SubjectTagInput({ value, onChange }) {
@@ -99,7 +111,12 @@ export default function BatchManager() {
       description: b.description || '',
       subjects: b.subjects || [],
       teacher_ids: ids,
-      poster_url: b.poster_url || ''
+      poster_url: b.poster_url || '',
+      fee_mode: b.fee_mode || 'monthly',
+      fee_amount: b.fee_amount != null && b.fee_amount !== 0 ? String(b.fee_amount) : '',
+      validity_type: b.validity_end_date ? 'date' : 'days',
+      validity_days: b.validity_days != null ? String(b.validity_days) : '',
+      validity_end_date: b.validity_end_date || '',
     })
     setShowForm(true)
   }
@@ -108,13 +125,18 @@ export default function BatchManager() {
     if (!form.name.trim()) { toast.error('Batch name is required'); return }
     setSaving(true)
     const tIds = Array.isArray(form.teacher_ids) ? form.teacher_ids : []
+    const feeAmountNum = form.fee_amount ? parseFloat(form.fee_amount) : 0
     const payload = {
       name: form.name.trim(),
       description: form.description || null,
       subjects: Array.isArray(form.subjects) ? form.subjects : [],
       teacher_ids: tIds,
       teacher_id: tIds[0] || null,
-      poster_url: (form.poster_url || '').trim() || null
+      poster_url: (form.poster_url || '').trim() || null,
+      fee_mode: form.fee_mode || 'monthly',
+      fee_amount: isNaN(feeAmountNum) ? 0 : feeAmountNum,
+      validity_days: form.fee_mode === 'one_time' && form.validity_type === 'days' && form.validity_days ? parseInt(form.validity_days, 10) : null,
+      validity_end_date: form.fee_mode === 'one_time' && form.validity_type === 'date' && form.validity_end_date ? form.validity_end_date : null,
     }
 
     const { data, error } = editing
@@ -196,9 +218,19 @@ export default function BatchManager() {
                       <p className="text-sm text-gray-500">{b.subjects.join(', ')}</p>
                     )}
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {b.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {b.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    {(() => {
+                      const feeBadge = formatBatchFeeBadge(b)
+                      return feeBadge ? (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${feeBadge.color}`}>
+                          {feeBadge.text}
+                        </span>
+                      ) : null
+                    })()}
+                  </div>
                 </div>
                 {b.description && <p className="text-xs text-gray-500 mb-3">{b.description}</p>}
                 <div className="flex items-center gap-3 text-sm text-gray-500 mb-4 flex-wrap">
@@ -288,6 +320,123 @@ export default function BatchManager() {
                   />
                 </div>
               </div>
+
+              {/* ── Fee & Subscription Settings ── */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                    Fee & Billing Mode
+                  </label>
+                  <span className="text-[11px] text-slate-500 font-medium">Dual-Mode Architecture</span>
+                </div>
+
+                {/* Fee Mode Toggle */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-200/60 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => set('fee_mode', 'monthly')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                      form.fee_mode === 'monthly'
+                        ? 'bg-white text-blue-950 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🗓️ Monthly Fee
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => set('fee_mode', 'one_time')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                      form.fee_mode === 'one_time'
+                        ? 'bg-white text-purple-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    ⚡ One-Time Fee
+                  </button>
+                </div>
+
+                {/* Fee Amount */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {form.fee_mode === 'monthly' ? 'Monthly Tuition Fee (₹)' : 'One-Time Course Fee (₹)'}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.fee_amount}
+                    onChange={e => set('fee_amount', e.target.value)}
+                    placeholder="e.g. 1500 (Enter 0 for free batch)"
+                    className="w-full px-3.5 py-2 bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm font-semibold text-slate-900"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {form.fee_mode === 'monthly'
+                      ? 'Due every calendar month. Days 1–10 grace period; Day 11+ locks unpaid access.'
+                      : 'Single upfront payment granting access for the defined course validity.'}
+                  </p>
+                </div>
+
+                {/* One-Time Validity Options */}
+                {form.fee_mode === 'one_time' && (
+                  <div className="pt-2 border-t border-slate-200/80 space-y-2.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Course Subscription Validity
+                    </label>
+                    <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-700">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="validity_type"
+                          checked={form.validity_type === 'days'}
+                          onChange={() => set('validity_type', 'days')}
+                          className="text-purple-600 focus:ring-purple-500"
+                        />
+                        <span>Duration (Days from payment)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="validity_type"
+                          checked={form.validity_type === 'date'}
+                          onChange={() => set('validity_type', 'date')}
+                          className="text-purple-600 focus:ring-purple-500"
+                        />
+                        <span>Fixed Expiry Date</span>
+                      </label>
+                    </div>
+
+                    {form.validity_type === 'days' ? (
+                      <div>
+                        <input
+                          type="number"
+                          min="1"
+                          value={form.validity_days}
+                          onChange={e => set('validity_days', e.target.value)}
+                          placeholder="e.g. 90, 180, 365"
+                          className="w-full px-3.5 py-2 bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-600 text-sm font-semibold"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Student retains access for this many days after payment is verified.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="date"
+                          value={form.validity_end_date}
+                          onChange={e => set('validity_end_date', e.target.value)}
+                          className="w-full px-3.5 py-2 bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-600 text-sm font-semibold"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Fixed cutoff date (e.g. Exam date). Access expires at 11:59 PM on this date.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* ── Batch Poster ── */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">

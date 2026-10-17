@@ -30,6 +30,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { getYTThumb } from '../../utils/youtube'
+import { checkBatchFeeStatus, BATCH_ACCESS_STATUS } from '../../utils/feeAccess'
 
 function todayISO() {
   const d = new Date()
@@ -200,6 +201,7 @@ export default function StudentDashboard() {
   const [recentStudyCards, setRecentStudyCards] = useState(() => initialCache?.recentStudyCards ?? [])
   const [liveClassData, setLiveClassData] = useState(() => initialLiveActive ? initialCache.liveClassData : null)
   const [todayAttendance, setTodayAttendance] = useState(() => initialCache?.todayAttendance ?? null)
+  const [batchFeeStatus, setBatchFeeStatus] = useState(null)
 
   // Only start in loading state if there is no cache
   const [loading, setLoading] = useState(() => !initialCache)
@@ -278,9 +280,9 @@ export default function StudentDashboard() {
       // Primary phase: fetch student profile and direct records in parallel (optimized: derive today's attendance from attRes, limit attendance history to 60 days)
       const [attRes, feeRes, msgRes, spRes] = await Promise.allSettled([
         supabase.from('attendance').select('id, date, status').eq('student_id', uid).order('date', { ascending: false }).limit(60),
-        supabase.from('fee_records').select('id, amount, status').eq('student_id', uid).eq('status', 'pending'),
+        supabase.from('fee_records').select('id, batch_id, amount, payment_month, fee_mode, valid_until, status').eq('student_id', uid),
         supabase.from('messages').select('id', { count: 'exact', head: true }).eq('receiver_id', uid).eq('is_read', false),
-        supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(name)').eq('id', uid).maybeSingle(),
+        supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('id', uid).maybeSingle(),
       ])
 
       // Check if this request was superseded by another render or unmounted
@@ -289,10 +291,12 @@ export default function StudentDashboard() {
       let currentBatchId = batchIdRef.current
       let currentBatchName = batchName
       let currentTrialEnds = trialEndsAt
+      let currentBatchObj = null
 
       if (spRes.status === 'fulfilled' && spRes.value?.data) {
         const spData = spRes.value.data
         currentBatchId = spData.batch_id ?? null
+        currentBatchObj = spData.batches ?? null
         currentBatchName = spData.batches?.name ?? null
         currentTrialEnds = spData.trial_ends_at ?? null
 
@@ -301,6 +305,15 @@ export default function StudentDashboard() {
         setBatchName(currentBatchName)
         setTrialEndsAt(currentTrialEnds)
       }
+
+      // Calculate authoritative batch fee status
+      const feeData = (feeRes.status === 'fulfilled' && feeRes.value?.data) ? feeRes.value.data : []
+      const feeStatus = checkBatchFeeStatus({
+        student: { id: uid, trial_ends_at: currentTrialEnds },
+        batch: currentBatchObj,
+        feeRecords: feeData,
+      })
+      setBatchFeeStatus(feeStatus)
 
       // Secondary phase: Batch-targeted notifications, live classes, homework & study materials
       const notifQ = supabase.from('notifications')
@@ -358,10 +371,6 @@ export default function StudentDashboard() {
       const todayStatus = todayRow ? todayRow.status : null
       setTodayAttendance(todayStatus)
 
-      // Fee records count
-      const feeData = (feeRes.status === 'fulfilled' && feeRes.value?.data) ? feeRes.value.data : []
-      const pendingFeesCount = feeData.length
-
       // Unread messages count
       const unreadCount = (msgRes.status === 'fulfilled' && typeof msgRes.value?.count === 'number') ? msgRes.value.count : 0
 
@@ -403,7 +412,8 @@ export default function StudentDashboard() {
         present: presentCount,
         late: lateCount,
         absent: absentCount,
-        pending_fees: pendingFeesCount,
+        pending_fees: (feeStatus.isFrozen || feeStatus.inGracePeriod) ? 1 : 0,
+        batchFeeStatus: feeStatus,
         unread: unreadCount,
         live: !!activeLive,
         streak: currentStreak,
@@ -525,12 +535,22 @@ export default function StudentDashboard() {
     })
 
     const syncFees = () => debounce('fees', async () => {
-      const { data } = await supabase.from('fee_records')
-        .select('id, amount, status')
-        .eq('student_id', uid)
-        .eq('status', 'pending')
-      if (isSubscribed && data) {
-        setStats(s => ({ ...s, pending_fees: data.length }))
+      const [feeR, spR] = await Promise.all([
+        supabase.from('fee_records').select('id, batch_id, amount, payment_month, fee_mode, valid_until, status').eq('student_id', uid),
+        supabase.from('student_profiles').select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('id', uid).maybeSingle()
+      ])
+      if (isSubscribed) {
+        const fStatus = checkBatchFeeStatus({
+          student: { id: uid, trial_ends_at: spR.data?.trial_ends_at },
+          batch: spR.data?.batches || null,
+          feeRecords: feeR.data ?? [],
+        })
+        setBatchFeeStatus(fStatus)
+        setStats(s => ({
+          ...s,
+          pending_fees: (fStatus.isFrozen || fStatus.inGracePeriod) ? 1 : 0,
+          batchFeeStatus: fStatus,
+        }))
       }
     })
 
@@ -773,16 +793,26 @@ export default function StudentDashboard() {
     },
     {
       label: 'Pay Fee',
-      path: '/student/pay-fee',
+      path: `/student/pay-fee${batchId ? `?batch_id=${batchId}` : ''}`,
       icon: <CreditCard className="h-5 w-5" />,
-      accentBg: stats.pending_fees > 0
+      accentBg: batchFeeStatus?.isFrozen
+        ? 'from-rose-500/20 to-red-500/20 border-rose-500/30 text-rose-700'
+        : batchFeeStatus?.inGracePeriod
         ? 'from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-700'
-        : 'from-amber-500/10 to-yellow-500/10 border-amber-500/20 text-amber-600',
-      iconBg: stats.pending_fees > 0
+        : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-600',
+      iconBg: batchFeeStatus?.isFrozen
+        ? 'bg-rose-600 text-white shadow-sm'
+        : batchFeeStatus?.inGracePeriod
         ? 'bg-amber-500 text-white shadow-sm'
-        : 'bg-amber-500/10 text-amber-600 group-hover:bg-amber-600 group-hover:text-white',
-      desc: stats.pending_fees > 0 ? `${stats.pending_fees} Pending record` : 'Instant UPI receipt',
-      badge: stats.pending_fees > 0 ? 'DUE' : 'Clear',
+        : 'bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white',
+      desc: batchFeeStatus?.message || 'Tuition & Batch Fees',
+      badge: batchFeeStatus?.isFrozen
+        ? (batchFeeStatus.status === BATCH_ACCESS_STATUS.EXPIRED ? 'EXPIRED' : 'FROZEN')
+        : batchFeeStatus?.inGracePeriod
+        ? 'DUE'
+        : batchFeeStatus?.status === BATCH_ACCESS_STATUS.TRIAL
+        ? 'TRIAL'
+        : 'Clear',
     },
     {
       label: 'Notifications',
@@ -919,31 +949,47 @@ export default function StudentDashboard() {
         </motion.div>
       )}
 
-      {/* ── 3. Pending Fee Warning Bar ── */}
-      {!loading && stats.pending_fees > 0 && (
+      {/* ── 3. Dual-Mode Fee Alert Bar ── */}
+      {!loading && batchFeeStatus && (batchFeeStatus.isFrozen || batchFeeStatus.inGracePeriod) && (
         <motion.div
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-amber-50 border border-amber-200/80 p-4 text-amber-950 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          className={`rounded-2xl border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            batchFeeStatus.isFrozen
+              ? 'bg-rose-50 border-rose-200/90 text-rose-950'
+              : 'bg-amber-50 border-amber-200/90 text-amber-950'
+          }`}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 bg-amber-200/60 rounded-xl text-amber-800 shrink-0">
-              <AlertCircle className="h-5 w-5" />
+            <div className={`p-2.5 rounded-xl shrink-0 ${
+              batchFeeStatus.isFrozen ? 'bg-rose-200/70 text-rose-800' : 'bg-amber-200/70 text-amber-800'
+            }`}>
+              {batchFeeStatus.isFrozen ? <AlertCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
-                TUITION FEE PENDING
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                batchFeeStatus.isFrozen ? 'bg-rose-200/80 text-rose-900' : 'bg-amber-200/80 text-amber-900'
+              }`}>
+                {batchFeeStatus.isFrozen
+                  ? (batchFeeStatus.status === BATCH_ACCESS_STATUS.EXPIRED ? 'SUBSCRIPTION EXPIRED' : 'BATCH ACCESS FROZEN')
+                  : `MONTHLY TUITION FEE · GRACE PERIOD ACTIVE (${batchFeeStatus.daysRemainingInGrace}D REMAINING)`}
               </span>
-              <p className="text-xs sm:text-sm font-bold text-amber-950 mt-0.5">
-                You have {stats.pending_fees} pending fee record{stats.pending_fees > 1 ? 's' : ''}. Complete payment to maintain uninterrupted access.
+              <p className={`text-xs sm:text-sm font-bold mt-0.5 ${
+                batchFeeStatus.isFrozen ? 'text-rose-950' : 'text-amber-950'
+              }`}>
+                {batchFeeStatus.message}
               </p>
             </div>
           </div>
           <Link
-            to="/student/pay-fee"
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+            to={`/student/pay-fee?batch_id=${batchId || ''}&amount=${batchFeeStatus.feeAmount || ''}`}
+            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer ${
+              batchFeeStatus.isFrozen
+                ? 'bg-rose-600 hover:bg-rose-700'
+                : 'bg-amber-600 hover:bg-amber-700'
+            }`}
           >
-            <span>Pay Fee & Upload Receipt</span>
+            <span>{batchFeeStatus.isFrozen ? 'Pay Fee to Restore Access' : 'Pay Monthly Fee'}</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </motion.div>

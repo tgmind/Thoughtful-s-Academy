@@ -10,7 +10,6 @@ import {
   User,
   Hash,
   Sparkles,
-  BookOpen,
 } from 'lucide-react'
 import { formatTimestamp } from '../../services/doubtService'
 

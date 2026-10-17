@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ClipboardList, CheckCircle2, Clock, FileText } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ClipboardList, CheckCircle2, Clock, FileText, ShieldAlert, CreditCard } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { checkBatchFeeStatus } from '../../utils/feeAccess'
 import { normalizeUrl } from '../../utils/formatters'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 
@@ -24,8 +26,10 @@ const TABS = ['To Do', 'Submitted']
 
 export default function StudentHomework() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [batchId,    setBatchId]    = useState(null)
   const [batchReady, setBatchReady] = useState(false)
+  const [batchFeeStatus, setBatchFeeStatus] = useState(null)
   const [homework,   setHomework]   = useState([])
   const [subs,       setSubs]       = useState({})   // homework_id -> submission row
   const [links,      setLinks]      = useState({})   // homework_id -> draft link
@@ -34,17 +38,50 @@ export default function StudentHomework() {
   const [tab,        setTab]        = useState('To Do')
   const [viewingMaterial, setViewingMaterial] = useState(null)
 
-  // Resolve the student's batch first.
+  // Resolve the student's batch and fee access status first (with realtime updates).
   useEffect(() => {
     if (!user) return
     let cancelled = false
-    supabase.from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
-      .then(({ data }) => {
+
+    const loadBatchAndFees = () => {
+      Promise.all([
+        supabase
+          .from('student_profiles')
+          .select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)')
+          .eq('id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('fee_records')
+          .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+          .eq('student_id', user.id)
+      ]).then(([spRes, feeRes]) => {
         if (cancelled) return
-        setBatchId(data?.batch_id ?? null)
+        const sp = spRes.data
+        setBatchId(sp?.batch_id ?? null)
+        if (sp?.batches) {
+          const status = checkBatchFeeStatus({
+            student: { id: user.id, trial_ends_at: sp.trial_ends_at },
+            batch: sp.batches,
+            feeRecords: feeRes.data ?? []
+          })
+          setBatchFeeStatus(status)
+        }
         setBatchReady(true)
       })
-    return () => { cancelled = true }
+    }
+
+    loadBatchAndFees()
+
+    const channel = supabase.channel(`homework_fee_sync_${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` }, () => {
+        if (!cancelled) loadBatchAndFees()
+      })
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   // Load homework + submissions and keep them live.
@@ -161,6 +198,37 @@ export default function StudentHomework() {
         </div>
         <h3 className="font-bold text-gray-600 text-lg mb-1">No Batch Assigned</h3>
         <p className="text-sm text-gray-400 max-w-xs">You&apos;ll see homework here once an admin enrolls you in a batch.</p>
+      </div>
+    </div>
+  )
+
+  // Batch access frozen due to pending fees or expired validity
+  if (batchFeeStatus?.isFrozen) return (
+    <div className="space-y-6 pb-20 lg:pb-0 max-w-2xl">
+      <h2 className="font-bold text-lg text-gray-900">Homework</h2>
+      <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-3xl border border-rose-100 p-8 shadow-sm">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mb-4 text-rose-600 shadow-sm">
+          <ShieldAlert className="h-8 w-8" />
+        </div>
+        <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 mb-2">
+          Batch Access Paused
+        </span>
+        <h3 className="font-extrabold text-slate-900 text-lg mb-2">
+          {batchFeeStatus.status === 'expired' || batchFeeStatus.reason === 'expired'
+            ? 'Course Subscription Expired'
+            : batchFeeStatus.feeMode === 'one_time'
+            ? 'Course Fee Required'
+            : 'Monthly Fee Payment Pending'}
+        </h3>
+        <p className="text-xs text-slate-500 max-w-sm mb-6 leading-relaxed">
+          {batchFeeStatus.message || 'Homework assignments and submissions for your batch are currently paused. Clear your dues to resume your coursework.'}
+        </p>
+        <button
+          onClick={() => navigate('/student/pay-fee')}
+          className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+        >
+          <CreditCard className="h-4 w-4" /> Pay Fee to Unlock Homework
+        </button>
       </div>
     </div>
   )

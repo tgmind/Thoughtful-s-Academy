@@ -1,20 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
-  HelpCircle,
   CheckCircle2,
-  Clock,
   Search,
-  Filter,
   RefreshCw,
   Users,
   Layers,
   ChevronDown,
   ChevronRight,
   ShieldCheck,
-  UserCheck,
   AlertCircle,
   X,
-  ChevronsUpDown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
@@ -32,7 +27,6 @@ export default function AdminDoubts() {
 
   const [doubts, setDoubts] = useState([])
   const [teachers, setTeachers] = useState([])
-  const [batches, setBatches] = useState([])
   const [teacherGroups, setTeacherGroups] = useState({})
   const [unassignedGroup, setUnassignedGroup] = useState({ items: [], pendingCount: 0, addressedCount: 0 })
   const [subjectBatchGroups, setSubjectBatchGroups] = useState({})
@@ -60,7 +54,6 @@ export default function AdminDoubts() {
       setIsSchemaReady(res.isSchemaReady)
       setDoubts(res.doubts)
       setTeachers(res.teachers ?? [])
-      setBatches(res.batches ?? [])
       setTeacherGroups(res.teacherGroups ?? {})
       setUnassignedGroup(res.unassignedGroup ?? { items: [], pendingCount: 0, addressedCount: 0 })
       setSubjectBatchGroups(res.subjectBatchGroups ?? {})

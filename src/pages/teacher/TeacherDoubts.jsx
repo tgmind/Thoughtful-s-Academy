@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Clock,
   Search,
-  Filter,
   RefreshCw,
   Layers,
   ChevronDown,
@@ -30,7 +29,6 @@ export default function TeacherDoubts() {
   const [doubts, setDoubts] = useState([])
   const [allDoubts, setAllDoubts] = useState([])
   const [batches, setBatches] = useState([])
-  const [groups, setGroups] = useState({})
   const [stats, setStats] = useState({ pending: 0, addressedToday: 0 })
   const [loading, setLoading] = useState(true)
   const [isSchemaReady, setIsSchemaReady] = useState(true)
@@ -53,7 +51,6 @@ export default function TeacherDoubts() {
       setDoubts(res.doubts)
       setAllDoubts(res.allDoubts ?? res.doubts)
       setBatches(res.batches ?? [])
-      setGroups(res.groups ?? {})
       setStats(res.stats ?? { pending: 0, addressedToday: 0 })
     } catch (err) {
       toast.error(err.message || 'Failed to load teacher doubts.')
@@ -82,7 +79,6 @@ export default function TeacherDoubts() {
 
     // Save previous state for rollback
     const prevDoubts = [...doubts]
-    const target = doubts.find((d) => d.id === doubtId)
 
     // Optimistic mutation: remove from active teacher pending queue
     setDoubts((prev) => prev.filter((d) => d.id !== doubtId))

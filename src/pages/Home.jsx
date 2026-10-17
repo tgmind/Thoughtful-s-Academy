@@ -406,6 +406,34 @@ export default function Home() {
     }
   }
 
+  // Trust / Info cards mobile snap scroll
+  const trustScrollRef = useRef(null)
+  const [activeTrustIndex, setActiveTrustIndex] = useState(0)
+
+  const scrollToTrustCard = (index) => {
+    if (!trustScrollRef.current) return
+    const container = trustScrollRef.current
+    const cards = container.querySelectorAll('[data-trust-card]')
+    if (cards[index]) {
+      const card = cards[index]
+      const left = card.offsetLeft - container.offsetLeft - (container.clientWidth - card.clientWidth) / 2
+      container.scrollTo({ left, behavior: 'smooth' })
+      setActiveTrustIndex(index)
+    }
+  }
+
+  const handleTrustScroll = (e) => {
+    const container = e.currentTarget
+    const scrollLeft = container.scrollLeft
+    const card = container.querySelector('[data-trust-card]')
+    if (!card) return
+    const cardWidth = card.offsetWidth + 12
+    const newIndex = Math.min(3, Math.max(0, Math.round(scrollLeft / cardWidth)))
+    if (newIndex !== activeTrustIndex) {
+      setActiveTrustIndex(newIndex)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     supabase.from('notifications')
@@ -423,13 +451,14 @@ export default function Home() {
         }).slice(0, 20)
         setNotifications(valid)
       })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
     let cancelled = false
     supabase.from('study_cards')
-      .select('id, title, description, type, url, thumbnail_url, is_featured')
+      .select('*')
       .eq('is_active', true)
       .eq('is_featured', true)
       .order('display_order')
@@ -438,6 +467,7 @@ export default function Home() {
         if (cancelled) return
         setFeatured(data ?? [])
       })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [])
 
@@ -451,6 +481,7 @@ export default function Home() {
         if (cancelled) return
         setBatches(data ?? [])
       })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [])
 
@@ -478,7 +509,7 @@ export default function Home() {
     if (activeBatch === 'all') {
       supabase
         .from('study_cards')
-        .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids')
+        .select('*')
         .eq('is_active', true)
         .eq('is_public', true)
         .order('display_order')
@@ -488,10 +519,13 @@ export default function Home() {
           setTotalCards((data ?? []).length)
           setLoading(false)
         })
+        .catch(() => {
+          if (!cancelled) setLoading(false)
+        })
     } else {
       supabase
         .from('study_cards')
-        .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids')
+        .select('*')
         .eq('is_active', true)
         .eq('is_public', true)
         .or(`batch_ids.cs.{${activeBatch}},batch_id.eq.${activeBatch}`)
@@ -502,7 +536,7 @@ export default function Home() {
             // Fallback: fetch all public cards and filter in memory if OR syntax errors on DB schema
             supabase
               .from('study_cards')
-              .select('id, title, description, type, url, thumbnail_url, is_featured, is_public, batch_ids')
+              .select('*')
               .eq('is_active', true)
               .eq('is_public', true)
               .order('display_order')
@@ -516,11 +550,17 @@ export default function Home() {
                 setTotalCards(matched.length)
                 setLoading(false)
               })
+              .catch(() => {
+                if (!cancelled) setLoading(false)
+              })
           } else {
             setCards(data ?? [])
             setTotalCards(data.length)
             setLoading(false)
           }
+        })
+        .catch(() => {
+          if (!cancelled) setLoading(false)
         })
     }
     return () => { cancelled = true }
@@ -705,51 +745,124 @@ export default function Home() {
 
       {/* ════════════ INFO & TRUST STRIP ════════════ */}
       <section className="bg-white border-b border-slate-100">
-        <div className={`${CONTAINER} py-12`}>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition-all group">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <Video className="h-6 w-6" />
+        <div className={`${CONTAINER} py-4 sm:py-8 lg:py-12`}>
+          {/* Mobile: Horizontal Snap Carousel (compact ~130px height) | Tablet: 2-Col Grid | Desktop: 4-Col Grid */}
+          <div
+            ref={trustScrollRef}
+            onScroll={handleTrustScroll}
+            className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 snap-x snap-mandatory scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-5 px-5 sm:mx-0 sm:px-0"
+          >
+            <div
+              data-trust-card
+              className="w-[84vw] max-w-[320px] sm:w-auto shrink-0 snap-center p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-indigo-300 hover:shadow-md transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3 sm:block">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform sm:mb-3">
+                      <Video className="h-4 w-4 sm:h-6 sm:w-6" />
+                    </div>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-100/60 px-2 py-0.5 rounded-md inline-block sm:mb-1.5">
+                      HD STREAMING &amp; LIVE
+                    </span>
+                  </div>
+                  <span className="sm:hidden text-[9.5px] font-extrabold text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded">
+                    1 / 4
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-sm mb-1 leading-snug">Live &amp; Recorded Classes</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">Attend interactive sessions live, or catch up anytime with protected 1080p replay &amp; speed controls.</p>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
-                HD STREAMING &amp; LIVE
-              </span>
-              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Live &amp; Recorded Classes</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">Attend interactive sessions live, or catch up anytime with protected 1080p replay &amp; speed controls.</p>
             </div>
 
-            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-amber-300 hover:shadow-md transition-all group">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <MessageSquare className="h-6 w-6" />
+            <div
+              data-trust-card
+              className="w-[84vw] max-w-[320px] sm:w-auto shrink-0 snap-center p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-amber-300 hover:shadow-md transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3 sm:block">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform sm:mb-3">
+                      <MessageSquare className="h-4 w-4 sm:h-6 sm:w-6" />
+                    </div>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-md inline-block sm:mb-1.5">
+                      1-ON-1 MENTORSHIP
+                    </span>
+                  </div>
+                  <span className="sm:hidden text-[9.5px] font-extrabold text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded">
+                    2 / 4
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-sm mb-1 leading-snug">Personal Doubt Support</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">Message Subodh Sir directly or ask timestamped doubts during video playback. No question is left behind.</p>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
-                1-ON-1 MENTORSHIP
-              </span>
-              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Personal Doubt Support</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">Message Subodh Sir directly or ask timestamped doubts during video playback. No question is left behind.</p>
             </div>
 
-            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-emerald-300 hover:shadow-md transition-all group">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <BookOpen className="h-6 w-6" />
+            <div
+              data-trust-card
+              className="w-[84vw] max-w-[320px] sm:w-auto shrink-0 snap-center p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-emerald-300 hover:shadow-md transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3 sm:block">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform sm:mb-3">
+                      <BookOpen className="h-4 w-4 sm:h-6 sm:w-6" />
+                    </div>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md inline-block sm:mb-1.5">
+                      SMART STUDY CARDS
+                    </span>
+                  </div>
+                  <span className="sm:hidden text-[9.5px] font-extrabold text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded">
+                    3 / 4
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-sm mb-1 leading-snug">Handwritten Notes &amp; DPPs</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">Organized chapter formula sheets, practice problems, and downloadable PDFs tailored to your batch syllabus.</p>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
-                SMART STUDY CARDS
-              </span>
-              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Handwritten Notes &amp; DPPs</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">Organized chapter formula sheets, practice problems, and downloadable PDFs tailored to your batch syllabus.</p>
             </div>
 
-            <div className="p-5 rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-rose-300 hover:shadow-md transition-all group">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <CheckCircle2 className="h-6 w-6" />
+            <div
+              data-trust-card
+              className="w-[84vw] max-w-[320px] sm:w-auto shrink-0 snap-center p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border border-slate-200/70 hover:border-rose-300 hover:shadow-md transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3 sm:block">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform sm:mb-3">
+                      <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6" />
+                    </div>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-rose-700 bg-rose-100/60 px-2 py-0.5 rounded-md inline-block sm:mb-1.5">
+                      HABIT &amp; TRACKING
+                    </span>
+                  </div>
+                  <span className="sm:hidden text-[9.5px] font-extrabold text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded">
+                    4 / 4
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-sm mb-1 leading-snug">Streak &amp; Attendance Gauge</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">Daily check-in streak flames, interactive attendance gauges, and homework deadlines to foster peak consistency.</p>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 bg-rose-100/60 px-2 py-0.5 rounded-md inline-block mb-1.5">
-                HABIT &amp; TRACKING
-              </span>
-              <h3 className="font-extrabold text-slate-900 text-sm mb-1">Streak &amp; Attendance Gauge</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">Daily check-in streak flames, interactive attendance gauges, and homework deadlines to foster peak consistency.</p>
             </div>
+
+            {/* Spacer for smooth end snap on mobile */}
+            <div className="w-2 shrink-0 sm:hidden" aria-hidden="true" />
+          </div>
+
+          {/* Interactive Carousel Indicator Dots (Mobile Only) */}
+          <div className="flex sm:hidden items-center justify-center gap-1.5 mt-2.5">
+            {[0, 1, 2, 3].map((idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => scrollToTrustCard(idx)}
+                aria-label={`Go to feature slide ${idx + 1}`}
+                className={`transition-all duration-300 rounded-full h-1.5 ${
+                  activeTrustIndex === idx
+                    ? 'w-5 bg-indigo-600'
+                    : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                }`}
+              />
+            ))}
           </div>
         </div>
       </section>

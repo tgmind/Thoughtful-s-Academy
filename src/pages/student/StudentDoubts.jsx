@@ -6,9 +6,7 @@ import {
   Clock,
   Search,
   BookOpen,
-  Filter,
   RefreshCw,
-  Sparkles,
   X,
   ArrowRight,
 } from 'lucide-react'

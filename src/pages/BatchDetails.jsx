@@ -69,7 +69,7 @@ export default function BatchDetails() {
     const { data, error } = await supabase.from('study_cards')
       .select('*')
       .eq('is_active', true)
-      .eq('is_public', true)
+      .or('is_public.eq.true,is_featured.eq.true')
       .order('display_order')
 
     if (error) {
@@ -533,32 +533,32 @@ export default function BatchDetails() {
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeBatch.detailed_info) }}
                 />
               ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                  <div className="p-5 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-2">
-                    <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center">
-                      <Video className="h-5 w-5" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 pt-2">
+                  <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-blue-50/60 border border-blue-100 space-y-1.5 sm:space-y-2">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+                      <Video className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                    <h3 className="font-bold text-gray-900 text-base">Live &amp; Recorded Classes</h3>
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base">Live &amp; Recorded Classes</h3>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Attend daily live interactive classes or catch up anytime with instant recordings.
                     </p>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-amber-50/60 border border-amber-100 space-y-2">
-                    <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center">
-                      <BookOpen className="h-5 w-5" />
+                  <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-amber-50/60 border border-amber-100 space-y-1.5 sm:space-y-2">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center">
+                      <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                    <h3 className="font-bold text-gray-900 text-base">Curated Study Materials</h3>
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base">Curated Study Materials</h3>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Access structured chapter notes, formulas, PYQs, and daily practice problem cards.
                     </p>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-2">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
-                      <Users className="h-5 w-5" />
+                  <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-1.5 sm:space-y-2">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                    <h3 className="font-bold text-gray-900 text-base">1-on-1 Personal Doubt Support</h3>
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base">1-on-1 Personal Doubt Support</h3>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Message teachers directly in your portal to resolve doubts quickly and stay ahead.
                     </p>
@@ -759,7 +759,25 @@ export default function BatchDetails() {
           </div>
         </main>
       ) : (
-        <div className="py-20 text-center text-gray-500 text-sm">No batches available.</div>
+        <div className="min-h-[50vh] flex items-center justify-center p-6">
+          <div className="max-w-md w-full text-center bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-blue-950/5 space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-inner">
+              <GraduationCap className="h-8 w-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">No Batches Currently Available</h2>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              We are preparing new batches for the upcoming academic session. Explore our free lectures or return to the academy homepage.
+            </p>
+            <div className="pt-2">
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold text-sm shadow-md shadow-amber-400/20 transition-all hover:-translate-y-0.5"
+              >
+                <HomeIcon className="h-4 w-4" /> Return to Home
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
 
 

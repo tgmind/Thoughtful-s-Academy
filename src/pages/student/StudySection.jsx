@@ -5,11 +5,13 @@ import {
   BookOpen, PlayCircle, Heart, Youtube,
   Link as LinkIcon, ChevronLeft, ChevronRight, BookMarked, GraduationCap,
   Sparkles, Globe, Search, X, FolderOpen, Layers, Atom, FlaskConical,
-  Dna, Calculator, ArrowRight, Play, FileText, Video, Home, Folder
+  Dna, Calculator, ArrowRight, Play, FileText, Video, Home, Folder,
+  ShieldAlert, CreditCard
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { checkBatchFeeStatus } from '../../utils/feeAccess'
 import LiveClassBanner from '../../components/shared/LiveClassBanner'
 import MaterialViewerModal from '../../components/shared/MaterialViewerModal'
 import { normalizeUrl } from '../../utils/formatters'
@@ -486,6 +488,18 @@ export default function StudySection() {
   const [showSubjectSwitcher, setShowSubjectSwitcher] = useState(false)
   const [viewingMaterial, setViewingMaterial] = useState(null)
   const [notesPlaylistCard, setNotesPlaylistCard] = useState(null)
+  const [batchDetails, setBatchDetails] = useState(null)
+  const [trialEndsAt, setTrialEndsAt] = useState(null)
+  const [feeRecords, setFeeRecords] = useState([])
+
+  const batchFeeStatus = useMemo(() => {
+    if (!user || !batchDetails) return null
+    return checkBatchFeeStatus({
+      student: { id: user.id, trial_ends_at: trialEndsAt },
+      batch: batchDetails,
+      feeRecords: feeRecords,
+    })
+  }, [user, batchDetails, trialEndsAt, feeRecords])
 
   const handleOpenNotes = (card) => {
     if (Array.isArray(card?.attached_notes) && card.attached_notes.length === 1) {
@@ -588,18 +602,46 @@ export default function StudySection() {
     }
   }, [loading, highlightedCardId])
 
-  // Get student batch + subjects + batch name
+  // Get student batch + subjects + batch name + fee status (with realtime listener)
   useEffect(() => {
     if (!user) return
-    supabase.from('student_profiles')
-      .select('batch_id, subjects, batches(name)')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setBatchId(data?.batch_id ?? null)
-        setBatchName(data?.batches?.name ?? '')
-        setStudentSubjects(data?.subjects ?? [])
+    let unmounted = false
+
+    const loadProfileAndFees = () => {
+      supabase.from('student_profiles')
+        .select('batch_id, subjects, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (unmounted) return
+          setBatchId(data?.batch_id ?? null)
+          setBatchName(data?.batches?.name ?? '')
+          setStudentSubjects(data?.subjects ?? [])
+          setBatchDetails(data?.batches ?? null)
+          setTrialEndsAt(data?.trial_ends_at ?? null)
+        })
+
+      supabase.from('fee_records')
+        .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+        .eq('student_id', user.id)
+        .then(({ data }) => {
+          if (unmounted) return
+          setFeeRecords(data ?? [])
+        })
+    }
+
+    loadProfileAndFees()
+
+    const channel = supabase.channel(`study_fee_sync_${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` }, () => {
+        if (!unmounted) loadProfileAndFees()
       })
+      .subscribe()
+
+    return () => {
+      unmounted = true
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   // Fetch live class (realtime)
@@ -1234,7 +1276,42 @@ export default function StudySection() {
       ) : (
         /* ── MY BATCH VIEW — SUBJECT HUB vs SUBJECT WORKSPACE ── */
         tab === 'My Batch' ? (
-          selectedSubject === null ? (
+          batchFeeStatus?.isFrozen ? (
+            <div className="text-center py-16 bg-white rounded-3xl border border-rose-100 p-8 shadow-sm max-w-xl mx-auto my-6">
+              <div className="inline-flex p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 mb-4 shadow-sm">
+                <ShieldAlert className="h-10 w-10" />
+              </div>
+              <div>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 mb-2">
+                  Batch Access Paused
+                </span>
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-xl mb-2">
+                {batchFeeStatus.status === 'expired' || batchFeeStatus.reason === 'expired'
+                  ? 'Course Subscription Expired'
+                  : batchFeeStatus.feeMode === 'one_time'
+                  ? 'Course Fee Required'
+                  : 'Monthly Fee Payment Required'}
+              </h3>
+              <p className="text-sm text-slate-600 max-w-md mx-auto mb-6 leading-relaxed">
+                {batchFeeStatus.message || `Access to ${batchName || 'enrolled batch'} content is paused. Clear your pending dues to resume your coursework immediately.`}
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => navigate('/student/pay-fee')}
+                  className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <CreditCard className="h-4 w-4" /> Pay Fee to Resume
+                </button>
+                <button
+                  onClick={() => setTab('All')}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <BookOpen className="h-4 w-4" /> Browse Free Library
+                </button>
+              </div>
+            </div>
+          ) : selectedSubject === null ? (
             /* 🎓 SUBJECT HUB (PW-Style Cards Dashboard) */
             <div className="space-y-6">
 

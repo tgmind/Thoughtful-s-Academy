@@ -43,6 +43,10 @@ export function loadYouTubeApi() {
     }, TIMEOUT_MS)
 
     const checkReady = () => {
+      if (typeof window === 'undefined') {
+        cleanup()
+        return false
+      }
       if (window.YT && window.YT.Player) {
         cleanup()
         resolve(window.YT)
@@ -55,6 +59,10 @@ export function loadYouTubeApi() {
 
     // Poll every 100ms as a fallback for browser edge-cases where the global callback doesn't fire
     pollIntervalId = setInterval(() => {
+      if (typeof window === 'undefined') {
+        cleanup()
+        return
+      }
       checkReady()
     }, 100)
 

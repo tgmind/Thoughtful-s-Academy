@@ -22,6 +22,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeUrl } from '../../utils/formatters'
 import CustomSelect from '../../components/ui/CustomSelect'
+import { checkBatchFeeStatus, getIndianDay, BATCH_ACCESS_STATUS } from '../../utils/feeAccess'
 
 function getMonths() {
   const months = []
@@ -70,12 +71,12 @@ export default function FeeManager() {
   const loadAllData = async () => {
     try {
       const [pendingRes, allRes, batchesRes, profilesRes, studentProfilesRes, allFeesRes] = await Promise.all([
-        supabase.from('fee_records').select('*, profiles!student_id(full_name, email)').eq('status', 'pending').order('paid_at'),
-        supabase.from('fee_records').select('*, profiles!student_id(full_name, email)').order('paid_at', { ascending: false }).limit(200),
-        supabase.from('batches').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('fee_records').select('*, profiles!student_id(full_name, email), batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('status', 'pending').order('paid_at'),
+        supabase.from('fee_records').select('*, profiles!student_id(full_name, email), batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').order('paid_at', { ascending: false }).limit(200),
+        supabase.from('batches').select('id, name, fee_mode, fee_amount, validity_days, validity_end_date').eq('is_active', true).order('name'),
         supabase.from('profiles').select('id, full_name, email, phone, is_active').eq('role', 'student').eq('is_active', true).order('full_name'),
-        supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, batches(id, name)'),
-        supabase.from('fee_records').select('id, student_id, amount, payment_month, status, reference_id, paid_at').in('payment_month', MONTHS)
+        supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)'),
+        supabase.from('fee_records').select('id, student_id, batch_id, amount, payment_month, fee_mode, valid_until, status, reference_id, paid_at')
       ])
 
       setPending(pendingRes.data ?? [])
@@ -91,9 +92,11 @@ export default function FeeManager() {
         return {
           ...p,
           batch_id: sp.batch_id || null,
+          batch: sp.batches || null,
           batch_name: sp.batches?.name || 'Unassigned',
           roll_number: sp.roll_number || '—',
           parent_phone: sp.parent_phone || '—',
+          trial_ends_at: sp.trial_ends_at || null,
         }
       })
 
@@ -118,13 +121,29 @@ export default function FeeManager() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const verify = async (id) => {
+  const verify = async (recordOrId) => {
+    const id = typeof recordOrId === 'object' ? recordOrId.id : recordOrId
+    const rec = typeof recordOrId === 'object' ? recordOrId : pending.find(p => p.id === id) || all.find(a => a.id === id)
     setActing(id)
-    const { error } = await supabase.from('fee_records').update({
+
+    let validUntil = null
+    if (rec?.fee_mode === 'one_time' && rec?.batch_id && !rec?.valid_until) {
+      const b = batches.find(x => x.id === rec.batch_id) || rec.batches
+      if (b?.validity_end_date) {
+        validUntil = new Date(`${b.validity_end_date}T23:59:59+05:30`).toISOString()
+      } else if (b?.validity_days) {
+        validUntil = new Date(Date.now() + b.validity_days * 86400000).toISOString()
+      }
+    }
+
+    const payload = {
       status: 'verified',
       verified_by: user.id,
       verified_at: new Date().toISOString()
-    }).eq('id', id)
+    }
+    if (validUntil) payload.valid_until = validUntil
+
+    const { error } = await supabase.from('fee_records').update(payload).eq('id', id)
     setActing(null)
     if (error) { toast.error(error.message); return }
     toast.success('Fee payment verified ✓')
@@ -149,10 +168,12 @@ export default function FeeManager() {
   }
 
   const exportCSV = () => {
-    const rows = [['Student', 'Email', 'Month', 'Amount', 'Reference', 'Status', 'Date']]
+    const rows = [['Student', 'Email', 'Batch', 'Fee Mode', 'Month/Period', 'Amount', 'Reference', 'Status', 'Date']]
     filteredAll.forEach(r => rows.push([
       r.profiles?.full_name ?? '',
       r.profiles?.email ?? '',
+      r.batches?.name ?? 'General',
+      r.fee_mode || 'monthly',
       r.payment_month,
       r.amount,
       r.reference_id || '',
@@ -169,14 +190,63 @@ export default function FeeManager() {
   // ─── DEFAULTERS ANALYSIS COMPUTATION ──────────────────────────────────────────
   const defaulterAnalysis = useMemo(() => {
     const feeLookup = {}
+    const studentRecordsMap = {}
     allFeeRecords.forEach(r => {
       const key = `${r.student_id}__${r.payment_month}`
       if (!feeLookup[key] || r.status === 'verified') {
         feeLookup[key] = r
       }
+      if (!studentRecordsMap[r.student_id]) studentRecordsMap[r.student_id] = []
+      studentRecordsMap[r.student_id].push(r)
     })
 
+    const currentIndianDay = getIndianDay()
+
     const studentAnalysis = students.map(st => {
+      const isOneTimeBatch = st.batch?.fee_mode === 'one_time'
+      const stRecords = studentRecordsMap[st.id] || []
+
+      if (isOneTimeBatch) {
+        const feeStatus = checkBatchFeeStatus({
+          student: st,
+          batch: st.batch,
+          feeRecords: stRecords,
+        })
+
+        let currentStatus = 'not_submitted'
+        let currentRecord = null
+        if (feeStatus.status === BATCH_ACCESS_STATUS.ACTIVE || feeStatus.status === BATCH_ACCESS_STATUS.TRIAL) {
+          currentStatus = 'verified'
+          currentRecord = feeStatus.verifiedRecord || null
+        } else if (feeStatus.status === BATCH_ACCESS_STATUS.PENDING_VERIFICATION) {
+          currentStatus = 'pending'
+          currentRecord = feeStatus.pendingRecord || null
+        } else if (feeStatus.status === BATCH_ACCESS_STATUS.EXPIRED) {
+          currentStatus = 'expired'
+          currentRecord = feeStatus.verifiedRecord || null
+        } else {
+          currentStatus = 'not_submitted'
+          currentRecord = null
+        }
+
+        return {
+          ...st,
+          isOneTimeBatch: true,
+          feeStatus,
+          currentStatus,
+          currentRecord,
+          history: [],
+          consecutiveUnpaid: currentStatus === 'verified' ? 0 : 1,
+          totalUnpaid6M: currentStatus === 'verified' ? 0 : 1,
+          totalVerified6M: currentStatus === 'verified' ? 1 : 0,
+          isRepeatDefaulter: currentStatus === 'expired',
+          isTimelyPayer: currentStatus === 'verified',
+          inGracePeriod: false,
+          validUntil: feeStatus.validUntil || null,
+        }
+      }
+
+      // Monthly fee analysis
       const history = MONTHS.map(m => {
         const rec = feeLookup[`${st.id}__${m}`]
         return {
@@ -202,9 +272,11 @@ export default function FeeManager() {
 
       const isRepeatDefaulter = consecutiveUnpaid >= 2 || (totalUnpaid6M >= 3 && currentMonthInfo.status !== 'verified')
       const isTimelyPayer = totalVerified6M >= 4 && consecutiveUnpaid === 0
+      const inGracePeriod = currentIndianDay <= 10 && (currentMonthInfo.status === 'not_submitted')
 
       return {
         ...st,
+        isOneTimeBatch: false,
         currentStatus: currentMonthInfo.status,
         currentRecord: currentMonthInfo.record,
         history,
@@ -213,6 +285,8 @@ export default function FeeManager() {
         totalVerified6M,
         isRepeatDefaulter,
         isTimelyPayer,
+        inGracePeriod,
+        graceDaysRemaining: inGracePeriod ? 11 - currentIndianDay : 0,
       }
     })
 
@@ -555,13 +629,19 @@ export default function FeeManager() {
                           {/* Current Month Payment Badge */}
                           <div className="flex flex-col">
                             <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
-                              {defaulterMonth} Status
+                              {student.isOneTimeBatch ? 'Course Validity' : `${defaulterMonth} Status`}
                             </span>
 
                             {isVerified && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-[11px] sm:text-xs font-extrabold">
                                 <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                                Paid {student.currentRecord?.amount ? `(₹${student.currentRecord.amount})` : ''}
+                                {student.isOneTimeBatch ? (
+                                  student.validUntil
+                                    ? `Valid till ${new Date(student.validUntil).toLocaleDateString('en-IN')}`
+                                    : 'Paid (Full Access)'
+                                ) : (
+                                  `Paid ${student.currentRecord?.amount ? `(₹${student.currentRecord.amount})` : ''}`
+                                )}
                               </span>
                             )}
 
@@ -572,51 +652,76 @@ export default function FeeManager() {
                               </span>
                             )}
 
-                            {isUnpaid && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-[11px] sm:text-xs font-extrabold">
-                                <XCircle className="h-3.5 w-3.5 text-rose-600" />
-                                Fee Not Paid
+                            {student.currentStatus === 'expired' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-300 rounded-xl text-[11px] sm:text-xs font-extrabold">
+                                <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
+                                Validity Expired
                               </span>
+                            )}
+
+                            {isUnpaid && student.currentStatus !== 'expired' && (
+                              student.inGracePeriod ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-300 rounded-xl text-[11px] sm:text-xs font-extrabold" title={`Due by 10th. ${student.graceDaysRemaining} day(s) left before access freeze.`}>
+                                  <Clock className="h-3.5 w-3.5 text-amber-600" />
+                                  Grace Period ({student.graceDaysRemaining}d left)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-[11px] sm:text-xs font-extrabold">
+                                  <XCircle className="h-3.5 w-3.5 text-rose-600" />
+                                  {student.isOneTimeBatch ? 'Enrollment Unpaid' : 'Fee Not Paid (Frozen)'}
+                                </span>
+                              )
                             )}
                           </div>
 
-                          {/* 6-Month History Visual Pill Bar */}
-                          <div className="flex flex-col">
-                            <div className="flex items-center justify-between mb-1 gap-2">
-                              <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                                6-Month Behavior
+                          {/* 6-Month History / Course Type Visual */}
+                          {student.isOneTimeBatch ? (
+                            <div className="flex flex-col min-w-32">
+                              <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                                Billing Architecture
                               </span>
-                              {student.isRepeatDefaulter ? (
-                                <span className="text-[9px] sm:text-[10px] font-extrabold text-rose-600 bg-rose-100 px-1.5 py-0.2 rounded">
-                                  🚨 {student.consecutiveUnpaid}M Unpaid
-                                </span>
-                              ) : student.isTimelyPayer ? (
-                                <span className="text-[9px] sm:text-[10px] font-extrabold text-emerald-600 bg-emerald-100 px-1.5 py-0.2 rounded">
-                                  ⭐ Timely
-                                </span>
-                              ) : null}
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+                                ⚡ One-Time Course
+                              </span>
                             </div>
+                          ) : (
+                            <div className="flex flex-col">
+                              <div className="flex items-center justify-between mb-1 gap-2">
+                                <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                  6-Month Behavior
+                                </span>
+                                {student.isRepeatDefaulter ? (
+                                  <span className="text-[9px] sm:text-[10px] font-extrabold text-rose-600 bg-rose-100 px-1.5 py-0.2 rounded">
+                                    🚨 {student.consecutiveUnpaid}M Unpaid
+                                  </span>
+                                ) : student.isTimelyPayer ? (
+                                  <span className="text-[9px] sm:text-[10px] font-extrabold text-emerald-600 bg-emerald-100 px-1.5 py-0.2 rounded">
+                                    ⭐ Timely
+                                  </span>
+                                ) : null}
+                              </div>
 
-                            <div className="flex items-center gap-1">
-                              {student.history.map((h, i) => (
-                                <div
-                                  key={i}
-                                  title={`${h.month}: ${
-                                    h.status === 'verified' ? 'Paid' : h.status === 'pending' ? 'Pending' : 'Unpaid'
-                                  }`}
-                                  className={`w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-md flex items-center justify-center text-[9px] font-black cursor-help transition-transform hover:scale-110 ${
-                                    h.status === 'verified'
-                                      ? 'bg-emerald-500 text-white'
-                                      : h.status === 'pending'
-                                      ? 'bg-amber-400 text-slate-900'
-                                      : 'bg-rose-200 text-rose-800'
-                                  }`}
-                                >
-                                  {h.month.slice(0, 1)}
-                                </div>
-                              ))}
+                              <div className="flex items-center gap-1">
+                                {student.history.map((h, i) => (
+                                  <div
+                                    key={i}
+                                    title={`${h.month}: ${
+                                      h.status === 'verified' ? 'Paid' : h.status === 'pending' ? 'Pending' : 'Unpaid'
+                                    }`}
+                                    className={`w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-md flex items-center justify-center text-[9px] font-black cursor-help transition-transform hover:scale-110 ${
+                                      h.status === 'verified'
+                                        ? 'bg-emerald-500 text-white'
+                                        : h.status === 'pending'
+                                        ? 'bg-amber-400 text-slate-900'
+                                        : 'bg-rose-200 text-rose-800'
+                                    }`}
+                                  >
+                                    {h.month.slice(0, 1)}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          )}
 
                           {/* Direct Message Action Button */}
                           <div className="flex items-center gap-2 pt-1 sm:pt-0 w-full sm:w-auto">
@@ -654,9 +759,14 @@ export default function FeeManager() {
               <div key={f.id} className="bg-white rounded-2xl border border-amber-200 p-3.5 sm:p-4 shadow-sm w-full">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-extrabold text-sm sm:text-base text-slate-900">{f.profiles?.full_name}</p>
-                      <span className="text-[10px] sm:text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      <span className="text-[10px] sm:text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                        {f.batches?.name || 'General Batch'}
+                      </span>
+                      <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md border ${
+                        f.fee_mode === 'one_time' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
                         {f.payment_month}
                       </span>
                     </div>
@@ -666,6 +776,11 @@ export default function FeeManager() {
                         ₹{f.amount}
                       </span>
                       <span className="font-mono text-slate-400 text-[11px]">Ref: {f.reference_id || '—'}</span>
+                      {f.fee_mode === 'one_time' && (
+                        <span className="text-purple-700 font-semibold text-[11px]">
+                          ⚡ One-Time ({f.batches?.validity_days ? `${f.batches.validity_days} days validity` : f.batches?.validity_end_date ? `Till ${f.batches.validity_end_date}` : 'Full access'})
+                        </span>
+                      )}
                       {f.screenshot_url && (
                         <a
                           href={normalizeUrl(f.screenshot_url)}
@@ -681,7 +796,7 @@ export default function FeeManager() {
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
-                      onClick={() => verify(f.id)}
+                      onClick={() => verify(f)}
                       disabled={acting === f.id}
                       className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
                     >
@@ -740,7 +855,7 @@ export default function FeeManager() {
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr>
-                    {['Student', 'Month', 'Amount', 'Reference', 'Status', 'Date', 'Action'].map(h => (
+                    {['Student', 'Batch', 'Type', 'Period / Validity', 'Amount', 'Reference', 'Status', 'Date', 'Action'].map(h => (
                       <th key={h} className="px-3.5 py-2.5 sm:py-3 text-left text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </th>
@@ -754,7 +869,23 @@ export default function FeeManager() {
                         <p className="font-extrabold text-slate-900">{r.profiles?.full_name}</p>
                         <p className="text-[10px] sm:text-[11px] text-slate-400">{r.profiles?.email}</p>
                       </td>
-                      <td className="px-3.5 py-2.5 sm:py-3 font-semibold text-slate-700">{r.payment_month}</td>
+                      <td className="px-3.5 py-2.5 sm:py-3 font-semibold text-slate-800">
+                        {r.batches?.name || 'General Batch'}
+                      </td>
+                      <td className="px-3.5 py-2.5 sm:py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          r.fee_mode === 'one_time' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {r.fee_mode === 'one_time' ? 'One-Time' : 'Monthly'}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 sm:py-3 font-medium text-slate-700">
+                        {r.fee_mode === 'one_time' ? (
+                          r.valid_until ? `Valid till ${new Date(r.valid_until).toLocaleDateString('en-IN')}` : 'Course Fee'
+                        ) : (
+                          r.payment_month
+                        )}
+                      </td>
                       <td className="px-3.5 py-2.5 sm:py-3 font-black text-slate-900">₹{r.amount}</td>
                       <td className="px-3.5 py-2.5 sm:py-3 font-mono text-slate-500">{r.reference_id || '—'}</td>
                       <td className="px-3.5 py-2.5 sm:py-3">

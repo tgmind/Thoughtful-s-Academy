@@ -23,13 +23,20 @@ function ErrorShell({ icon, iconBg, code, title, message, cta, ctaLink, ctaVaria
           <Link to={ctaLink}
             className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all hover:-translate-y-0.5 shadow-sm
               ${ctaVariant === 'primary'
-                ? 'bg-amber-400 hover:bg-amber-500 text-white shadow-amber-200'
+                ? 'bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold shadow-amber-200/50'
                 : 'border-2 border-gray-800 text-gray-800 hover:bg-gray-800 hover:text-white'
               }`}>
             <Home className="h-4 w-4" /> {cta}
           </Link>
-          <button onClick={() => window.history.back()}
-            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm text-gray-500 hover:text-gray-700 hover:bg-white border border-gray-200 transition-all hover:-translate-y-0.5">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back()
+              } else {
+                window.location.assign('/')
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm text-gray-600 hover:text-gray-900 hover:bg-white border border-gray-200 transition-all hover:-translate-y-0.5">
             <ArrowLeft className="h-4 w-4" /> Go Back
           </button>
         </div>

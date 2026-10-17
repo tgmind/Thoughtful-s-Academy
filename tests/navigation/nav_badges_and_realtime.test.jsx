@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import React from 'react'
 
 // Mock doubtService
 vi.mock('../../src/services/doubtService', () => ({
@@ -29,13 +28,11 @@ vi.mock('../../src/lib/supabase', () => {
     supabase: {
       from: (table) => {
         let filterConditions = []
-        let selectFields = '*'
         let isCount = false
         let isHead = false
 
         const builder = {
-          select(fields, opts) {
-            selectFields = fields
+          select(_fields, opts) {
             if (opts?.count === 'exact') isCount = true
             if (opts?.head) isHead = true
             return builder

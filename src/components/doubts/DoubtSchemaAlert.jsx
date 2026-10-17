@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Database, Copy, Check, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Database, Copy, Check, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function DoubtSchemaAlert({ isAdmin = false, onRetry }) {

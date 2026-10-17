@@ -41,7 +41,6 @@ export default function Notifications() {
 
   useEffect(() => {
     if (!user) return
-    const now = new Date().toISOString()
 
     supabase.from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
       .then(async ({ data: profile }) => {

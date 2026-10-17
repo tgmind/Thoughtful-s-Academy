@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
-import { Video } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Video, ShieldAlert, CreditCard } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { checkBatchFeeStatus } from '../../utils/feeAccess'
 import LiveClassBanner from '../../components/shared/LiveClassBanner'
 
 export default function StudentLiveClass() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [liveClass, setLiveClass] = useState(null)
   const [loading,   setLoading]   = useState(true)
+  const [batchFeeStatus, setBatchFeeStatus] = useState(null)
   // Keep batchId in a ref so the realtime callback always has the latest value
   const batchIdRef = useRef(null)
 
@@ -36,9 +40,30 @@ export default function StudentLiveClass() {
 
     const init = async () => {
       try {
-        const { data: sp } = await supabase
-          .from('student_profiles').select('batch_id').eq('id', user.id).maybeSingle()
+        const [spRes, feeRes] = await Promise.all([
+          supabase
+            .from('student_profiles')
+            .select('batch_id, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('fee_records')
+            .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+            .eq('student_id', user.id)
+        ])
+
+        const sp = spRes.data
         batchIdRef.current = sp?.batch_id ?? null
+
+        if (sp?.batches) {
+          const status = checkBatchFeeStatus({
+            student: { id: user.id, trial_ends_at: sp.trial_ends_at },
+            batch: sp.batches,
+            feeRecords: feeRes.data ?? []
+          })
+          setBatchFeeStatus(status)
+        }
+
         if (unmounted) return
 
         await fetchLive()
@@ -64,6 +89,11 @@ export default function StudentLiveClass() {
               } else {
                 fetchLive()
               }
+            }
+          )
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` },
+            () => {
+              if (!unmounted) init()
             }
           )
           .subscribe()
@@ -109,7 +139,27 @@ export default function StudentLiveClass() {
       <h2 className="font-bold text-lg text-gray-900">Live Class</h2>
 
       {liveClass ? (
-        <LiveClassBanner liveClass={liveClass} />
+        liveClass.batch_id && batchFeeStatus?.isFrozen ? (
+          <div className="bg-white rounded-2xl border border-rose-200 p-6 sm:p-8 shadow-sm text-center">
+            <div className="inline-flex p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 mb-3 shadow-sm">
+              <ShieldAlert className="h-8 w-8" />
+            </div>
+            <h3 className="font-bold text-gray-900 text-base mb-1">
+              Live Batch Class in Session
+            </h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto mb-5 leading-relaxed">
+              A live class for your batch is currently active, but your batch access is paused due to pending fees. Clear your dues to join immediately.
+            </p>
+            <button
+              onClick={() => navigate('/student/pay-fee')}
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-md inline-flex items-center gap-2 cursor-pointer"
+            >
+              <CreditCard className="h-4 w-4" /> Pay Fee to Join Live Class
+            </button>
+          </div>
+        ) : (
+          <LiveClassBanner liveClass={liveClass} />
+        )
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-gray-100">
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">

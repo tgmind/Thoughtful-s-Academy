@@ -59,6 +59,10 @@ if (targetFile) {
         "030_messages_robustness.sql",
         "031_subject_chapters.sql",
         "032_realtime_and_messaging_hardening.sql",
+        "033_chapters_realtime_and_sync.sql",
+        "034_messaging_architecture_and_profiles_rls.sql",
+        "035_dual_mode_fees_and_validity.sql",
+        "036_fee_access_hardening_and_resource_rls.sql",
       ]
 
   console.log(`Starting automated database migration (${targetFiles.length} migrations)...`)

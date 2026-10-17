@@ -6,11 +6,13 @@ import {
   ChevronRight, Layers, Clock, Search, Radio,
   ShieldCheck, CheckCircle2, Send, HelpCircle,
   FileText, Keyboard, X, LogIn, Trash2,
-  AlertCircle, RefreshCw, Eye, Download, Edit3, Plus
+  AlertCircle, RefreshCw, Eye, Download, Edit3, Plus,
+  ShieldAlert, CreditCard
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { checkBatchFeeStatus } from '../../utils/feeAccess'
 import {
   getYTPlaylistId,
   getYTVideoId,
@@ -59,12 +61,14 @@ export default function WatchLecture() {
   const [studentProfileLoading, setStudentProfileLoading] = useState(false)
   const [studentProfileError, setStudentProfileError] = useState(null)
   const [cardBatchName, setCardBatchName] = useState(location.state?.card?.batches?.name || '')
+  const [studentFeeRecords, setStudentFeeRecords] = useState([])
 
   const cinemaStageRef = useRef(null)
   const queueScrollRef = useRef(null)
 
   const stateCard = location.state?.card
-  const isMatchingCard = stateCard && (!cardId || stateCard.id === cardId)
+  const hasVisibilityMetadata = stateCard && (typeof stateCard.is_public !== 'undefined' || typeof stateCard.is_featured !== 'undefined')
+  const isMatchingCard = stateCard && (!cardId || stateCard.id === cardId) && hasVisibilityMetadata
   const [card, setCard] = useState(isMatchingCard ? stateCard : null)
   const [loading, setLoading] = useState(!isMatchingCard && !!cardId)
   const [relatedCards, setRelatedCards] = useState([])
@@ -81,6 +85,7 @@ export default function WatchLecture() {
 
   // Active Classroom Tab: 'curriculum' | 'notes' | 'doubts'
   const [activeTab, setActiveTab] = useState(() => (initialSeekSeconds > 0 ? 'doubts' : 'notes'))
+  const hasInitializedPlaylistTabRef = useRef(false)
 
   // Doubt submission states
   const [doubtText, setDoubtText] = useState('')
@@ -89,6 +94,18 @@ export default function WatchLecture() {
   const [educatorLectureDoubts, setEducatorLectureDoubts] = useState([])
   const [educatorDoubtsLoading, setEducatorDoubtsLoading] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+
+  // Close shortcuts modal on Escape key
+  useEffect(() => {
+    if (!showShortcutsModal) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowShortcutsModal(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showShortcutsModal])
 
   // Playlist State
   const [playlistItems, setPlaylistItems] = useState([])
@@ -127,7 +144,12 @@ export default function WatchLecture() {
   }, [hasMultipleLectures, activeTab, initialSeekSeconds])
 
   useEffect(() => {
-    if (hasMultipleLectures && activeTab === 'notes' && !initialSeekSeconds) {
+    hasInitializedPlaylistTabRef.current = false
+  }, [cardId])
+
+  useEffect(() => {
+    if (hasMultipleLectures && !hasInitializedPlaylistTabRef.current && !initialSeekSeconds) {
+      hasInitializedPlaylistTabRef.current = true
       setActiveTab('curriculum')
     }
   }, [hasMultipleLectures, initialSeekSeconds])
@@ -135,7 +157,7 @@ export default function WatchLecture() {
   // Fetch card details if not passed in matching navigation state
   useEffect(() => {
     if (!cardId) return
-    if (location.state?.card && location.state.card.id === cardId) {
+    if (location.state?.card && location.state.card.id === cardId && (typeof location.state.card.is_public !== 'undefined' || typeof location.state.card.is_featured !== 'undefined')) {
       setCard(location.state.card)
       setLoading(false)
       return
@@ -261,14 +283,21 @@ export default function WatchLecture() {
     setStudentProfileError(null)
 
     try {
-      const { data, error } = await supabase
-        .from('student_profiles')
-        .select('roll_number, batch_id, subjects, batches(id, name)')
-        .eq('id', uid)
-        .maybeSingle()
+      const [spRes, feeRes] = await Promise.all([
+        supabase
+          .from('student_profiles')
+          .select('roll_number, batch_id, subjects, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)')
+          .eq('id', uid)
+          .maybeSingle(),
+        supabase
+          .from('fee_records')
+          .select('id, batch_id, amount, payment_month, fee_mode, valid_until, status')
+          .eq('student_id', uid)
+      ])
 
-      if (error) throw error
-      setStudentProfile(data ?? { batch_id: null, roll_number: null, batches: null, subjects: [] })
+      if (spRes.error) throw spRes.error
+      setStudentProfile(spRes.data ?? { batch_id: null, roll_number: null, batches: null, subjects: [] })
+      setStudentFeeRecords(feeRes.data ?? [])
     } catch (err) {
       setStudentProfileError(err)
     } finally {
@@ -279,6 +308,19 @@ export default function WatchLecture() {
   useEffect(() => {
     if (user?.id && profile?.role === 'student') {
       fetchStudentProfile(user.id)
+      if (typeof supabase?.channel === 'function') {
+        const channel = supabase.channel(`watch_fee_sync_${user.id}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records', filter: `student_id=eq.${user.id}` }, () => {
+            fetchStudentProfile(user.id)
+          })
+          .subscribe()
+
+        return () => {
+          if (typeof supabase?.removeChannel === 'function') {
+            supabase.removeChannel(channel)
+          }
+        }
+      }
     } else {
       setStudentProfile(null)
       setStudentProfileLoading(false)
@@ -649,17 +691,18 @@ export default function WatchLecture() {
           The requested video lecture could not be loaded or is restricted to other enrolled batches.
         </p>
         <button
-          onClick={() => navigate(`${rolePrefix}/study`)}
+          onClick={() => navigate(user ? `${rolePrefix}/study` : '/')}
           className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
         >
-          <ArrowLeft className="h-4 w-4" /> Return to Study Portal
+          <ArrowLeft className="h-4 w-4" /> {user ? 'Return to Study Portal' : 'Return to Home'}
         </button>
       </div>
     )
   }
 
-  // Guard against unauthenticated viewing of private study cards passed via routing state
-  if (!card.is_public && !user) {
+  // Allow unauthenticated viewing of public or featured study cards / demo videos
+  const isPublicOrFeatured = Boolean(card.is_public || card.is_featured)
+  if (!isPublicOrFeatured && !user) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center">
         <div className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm mb-3">
@@ -681,6 +724,55 @@ export default function WatchLecture() {
             className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Home
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Batch Fee and Validity Enforcement for Enrolled Students
+  const cardBatchId = card?.batch_id || (Array.isArray(card?.batch_ids) ? card.batch_ids[0] : null)
+  const isEnrolledBatchCard = !cardBatchId || studentProfile?.batch_id === cardBatchId || (Array.isArray(card?.batch_ids) && card.batch_ids.includes(studentProfile?.batch_id))
+
+  const batchFeeStatus = (isEnrolledBatchCard && studentProfile?.batches)
+    ? checkBatchFeeStatus({
+        student: { id: user?.id, trial_ends_at: studentProfile.trial_ends_at },
+        batch: studentProfile.batches,
+        feeRecords: studentFeeRecords,
+      })
+    : null
+
+  if (!isPublicOrFeatured && user && profile?.role === 'student' && batchFeeStatus?.isFrozen) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl shadow-lg mb-4">
+          <ShieldAlert className="h-12 w-12 text-rose-400" />
+        </div>
+        <span className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 mb-2">
+          Batch Access Paused
+        </span>
+        <h2 className="text-xl font-bold text-white mb-2">
+          {batchFeeStatus.status === 'expired' || batchFeeStatus.reason === 'expired'
+            ? 'Course Subscription Expired'
+            : batchFeeStatus.feeMode === 'one_time'
+            ? 'Course Fee Required'
+            : 'Monthly Fee Payment Required'}
+        </h2>
+        <p className="text-sm text-slate-300 max-w-md mb-6 leading-relaxed">
+          {batchFeeStatus.message || 'Access to this batch lecture is paused due to pending fee payment. Clear your dues to instantly resume your classes.'}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => navigate(`${rolePrefix}/pay-fee`)}
+            className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+          >
+            <CreditCard className="h-4 w-4" /> Pay Fee to Unlock
+          </button>
+          <button
+            onClick={() => navigate(`${rolePrefix}/study`)}
+            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Study Section
           </button>
         </div>
       </div>
@@ -812,6 +904,7 @@ export default function WatchLecture() {
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={handleFullscreen}
                 initialSeekSeconds={initialSeekSeconds}
+                isModalOpen={showShortcutsModal || Boolean(viewingMaterial) || showNotesModal}
               />
             )}
           </div>
@@ -1680,7 +1773,7 @@ export default function WatchLecture() {
                   <Layers className="h-3.5 w-3.5 text-indigo-700" /> Related in {card.subject}
                 </h3>
                 <Link
-                  to={`${rolePrefix}/study?subject=${encodeURIComponent(card.subject || '')}&category=video`}
+                  to={user ? `${rolePrefix}/study?subject=${encodeURIComponent(card.subject || '')}&category=video` : '/'}
                   className="text-[10px] text-indigo-700 hover:underline flex items-center gap-0.5 font-bold"
                 >
                   View all <ChevronRight className="h-3 w-3" />
@@ -1693,7 +1786,7 @@ export default function WatchLecture() {
                     key={rc.id}
                     onClick={() => {
                       setCard(rc)
-                      navigate(`${rolePrefix}/watch/${rc.id}`, { state: { card: rc }, replace: true })
+                      navigate(user ? `${rolePrefix}/watch/${rc.id}` : `/watch/${rc.id}`, { state: { card: rc }, replace: true })
                     }}
                     className="w-full p-2.5 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/80 hover:border-indigo-200 transition-all rounded-xl text-left flex items-center justify-between gap-2.5 group cursor-pointer"
                   >

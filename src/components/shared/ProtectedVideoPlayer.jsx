@@ -5,6 +5,7 @@ import {
   AlertCircle, RefreshCw, Eye, EyeOff, Lock, Zap,
   Smartphone, Award, Check, X
 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { loadYouTubeApi } from '../../utils/youtubeApiLoader'
 import { saveLectureProgress, getLectureProgress } from '../../utils/youtube'
 
@@ -51,6 +52,7 @@ export default function ProtectedVideoPlayer({
   onToggleFullscreen,
   onTimeUpdate,
   initialSeekSeconds = 0,
+  isModalOpen = false,
   className = '',
 }) {
   const containerRef = useRef(null)
@@ -153,6 +155,8 @@ export default function ProtectedVideoPlayer({
   const activePlaylistIdRef = useRef(playlistId)
   const currentLoadedVideoIdRef = useRef(videoId)
   const currentLoadedIndexRef = useRef(activeVideoIndex)
+  const volumeRef = useRef(volume)
+  const isModalOpenRef = useRef(isModalOpen)
 
   // Stable callback refs to prevent any player teardown loops
   const onVideoTitleChangeRef = useRef(onVideoTitleChange)
@@ -161,6 +165,8 @@ export default function ProtectedVideoPlayer({
   const onNextVideoRef = useRef(onNextVideo)
   const onPrevVideoRef = useRef(onPrevVideo)
 
+  useEffect(() => { volumeRef.current = volume }, [volume])
+  useEffect(() => { isModalOpenRef.current = isModalOpen }, [isModalOpen])
   useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
   useEffect(() => { isScrubbingRef.current = isScrubbing }, [isScrubbing])
   useEffect(() => { showSpeedMenuRef.current = showSpeedMenu }, [showSpeedMenu])
@@ -703,6 +709,7 @@ export default function ProtectedVideoPlayer({
   // Volume & Mute Controls
   const handleVolumeChange = useCallback((newVol) => {
     const vol = Math.max(0, Math.min(100, Number(newVol)))
+    volumeRef.current = vol
     setVolume(vol)
     if (!playerRef.current) return
     try {
@@ -721,12 +728,20 @@ export default function ProtectedVideoPlayer({
   const toggleMute = useCallback(() => {
     if (!playerRef.current) return
     try {
-      if (isMuted) {
+      let currentlyMuted = isMuted
+      try {
+        if (typeof playerRef.current.isMuted === 'function') {
+          currentlyMuted = playerRef.current.isMuted()
+        }
+      } catch { /* fallback */ }
+
+      if (currentlyMuted) {
         playerRef.current.unMute()
         setIsMuted(false)
-        if (volume === 0) {
+        if (volumeRef.current === 0) {
           playerRef.current.setVolume(50)
           setVolume(50)
+          volumeRef.current = 50
         }
       } else {
         playerRef.current.mute()
@@ -734,10 +749,11 @@ export default function ProtectedVideoPlayer({
       }
     } catch { /* Ignore */ }
     showControlsTemporarily()
-  }, [isMuted, volume, showControlsTemporarily])
+  }, [isMuted, showControlsTemporarily])
 
   // Playback Speed Selector
   const handleRateChange = useCallback((rate) => {
+    playbackRateRef.current = rate
     setPlaybackRate(rate)
     setShowSpeedMenu(false)
     if (!playerRef.current) return
@@ -1014,56 +1030,126 @@ export default function ProtectedVideoPlayer({
   // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!isFullscreen && !containerRef.current?.contains(document.activeElement)) return
-      if (isScreenLockedRef.current) return
+      // Ignore shortcuts if the user is typing in an input, textarea, select, or contentEditable element
+      const activeEl = document.activeElement
+      const activeTag = activeEl?.tagName?.toLowerCase()
+      if (
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        activeTag === 'select' ||
+        activeEl?.isContentEditable
+      ) {
+        return
+      }
+
+      // Do not hijack shortcuts if an overlying modal dialog is open or player screen is locked
+      if (isScreenLockedRef.current || isModalOpenRef.current) return
 
       const key = e.key.toLowerCase()
 
-      if (key === ' ' || key === 'k') {
+      // Play / Pause: Space or K
+      if (key === ' ' || key === 'k' || e.code === 'Space' || e.code === 'KeyK') {
         e.preventDefault()
         togglePlayPause()
-      } else if (key === 'arrowleft' || key === 'j') {
+      }
+      // Rewind 10s (or 30s with Shift): ArrowLeft or J
+      else if (key === 'arrowleft' || key === 'j' || e.code === 'ArrowLeft' || e.code === 'KeyJ') {
         e.preventDefault()
         seekRelative(e.shiftKey ? -30 : -10)
-      } else if (key === 'arrowright' || key === 'l') {
+      }
+      // Forward 10s (or 30s with Shift): ArrowRight or L
+      else if (key === 'arrowright' || key === 'l' || e.code === 'ArrowRight' || e.code === 'KeyL') {
         e.preventDefault()
         seekRelative(e.shiftKey ? 30 : 10)
-      } else if (key === 'arrowup') {
+      }
+      // Volume Up: ArrowUp
+      else if (key === 'arrowup' || e.code === 'ArrowUp') {
         e.preventDefault()
-        handleVolumeChange(Math.min(100, volume + 10))
-      } else if (key === 'arrowdown') {
+        handleVolumeChange(Math.min(100, (volumeRef.current ?? volume) + 10))
+      }
+      // Volume Down: ArrowDown
+      else if (key === 'arrowdown' || e.code === 'ArrowDown') {
         e.preventDefault()
-        handleVolumeChange(Math.max(0, volume - 10))
-      } else if (key === 'm') {
+        handleVolumeChange(Math.max(0, (volumeRef.current ?? volume) - 10))
+      }
+      // Mute / Unmute: M
+      else if (key === 'm' || e.code === 'KeyM') {
         e.preventDefault()
         toggleMute()
-      } else if (key === 'f') {
+      }
+      // Toggle Fullscreen: F
+      else if (key === 'f' || e.code === 'KeyF') {
         e.preventDefault()
-        onToggleFullscreen?.()
-      } else if (key === 'c') {
+        if (onToggleFullscreen) {
+          onToggleFullscreen()
+        } else if (containerRef.current) {
+          if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen?.().catch(() => {})
+          } else {
+            document.exitFullscreen?.().catch(() => {})
+          }
+        }
+      }
+      // Toggle Clean View: C
+      else if (key === 'c' || e.code === 'KeyC') {
         e.preventDefault()
         handleToggleCleanView()
-      } else if (key >= '0' && key <= '9') {
-        e.preventDefault()
-        if (durationRef.current > 0 && playerRef.current?.seekTo) {
-          const target = (Number(key) / 10) * durationRef.current
-          playerRef.current.seekTo(target, true)
-          setCurrentTime(target)
+      }
+      // Jump to 0% - 90%: 0 - 9 keys
+      else if (
+        (key >= '0' && key <= '9') ||
+        (e.code && e.code.startsWith('Digit') && !e.shiftKey) ||
+        (e.code && e.code.startsWith('Numpad'))
+      ) {
+        const numChar = (key >= '0' && key <= '9') ? key : e.code.replace(/^(Digit|Numpad)/, '')
+        const numVal = parseInt(numChar, 10)
+        if (!isNaN(numVal) && numVal >= 0 && numVal <= 9) {
+          e.preventDefault()
+          const dur = durationRef.current || playerRef.current?.getDuration?.() || 0
+          if (dur > 0 && playerRef.current?.seekTo) {
+            const target = (numVal / 10) * dur
+            playerRef.current.seekTo(target, true)
+            setCurrentTime(target)
+            if (progressFillRef.current) {
+              progressFillRef.current.style.width = `${numVal * 10}%`
+            }
+            showControlsTemporarily()
+          }
         }
-      } else if (key === '[') {
+      }
+      // Decrease Speed: < / , / [
+      else if (key === '<' || key === ',' || key === '[' || (e.shiftKey && (key === ',' || key === '<'))) {
         e.preventDefault()
-        const curIdx = PLAYBACK_RATES.indexOf(playbackRateRef.current)
-        if (curIdx > 0) handleRateChange(PLAYBACK_RATES[curIdx - 1])
-      } else if (key === ']') {
+        const curRate = playbackRateRef.current || 1
+        const curIdx = PLAYBACK_RATES.indexOf(curRate)
+        if (curIdx > 0) {
+          handleRateChange(PLAYBACK_RATES[curIdx - 1])
+        } else if (curIdx === -1) {
+          const prev = [...PLAYBACK_RATES].reverse().find(r => r < curRate)
+          if (prev) handleRateChange(prev)
+        }
+      }
+      // Increase Speed: > / . / ]
+      else if (key === '>' || key === '.' || key === ']' || (e.shiftKey && (key === '.' || key === '>'))) {
         e.preventDefault()
-        const curIdx = PLAYBACK_RATES.indexOf(playbackRateRef.current)
-        if (curIdx >= 0 && curIdx < PLAYBACK_RATES.length - 1) handleRateChange(PLAYBACK_RATES[curIdx + 1])
-      } else if (key === 'n') {
+        const curRate = playbackRateRef.current || 1
+        const curIdx = PLAYBACK_RATES.indexOf(curRate)
+        if (curIdx >= 0 && curIdx < PLAYBACK_RATES.length - 1) {
+          handleRateChange(PLAYBACK_RATES[curIdx + 1])
+        } else if (curIdx === -1) {
+          const next = PLAYBACK_RATES.find(r => r > curRate)
+          if (next) handleRateChange(next)
+        }
+      }
+      // Next Video: N
+      else if (key === 'n' || e.code === 'KeyN') {
         if (isPlaylistRef.current && onNextVideoRef.current) {
           e.preventDefault()
           handleSafeNext(e)
         }
-      } else if (key === 'p') {
+      }
+      // Previous Video: P
+      else if (key === 'p' || e.code === 'KeyP') {
         if (isPlaylistRef.current && onPrevVideoRef.current) {
           e.preventDefault()
           handleSafePrev(e)
@@ -1073,7 +1159,20 @@ export default function ProtectedVideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isFullscreen, togglePlayPause, seekRelative, handleVolumeChange, toggleMute, onToggleFullscreen, handleRateChange, volume, handleToggleCleanView, handleSafeNext, handleSafePrev])
+  }, [
+    isFullscreen,
+    togglePlayPause,
+    seekRelative,
+    handleVolumeChange,
+    toggleMute,
+    onToggleFullscreen,
+    handleRateChange,
+    volume,
+    handleToggleCleanView,
+    handleSafeNext,
+    handleSafePrev,
+    showControlsTemporarily
+  ])
 
   const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
   const bufferPercent = Math.min(100, Math.max(0, loadedFraction * 100))
@@ -1189,14 +1288,23 @@ export default function ProtectedVideoPlayer({
         )}
 
         {/* ─── SCREEN LOCKED INDICATOR ────────────────────────────────────────── */}
-        {showLockToast && isScreenLocked && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-            <div className="px-3.5 py-1.5 rounded-2xl bg-black/80 border border-white/20 text-white font-medium text-xs flex items-center gap-2 shadow-2xl backdrop-blur-md">
-              <Lock className="h-3.5 w-3.5 text-amber-400" />
-              <span>Screen Locked • Tap lock symbol to unlock</span>
-            </div>
-          </div>
-        )}
+        <div className="absolute bottom-4 inset-x-0 z-40 flex justify-center pointer-events-none px-4">
+          <AnimatePresence>
+            {showLockToast && isScreenLocked && (
+              <motion.div
+                key="screen-locked-toast"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.22, ease: 'easeInOut' }}
+                className="whitespace-nowrap max-w-[95%] px-3.5 py-1.5 rounded-full bg-black/85 border border-white/20 text-white font-medium text-[10px] sm:text-xs flex items-center gap-1.5 shadow-2xl backdrop-blur-md pointer-events-none"
+              >
+                <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400 shrink-0" />
+                <span>Screen Locked • Tap lock symbol to unlock</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* ─── TRANSLUCENT SCREEN UNLOCK SYMBOL (ONLY WHEN LOCKED) ────────────── */}
         {isScreenLocked && (
@@ -1619,11 +1727,22 @@ export default function ProtectedVideoPlayer({
         </div>
 
         {/* ─── CLEAN VIEW TOAST (AUTO-DISMISSES IN 1.6s) ──────────────────────── */}
-        {showCleanToast && cleanView && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none px-3 py-1 rounded-full bg-black/80 border border-white/20 text-white/90 text-[10px] font-medium backdrop-blur-md shadow-lg animate-fade-in">
-            Clean Board View • Tap screen to restore
-          </div>
-        )}
+        <div className="absolute bottom-4 inset-x-0 z-40 flex justify-center pointer-events-none px-4">
+          <AnimatePresence>
+            {showCleanToast && cleanView && !isScreenLocked && (
+              <motion.div
+                key="clean-board-toast"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.22, ease: 'easeInOut' }}
+                className="whitespace-nowrap max-w-[95%] px-3.5 py-1.5 rounded-full bg-black/85 border border-white/20 text-white/95 text-[10px] sm:text-xs font-medium backdrop-blur-md shadow-lg pointer-events-none text-center"
+              >
+                Clean Board View • Tap screen to restore
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
       </div>
 
