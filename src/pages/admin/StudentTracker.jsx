@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
-import { Search, Download, X, Edit2, Clock, CheckCircle } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Search, Download, X, Edit2, Clock, CheckCircle, AlertTriangle, RefreshCw, Shield, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import CustomSelect from '../../components/ui/CustomSelect'
 import {
   checkBatchFeeStatus,
-  formatAccessStatusBadge,
-  getCurrentPaymentMonth
+  formatStudentAccessBadge,
+  getCurrentPaymentMonth,
+  FEE_MODES
 } from '../../utils/feeAccess'
 
 function AttBar({ pct }) {
@@ -29,7 +30,9 @@ export default function StudentTracker() {
   const [search,        setSearch]        = useState('')
   const [batchF,        setBatchF]        = useState('')
   const [attF,          setAttF]          = useState('all')
+  const [statusF,       setStatusF]       = useState('all')
   const [loading,       setLoading]       = useState(true)
+  const [dataError,     setDataError]     = useState(null)
   const [selected,      setSelected]      = useState(null)
   const [deacting,      setDeacting]      = useState(null)
   const [actingAction,  setActingAction]  = useState(false)
@@ -40,17 +43,26 @@ export default function StudentTracker() {
   const [batchSubjects, setBatchSubjects] = useState([])
   const [savingEnroll,  setSavingEnroll]  = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [p, sp, att, fees, b, overrides] = await Promise.all([
         supabase.from('profiles').select('id, full_name, email, phone, is_active, created_at')
           .eq('role','student').order('created_at', { ascending: false }),
         supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, date_of_birth, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)'),
         supabase.from('attendance').select('student_id, status'),
-        supabase.from('fee_records').select('*').order('created_at', { ascending: false }),
+        supabase.from('fee_records').select('*').order('paid_at', { ascending: false }),
         supabase.from('batches').select('*').order('name'),
         supabase.from('admin_access_overrides').select('*'),
       ])
+
+      const queryErrors = [p.error, sp.error, att.error, fees.error, b.error, overrides.error].filter(Boolean)
+      if (queryErrors.length > 0) {
+        const errorMsg = queryErrors.map(e => e.message).join(' | ')
+        console.error('Data error in StudentTracker query:', errorMsg)
+        setDataError(errorMsg)
+      } else {
+        setDataError(null)
+      }
 
       const spMap  = {}; (sp.data ?? []).forEach(s => { spMap[s.id] = s })
       const batchesList = b.data ?? []
@@ -82,18 +94,28 @@ export default function StudentTracker() {
         const studentFees = studentFeesMap[s.id] || []
         const studentOverrides = studentOverridesMap[s.id] || []
 
+        const hasFeeQueryError = Boolean(fees.error)
         const feeStatus = checkBatchFeeStatus({
-          student: { id: s.id, is_active: s.is_active, trial_ends_at: studentProfile?.trial_ends_at },
+          student: { 
+            id: s.id, 
+            is_active: s.is_active, 
+            trial_ends_at: studentProfile?.trial_ends_at,
+            _dataError: hasFeeQueryError 
+          },
           batch: studentBatch,
           feeRecords: studentFees,
           adminOverrides: studentOverrides,
         })
-        const accessBadge = formatAccessStatusBadge(feeStatus)
+        const accessBadge = formatStudentAccessBadge(feeStatus)
 
         return {
           ...s,
           batch_name:    studentProfile?.batches?.name ?? studentBatch?.name ?? '—',
           batch_id:      studentProfile?.batch_id ?? null,
+          batch_fee_mode: studentBatch?.fee_mode || FEE_MODES.MONTHLY,
+          batch_fee_amount: studentBatch?.fee_amount || 0,
+          batch_validity_days: studentBatch?.validity_days || null,
+          batch_validity_end_date: studentBatch?.validity_end_date || null,
           roll_number:   studentProfile?.roll_number ?? '—',
           parent_phone:  studentProfile?.parent_phone ?? '—',
           date_of_birth: studentProfile?.date_of_birth ?? '—',
@@ -111,20 +133,45 @@ export default function StudentTracker() {
       setBatches(batchesList)
       setLoading(false)
 
-      if (selected) {
-        const updatedSelected = enriched.find(x => x.id === selected.id)
-        if (updatedSelected) setSelected(updatedSelected)
-      }
+      setSelected(prev => {
+        if (!prev) return null
+        return enriched.find(x => x.id === prev.id) || prev
+      })
     } catch (err) {
       console.error('Error loading student tracker data:', err)
+      setDataError(err.message || 'Network error loading student data')
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+
+    // ── Realtime Synchronization across Fee Records, Profiles, and Overrides ──
+    const channel = supabase.channel('admin_student_tracker_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_records' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_profiles' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_access_overrides' }, () => {
+        loadData()
+      })
+      .subscribe()
+
+    // Revalidate on window focus
+    const onFocus = () => loadData()
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      supabase.removeChannel(channel)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [loadData])
 
   const openStudent = async (s) => {
     setSelected(s)
@@ -192,11 +239,6 @@ export default function StudentTracker() {
   const isTrialExpired = (trialEndsAt) => {
     if (!trialEndsAt) return false
     return new Date(trialEndsAt) < new Date()
-  }
-
-  const isTrialActive = (trialEndsAt) => {
-    if (!trialEndsAt) return false
-    return new Date(trialEndsAt) > new Date()
   }
 
   const trialLabel = (trialEndsAt) => {
@@ -355,11 +397,36 @@ export default function StudentTracker() {
       || (attF==='warning'      && s.att_pct>=50 && s.att_pct<75)
       || (attF==='poor'         && s.att_pct<50)
       || (attF==='trial_expired' && isTrialExpired(s.trial_ends_at))
-    return matchSearch && matchBatch && matchAtt
+    const matchStatus = statusF === 'all'
+      || (statusF === 'fee_paid' && s.accessBadge?.label === 'Fee Paid / Verified')
+      || (statusF === 'provisional' && s.accessBadge?.label === 'Provisional Access')
+      || (statusF === 'pending_verification' && s.accessBadge?.label === 'Pending Verification / Access Frozen')
+      || (statusF === 'trial_active' && (s.accessBadge?.label?.startsWith('Trial Active') || s.accessBadge?.label?.startsWith('Trial Expiring')))
+      || (statusF === 'trial_expired' && s.accessBadge?.label === 'Trial Expired / Access Frozen')
+      || (statusF === 'fee_due' && s.accessBadge?.label === 'Fee Due / Grace Period')
+      || (statusF === 'fee_overdue' && s.accessBadge?.label === 'Fee Overdue / Access Frozen')
+      || (statusF === 'payment_rejected' && s.accessBadge?.label === 'Payment Rejected / Access Frozen')
+      || (statusF === 'validity_expired' && s.accessBadge?.label === 'Course Validity Expired / Access Frozen')
+      || (statusF === 'override_active' && s.accessBadge?.label === 'Access Granted / Fee Waived')
+      || (statusF === 'account_suspended' && s.accessBadge?.label === 'Account Suspended')
+      || (statusF === 'data_error' && s.accessBadge?.label === 'Data Error / Unable to Determine')
+    return matchSearch && matchBatch && matchAtt && matchStatus
   })
 
   return (
     <div className="space-y-4 pb-20 lg:pb-0">
+      {dataError && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-amber-800 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span><strong>Data Warning:</strong> Live database query encountered an issue ({dataError}). Impacted records are flagged with &quot;Data Error / Unable to Determine&quot;.</span>
+          </div>
+          <button onClick={loadData} className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-2xs shrink-0 cursor-pointer">
+            <RefreshCw className="h-3.5 w-3.5" /> Retry
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -377,7 +444,28 @@ export default function StudentTracker() {
               ]}
             />
           </div>
-          <div className="flex-1 sm:flex-initial min-w-[135px]">
+          <div className="flex-1 sm:flex-initial min-w-[155px]">
+            <CustomSelect
+              value={statusF}
+              onChange={setStatusF}
+              options={[
+                { value: 'all', label: 'All Access & Fee Statuses' },
+                { value: 'fee_paid', label: 'Fee Paid / Verified' },
+                { value: 'provisional', label: 'Provisional Access' },
+                { value: 'pending_verification', label: 'Pending Verification / Access Frozen' },
+                { value: 'trial_active', label: 'Trial Active' },
+                { value: 'trial_expired', label: 'Trial Expired / Access Frozen' },
+                { value: 'fee_due', label: 'Fee Due / Grace Period' },
+                { value: 'fee_overdue', label: 'Fee Overdue / Access Frozen' },
+                { value: 'payment_rejected', label: 'Payment Rejected / Access Frozen' },
+                { value: 'validity_expired', label: 'Course Validity Expired / Access Frozen' },
+                { value: 'override_active', label: 'Access Granted / Fee Waived' },
+                { value: 'account_suspended', label: 'Account Suspended' },
+                { value: 'data_error', label: 'Data Error / Unable to Determine' },
+              ]}
+            />
+          </div>
+          <div className="flex-1 sm:flex-initial min-w-[130px]">
             <CustomSelect
               value={attF}
               onChange={setAttF}
@@ -429,10 +517,7 @@ export default function StudentTracker() {
                             {isNew(s.created_at) && (
                               <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">New</span>
                             )}
-                            {isTrialExpired(s.trial_ends_at) && (
-                              <span className="bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Trial Over</span>
-                            )}
-                            {isTrialActive(s.trial_ends_at) && (
+                            {s.feeStatus?.isTrialActive && (
                               <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase flex items-center gap-0.5">
                                 <Clock className="h-2.5 w-2.5" />{trialLabel(s.trial_ends_at)}
                               </span>
@@ -491,8 +576,10 @@ export default function StudentTracker() {
                      {isNew(selected.created_at) && (
                         <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">New</span>
                      )}
-                     {isTrialExpired(selected.trial_ends_at) && (
-                        <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">Trial Over</span>
+                     {selected.feeStatus?.isTrialActive && (
+                        <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-1">
+                          <Clock className="h-3 w-3" />{trialLabel(selected.trial_ends_at)}
+                        </span>
                      )}
                   </div>
                   <p className="text-sm text-gray-500">{selected.email}</p>
@@ -543,19 +630,121 @@ export default function StudentTracker() {
                 </p>
               </div>
 
-              {/* Access & Trial Controls */}
-              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-2xs space-y-3">
+              {/* Authoritative Access & Fee Details Breakdown */}
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Access & Trial Controls</h4>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${selected.accessBadge?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5 text-blue-600" /> Access & Fee Status
+                  </h4>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${selected.accessBadge?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                     {selected.accessBadge?.label || selected.fee_status}
                   </span>
                 </div>
 
+                {selected.feeStatus?.message && (
+                  <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs text-gray-700 font-medium">
+                    {selected.feeStatus.message}
+                  </div>
+                )}
+
+                {/* Batch Fee Architecture Breakdown */}
+                <div className="rounded-lg bg-blue-50/50 border border-blue-100 p-3 text-xs space-y-1.5">
+                  <p className="font-semibold text-blue-900">Fee Architecture Details</p>
+                  <div className="grid grid-cols-2 gap-2 text-gray-600 pt-0.5">
+                    <div>
+                      <span className="text-gray-400 block text-[11px]">Fee Mode</span>
+                      <span className="font-medium text-gray-800 capitalize">
+                        {selected.batch_fee_mode === 'one_time' ? 'One-Time Course' : 'Monthly Fee'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[11px]">Amount</span>
+                      <span className="font-medium text-gray-800">
+                        ₹{(selected.batch_fee_amount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    {selected.batch_fee_mode === 'one_time' ? (
+                      <div className="col-span-2">
+                        <span className="text-gray-400 block text-[11px]">Validity Policy</span>
+                        <span className="font-medium text-gray-800">
+                          {selected.batch_validity_days 
+                            ? `${selected.batch_validity_days} Days from Payment`
+                            : selected.batch_validity_end_date 
+                            ? `Fixed Cutoff: ${selected.batch_validity_end_date}` 
+                            : 'Full Lifetime Access'}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="col-span-2">
+                        <span className="text-gray-400 block text-[11px]">Current Billing Cycle</span>
+                        <span className="font-medium text-gray-800">
+                          {getCurrentPaymentMonth()} (Grace period: 1st–10th)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Payment Record Evidence */}
+                {selected.feeStatus?.verifiedRecord && (
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-emerald-900 flex items-center gap-1">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Verified Payment Record
+                    </p>
+                    <p className="text-emerald-800 text-[11px]">
+                      Paid on: {new Date(selected.feeStatus.verifiedRecord.paid_at || selected.feeStatus.verifiedRecord.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                    </p>
+                    {selected.feeStatus.verifiedRecord.reference_id && (
+                      <p className="text-emerald-700 text-[11px] font-mono">
+                        UTR / Ref: {selected.feeStatus.verifiedRecord.reference_id}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {selected.feeStatus?.pendingRecord && (
+                  <div className="rounded-lg bg-sky-50 border border-sky-200 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-sky-900 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-sky-600" /> Provisional Access Active (Under Review)
+                    </p>
+                    <p className="text-sky-800 text-[11px]">
+                      Submitted on: {new Date(selected.feeStatus.pendingRecord.paid_at || selected.feeStatus.pendingRecord.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                    </p>
+                    {selected.feeStatus.pendingRecord.reference_id && (
+                      <p className="text-sky-700 text-[11px] font-mono">
+                        UTR / Ref: {selected.feeStatus.pendingRecord.reference_id}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {selected.feeStatus?.rejectedRecord && (
+                  <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-rose-900 flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> Payment Submission Rejected
+                    </p>
+                    <p className="text-rose-800 text-[11px]">
+                      Reason: {selected.feeStatus.rejectedRecord.notes || 'Payment could not be verified in bank ledger.'}
+                    </p>
+                  </div>
+                )}
+
+                {selected.feeStatus?.override && (
+                  <div className="rounded-lg bg-teal-50 border border-teal-200 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-teal-900 flex items-center gap-1">
+                      <Shield className="h-3.5 w-3.5 text-teal-600" /> Administrative Access Waiver
+                    </p>
+                    <p className="text-teal-800 text-[11px]">
+                      Reason: {selected.feeStatus.override.reason || 'Approved by Admin'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Free Trial Countdown */}
                 {selected.trial_ends_at && (
                   <div className={`rounded-lg p-3 text-xs border ${
                     isTrialExpired(selected.trial_ends_at)
-                      ? 'bg-red-50 border-red-200 text-red-800'
+                      ? 'bg-rose-50 border-rose-200 text-rose-800'
                       : 'bg-amber-50 border-amber-200 text-amber-800'
                   }`}>
                     <div className="font-semibold mb-0.5 flex items-center gap-1">
@@ -571,17 +760,12 @@ export default function StudentTracker() {
                   </div>
                 )}
 
-                {selected.feeStatus?.message && (
-                  <p className="text-xs text-gray-500 italic">
-                    Status info: {selected.feeStatus.message}
-                  </p>
-                )}
-
+                {/* Administrative Controls */}
                 <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
                   <button
                     onClick={() => grantFullAccess(selected.id)}
                     disabled={actingAction}
-                    className="w-full py-2 px-3 text-xs font-semibold bg-blue-950 text-white hover:bg-blue-900 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50"
+                    className="w-full py-2 px-3 text-xs font-semibold bg-blue-950 text-white hover:bg-blue-900 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
                   >
                     <CheckCircle className="h-4 w-4" />
                     {actingAction ? 'Processing...' : 'Approve & Grant Full Access'}
@@ -590,14 +774,14 @@ export default function StudentTracker() {
                     <button
                       onClick={() => extendTrial(selected.id, 2)}
                       disabled={actingAction}
-                      className="flex-1 py-1.5 px-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 text-center"
+                      className="flex-1 py-1.5 px-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 text-center cursor-pointer"
                     >
                       +2 Days Trial
                     </button>
                     <button
                       onClick={() => extendTrial(selected.id, 7)}
                       disabled={actingAction}
-                      className="flex-1 py-1.5 px-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 text-center"
+                      className="flex-1 py-1.5 px-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 text-center cursor-pointer"
                     >
                       +7 Days Trial
                     </button>

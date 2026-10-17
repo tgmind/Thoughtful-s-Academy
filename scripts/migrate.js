@@ -64,6 +64,7 @@ if (targetFile) {
         "035_dual_mode_fees_and_validity.sql",
         "036_fee_access_hardening_and_resource_rls.sql",
         "037_universal_trial_and_rejection_recovery.sql",
+        "038_authoritative_student_access_and_fee_status.sql",
       ]
 
   console.log(`Starting automated database migration (${targetFiles.length} migrations)...`)
