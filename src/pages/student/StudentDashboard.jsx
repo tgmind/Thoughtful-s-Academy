@@ -845,28 +845,60 @@ export default function StudentDashboard() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl bg-gradient-to-r from-sky-600 to-blue-700 text-white px-4 py-3.5 shadow-md border border-sky-400/30 flex items-start sm:items-center justify-between gap-3"
+              className="rounded-2xl bg-gradient-to-r from-sky-600 via-sky-700 to-blue-700 text-white p-3.5 sm:px-4 sm:py-3.5 shadow-md border border-sky-400/30"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-xl bg-white/20 shrink-0">
-                  <Clock className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm leading-snug">Fee Payment Submitted · Under Review</p>
-                    <span className="bg-sky-400/30 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Provisional Access</span>
+              {/* Mobile (< sm) */}
+              <div className="sm:hidden space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                      <Clock className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="font-extrabold text-xs text-white truncate">
+                      Payment Under Review
+                    </span>
                   </div>
-                  <p className="text-xs text-sky-100 mt-0.5 leading-tight">
-                    Your payment receipt is being verified by administration. All lectures, live classes, and homework remain fully unlocked.
-                  </p>
+                  <span className="bg-white/20 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 border border-white/20">
+                    Provisional Access
+                  </span>
                 </div>
+                <p className="text-[11px] text-sky-100 leading-snug">
+                  Your payment receipt is being verified by administration. All lectures, live classes, and homework remain fully unlocked.
+                </p>
+                <Link
+                  to="/student/pay-fee"
+                  className="inline-flex items-center justify-center gap-1.5 w-full py-1.5 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white text-xs font-bold rounded-xl border border-white/20 transition-all shadow-xs"
+                >
+                  <span>View Status</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
-              <Link
-                to="/student/pay-fee"
-                className="text-xs font-semibold bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-lg border border-white/20 transition-colors shrink-0"
-              >
-                View Status
-              </Link>
+
+              {/* Desktop / Tablet (>= sm) */}
+              <div className="hidden sm:flex sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-xl bg-white/20 shrink-0">
+                    <Clock className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm leading-snug">Fee Payment Submitted · Under Review</p>
+                      <span className="bg-sky-400/30 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-white/20">
+                        Provisional Access
+                      </span>
+                    </div>
+                    <p className="text-xs text-sky-100 mt-0.5 leading-tight">
+                      Your payment receipt is being verified by administration. All lectures, live classes, and homework remain fully unlocked.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/student/pay-fee"
+                  className="text-xs font-semibold bg-white/15 hover:bg-white/25 text-white px-3.5 py-2 rounded-xl border border-white/20 transition-colors shrink-0 shadow-xs"
+                >
+                  View Status
+                </Link>
+              </div>
             </motion.div>
           )
         }

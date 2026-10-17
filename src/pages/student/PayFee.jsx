@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { CreditCard, CheckCircle, Copy, Calendar, Sparkles } from 'lucide-react'
+import { CreditCard, CheckCircle, Copy, Calendar, Sparkles, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -129,247 +129,426 @@ export default function PayFee() {
   }
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0 max-w-lg">
-
-      {/* Step indicator */}
-      {step < 3 && (
-        <div className="flex items-center gap-2">
-          {['Fill Details', 'Pay via QR', 'Done'].map((label, i) => (
-            <div key={label} className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
-                ${step === i+1 ? 'bg-blue-950 text-white' : step > i+1 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                {step > i+1 ? '✓' : i+1}
-              </div>
-              <span className={`text-xs font-medium ${step === i+1 ? 'text-gray-900' : 'text-gray-400'}`}>{label}</span>
-              {i < 2 && <div className="flex-1 h-px bg-gray-200 w-8" />}
-            </div>
-          ))}
+    <div className="space-y-6 pb-24 lg:pb-8 max-w-6xl mx-auto w-full">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <CreditCard className="h-6 w-6 text-indigo-600 shrink-0" />
+            <span>Fee Payment Portal</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Pay your monthly tuition or one-time batch fee securely via UPI QR code
+          </p>
         </div>
-      )}
+        {activeBatch && (
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl self-start sm:self-auto">
+            <span className="text-[11px] font-semibold text-slate-500">Selected Batch:</span>
+            <span className="text-xs font-extrabold text-slate-800">
+              {activeBatch.name}
+            </span>
+          </div>
+        )}
+      </div>
 
-      {/* Step 1 */}
-      {step === 1 && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-gray-900 flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-blue-950" /> Fee Payment
-            </h2>
-            {activeBatch && (
-              <span className="text-xs">
-                {(() => {
-                  const b = formatBatchFeeBadge(activeBatch)
-                  return b ? (
-                    <span className={`px-2 py-0.5 rounded-full font-bold border ${b.color}`}>
-                      {b.text}
-                    </span>
-                  ) : null
-                })()}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Payment Steps / QR / Success (lg:col-span-5) */}
+        <div className="lg:col-span-5 space-y-4 sm:space-y-5">
+          {/* Step indicator */}
+          {step < 3 && (
+            <div className="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+              {['Fill Details', 'Pay via QR', 'Done'].map((label, i) => (
+                <div key={label} className="flex items-center gap-1.5 sm:gap-2">
+                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0
+                    ${step === i+1 ? 'bg-indigo-600 text-white' : step > i+1 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {step > i+1 ? '✓' : i+1}
+                  </div>
+                  <span className={`text-[11px] sm:text-xs font-bold ${step === i+1 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {label}
+                  </span>
+                  {i < 2 && <div className="hidden sm:block h-px bg-slate-200 w-4 lg:w-8" />}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Step 1 */}
+          {step === 1 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-indigo-600" />
+                  <span>Enter Fee Details</span>
+                </h2>
+                {activeBatch && (
+                  <span className="text-xs">
+                    {(() => {
+                      const b = formatBatchFeeBadge(activeBatch)
+                      return b ? (
+                        <span className={`px-2 py-0.5 rounded-full font-bold border text-[10px] sm:text-[11px] ${b.color}`}>
+                          {b.text}
+                        </span>
+                      ) : null
+                    })()}
+                  </span>
+                )}
+              </div>
+
+              {/* Batch Selector */}
+              {batches.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Select Course / Batch</label>
+                  <CustomSelect
+                    value={selectedBatchId}
+                    onChange={handleBatchChange}
+                    options={batches.map(b => ({
+                      value: b.id,
+                      label: `${b.name} (${b.fee_mode === 'one_time' ? 'One-Time' : 'Monthly'} · ₹${b.fee_amount || 0})`
+                    }))}
+                  />
+                </div>
+              )}
+
+              {/* One-Time Details Banner */}
+              {isOneTime && (
+                <div className="p-3 bg-purple-50 rounded-xl border border-purple-200/80 text-purple-950 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Sparkles className="h-4 w-4 text-purple-600" />
+                    <span>One-Time Course Fee</span>
+                  </div>
+                  <p className="text-purple-800 text-[11px] leading-relaxed">
+                    {activeBatch.validity_days
+                      ? `Includes full course access for ${activeBatch.validity_days} days upon payment verification.`
+                      : activeBatch.validity_end_date
+                      ? `Includes full course access until ${activeBatch.validity_end_date}.`
+                      : 'Includes full unrestricted access for this course.'}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Amount (₹)</label>
+                <input
+                  type="number"
+                  value={form.amount}
+                  onChange={e => set('amount', e.target.value)}
+                  placeholder="Enter amount"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-extrabold text-sm text-slate-900 bg-white"
+                />
+              </div>
+
+              {!isOneTime && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Payment Month</span>
+                  </label>
+                  <CustomSelect
+                    value={form.month}
+                    onChange={val => set('month', val)}
+                    options={getMonths().map(m => ({ value: m, label: m }))}
+                  />
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!form.amount || parseFloat(form.amount) <= 0}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm rounded-xl disabled:opacity-50 transition-all shadow-sm active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>Proceed to Pay</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Step 2 */}
+          {step === 2 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 text-center space-y-4 shadow-sm">
+              <div className="border-b border-slate-100 pb-3 text-left">
+                <h2 className="font-extrabold text-sm sm:text-base text-slate-900">Scan & Pay via UPI</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Scan the QR code with any UPI app (GPay, PhonePe, Paytm, etc.)</p>
+              </div>
+
+              {qr ? (
+                <div className="space-y-3">
+                  <div className="inline-block p-2 bg-white rounded-2xl border-2 border-slate-200 shadow-sm">
+                    <img src={qr.qr_image_url} alt="Payment QR" className="w-48 h-48 sm:w-52 sm:h-52 mx-auto rounded-xl object-contain" />
+                  </div>
+                  {qr.payee_name && <p className="font-extrabold text-slate-900 text-sm">{qr.payee_name}</p>}
+                  {qr.upi_id && (
+                    <button
+                      type="button"
+                      onClick={copyUPI}
+                      className="inline-flex items-center gap-2 mx-auto px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-slate-500" />
+                      <span>{qr.upi_id}</span>
+                    </button>
+                  )}
+                  {qr.description && <p className="text-xs text-slate-400 max-w-xs mx-auto">{qr.description}</p>}
+                </div>
+              ) : (
+                <div className="py-8 text-slate-400 text-xs sm:text-sm">QR code not configured yet. Contact institute administration.</div>
+              )}
+
+              <div className="bg-indigo-50/70 rounded-xl p-3 border border-indigo-100 text-xs text-left">
+                <p className="font-black text-indigo-950 text-sm">
+                  Amount to Pay: ₹{form.amount}
+                </p>
+                <p className="text-indigo-700 font-semibold mt-0.5">
+                  {isOneTime ? '⚡ One-Time Course Enrollment' : `📅 Monthly Fee for ${form.month}`}
+                  {activeBatch?.name ? ` · ${activeBatch.name}` : ''}
+                </p>
+              </div>
+
+              <div className="text-left space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  UPI Transaction / UTR ID <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.reference_id}
+                  onChange={e => set('reference_id', e.target.value)}
+                  placeholder="e.g. 328492817291"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono text-xs sm:text-sm text-slate-900"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Enter the 12-digit transaction ID or UTR reference from your UPI app receipt.
+                </p>
+              </div>
+
+              <div className="flex gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex-1 py-2.5 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={loading || !form.reference_id.trim()}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-xl disabled:opacity-50 transition-all shadow-sm cursor-pointer"
+                >
+                  {loading ? 'Submitting…' : 'I Have Paid ✓'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3 — Success */}
+          {step === 3 && success && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 text-center shadow-sm space-y-4">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
+                <CheckCircle className="h-8 w-8 stroke-[2.5]" />
+              </div>
+              <div>
+                <h2 className="font-black text-lg sm:text-xl text-slate-900">Payment Submitted!</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Your payment receipt has been submitted for administrative verification.
+                </p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 text-left space-y-1">
+                <p className="font-extrabold text-emerald-800">✓ Provisional Access Active</p>
+                <p className="text-[11px] leading-relaxed text-emerald-700">
+                  You have full active access to all batch lectures, live classes, and homework while administration verifies your receipt.
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-3.5 text-left space-y-1.5 text-xs border border-slate-100">
+                <div className="flex justify-between py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Batch:</span>
+                  <span className="font-bold text-slate-900">{activeBatch?.name || 'Assigned Batch'}</span>
+                </div>
+                <div className="flex justify-between py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Amount:</span>
+                  <span className="font-black text-slate-900">₹{success.amount}</span>
+                </div>
+                <div className="flex justify-between py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Billing Period:</span>
+                  <span className="font-bold text-slate-900">{success.payment_month}</span>
+                </div>
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-500 font-medium">Reference ID:</span>
+                  <span className="font-mono text-slate-900 font-bold">{success.reference_id}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1)
+                  setForm({ amount: activeBatch?.fee_amount ? String(activeBatch.fee_amount) : '', month: getMonths()[0], reference_id: '', screenshot_url: '' })
+                }}
+                className="w-full py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                Pay Another Fee
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Payment History (lg:col-span-7) */}
+        <div className="lg:col-span-7 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Payment History</h3>
+                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {history.length} {history.length === 1 ? 'record' : 'records'}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                Receipts & Verification Proofs
               </span>
+            </div>
+
+            {history.length === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                  <CreditCard className="h-6 w-6 text-slate-300" />
+                </div>
+                <h4 className="font-bold text-slate-700 text-sm">No Payment Records Yet</h4>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                  When you submit a fee payment, your receipts, transaction IDs, and verification statuses will appear here.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Cards (< sm) */}
+                <div className="sm:hidden p-3 space-y-2.5 divide-y divide-slate-100">
+                  {history.map(r => (
+                    <div key={r.id} className="pt-2.5 first:pt-0 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                            {r.batches?.name || 'General Batch'}
+                          </h4>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                              r.fee_mode === 'one_time' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {r.fee_mode === 'one_time' ? '⚡ One-Time' : '📅 Monthly'}
+                            </span>
+                            <span className="text-[10px] text-slate-600 font-semibold">
+                              {r.fee_mode === 'one_time' ? (
+                                r.valid_until ? `Till ${new Date(r.valid_until).toLocaleDateString('en-IN')}` : 'Course Fee'
+                              ) : (
+                                r.payment_month
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-sm font-black text-slate-900 shrink-0">
+                          ₹{r.amount}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Ref: {r.reference_id || '—'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                          </span>
+                        </div>
+
+                        <div className="text-right">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${FEE_STATUS[r.status]?.color}`}>
+                            {FEE_STATUS[r.status]?.label}
+                          </span>
+                          {r.status === 'pending' && (
+                            <p className="text-[9px] text-sky-600 font-bold mt-0.5">
+                              Provisional Active
+                            </p>
+                          )}
+                          {r.status === 'rejected' && r.notes && (
+                            <p className="text-[9px] text-rose-600 font-medium mt-0.5 max-w-[130px] truncate" title={r.notes}>
+                              Reason: {r.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop / Tablet Table (>= sm) */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-100 text-sm">
+                    <thead className="bg-slate-50/80">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Batch</th>
+                        <th className="px-3 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Type</th>
+                        <th className="px-3 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Period / Validity</th>
+                        <th className="px-3 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-3 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Reference</th>
+                        <th className="px-3 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-wider">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {history.map(r => (
+                        <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">
+                            {r.batches?.name || 'General Batch'}
+                          </td>
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                              r.fee_mode === 'one_time' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {r.fee_mode === 'one_time' ? 'One-Time' : 'Monthly'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3.5 font-medium text-xs text-slate-700 whitespace-nowrap">
+                            {r.fee_mode === 'one_time' ? (
+                              r.valid_until ? (
+                                <span className="text-purple-700 font-semibold">Till {new Date(r.valid_until).toLocaleDateString('en-IN')}</span>
+                              ) : (
+                                'Course Fee'
+                              )
+                            ) : (
+                              r.payment_month
+                            )}
+                          </td>
+                          <td className="px-3 py-3.5 font-black text-slate-900 whitespace-nowrap">
+                            ₹{r.amount}
+                          </td>
+                          <td className="px-3 py-3.5 text-slate-500 font-mono text-xs whitespace-nowrap">
+                            {r.reference_id || '—'}
+                          </td>
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <div>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${FEE_STATUS[r.status]?.color}`}>
+                                {FEE_STATUS[r.status]?.label}
+                              </span>
+                              {r.status === 'rejected' && r.notes && (
+                                <p className="text-[11px] text-rose-600 mt-0.5 max-w-[160px] truncate" title={r.notes}>
+                                  Reason: {r.notes}
+                                </p>
+                              )}
+                              {r.status === 'pending' && (
+                                <p className="text-[10px] text-sky-600 font-bold mt-0.5">
+                                  Provisional Active
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">
+                            {r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
-
-          {/* Batch Selector */}
-          {batches.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Select Course / Batch</label>
-              <CustomSelect
-                value={selectedBatchId}
-                onChange={handleBatchChange}
-                options={batches.map(b => ({
-                  value: b.id,
-                  label: `${b.name} (${b.fee_mode === 'one_time' ? 'One-Time' : 'Monthly'} · ₹${b.fee_amount || 0})`
-                }))}
-              />
-            </div>
-          )}
-
-          {/* One-Time Details Banner */}
-          {isOneTime && (
-            <div className="p-3 bg-purple-50 rounded-xl border border-purple-200/80 text-purple-950 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold">
-                <Sparkles className="h-4 w-4 text-purple-600" />
-                <span>One-Time Course Fee</span>
-              </div>
-              <p className="text-purple-800">
-                {activeBatch.validity_days
-                  ? `Includes full course access for ${activeBatch.validity_days} days upon payment verification.`
-                  : activeBatch.validity_end_date
-                  ? `Includes full course access until ${activeBatch.validity_end_date}.`
-                  : 'Includes full unrestricted access for this course.'}
-              </p>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Amount (₹)</label>
-            <input
-              type="number"
-              value={form.amount}
-              onChange={e => set('amount', e.target.value)}
-              placeholder="Enter amount"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 font-semibold"
-            />
-          </div>
-
-          {!isOneTime && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-slate-500" /> Payment Month
-              </label>
-              <CustomSelect
-                value={form.month}
-                onChange={val => set('month', val)}
-                options={getMonths().map(m => ({ value: m, label: m }))}
-              />
-            </div>
-          )}
-
-          <button
-            onClick={() => setStep(2)}
-            disabled={!form.amount || parseFloat(form.amount) <= 0}
-            className="w-full py-3 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            Proceed to Pay →
-          </button>
         </div>
-      )}
-
-      {/* Step 2 */}
-      {step === 2 && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center space-y-4">
-          <h2 className="font-bold text-gray-900">Scan & Pay</h2>
-          <p className="text-sm text-gray-500">Scan the QR code or use the UPI ID below</p>
-          {qr ? (
-            <>
-              <img src={qr.qr_image_url} alt="Payment QR" className="w-52 h-52 mx-auto rounded-xl border-2 border-gray-200 object-contain" />
-              {qr.payee_name && <p className="font-semibold text-gray-900">{qr.payee_name}</p>}
-              {qr.upi_id && (
-                <button onClick={copyUPI}
-                  className="flex items-center gap-2 mx-auto px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors">
-                  <Copy className="h-4 w-4" /> {qr.upi_id}
-                </button>
-              )}
-              {qr.description && <p className="text-xs text-gray-500">{qr.description}</p>}
-            </>
-          ) : (
-            <div className="py-8 text-gray-400 text-sm">QR code not set up yet. Contact admin.</div>
-          )}
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-sm">
-            <p className="font-bold text-blue-950">
-              Amount: ₹{form.amount} {isOneTime ? '· One-Time Course Fee' : `· ${form.month}`}
-            </p>
-            {activeBatch?.name && <p className="text-xs text-slate-500 mt-0.5">Batch: {activeBatch.name}</p>}
-          </div>
-
-          <div className="text-left">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">UPI Transaction ID <span className="text-red-500">*</span></label>
-            <input type="text" value={form.reference_id} onChange={e => set('reference_id', e.target.value)}
-              placeholder="e.g. 123456789012" className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600" />
-            <p className="text-xs text-gray-400 mt-1">Enter the 12-digit transaction ID from your UPI app after paying</p>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 py-3 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 cursor-pointer">
-              ← Back
-            </button>
-            <button onClick={submit} disabled={loading || !form.reference_id.trim()}
-              className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors cursor-pointer">
-              {loading ? 'Submitting…' : 'I Have Paid ✓'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3 — Success */}
-      {step === 3 && success && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
-          <h2 className="font-bold text-xl text-gray-900">Payment Submitted!</h2>
-          <p className="text-gray-500 text-sm mt-1 mb-3">Your payment has been received and is pending administrative verification.</p>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 text-xs text-emerald-800">
-            <span className="font-bold">✓ Provisional Access Unlocked:</span> You have full active access to all batch lectures, live classes, and homework while administration verifies your receipt.
-          </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-left space-y-1 text-sm mb-6">
-            <p><span className="text-gray-500">Amount:</span> <span className="font-semibold">₹{success.amount}</span></p>
-            <p><span className="text-gray-500">Mode:</span> <span className="font-semibold capitalize">{success.fee_mode || 'monthly'}</span></p>
-            <p><span className="text-gray-500">Billing:</span> <span className="font-semibold">{success.payment_month}</span></p>
-            <p><span className="text-gray-500">Reference:</span> <span className="font-mono text-xs">{success.reference_id}</span></p>
-          </div>
-          <button onClick={() => { setStep(1); setForm({ amount:'', month: getMonths()[0], reference_id:'', screenshot_url:'' }) }}
-            className="w-full py-3 bg-blue-950 text-white font-bold rounded-xl hover:bg-blue-900 cursor-pointer">
-            Pay Another Fee
-          </button>
-        </div>
-      )}
-
-      {/* Fee history */}
-      {history.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Payment History</h3>
-            <span className="text-xs text-gray-400 font-medium">{history.length} records</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Batch', 'Type', 'Period / Validity', 'Amount', 'Reference', 'Status', 'Date'].map(h => (
-                    <th key={h} className="px-3.5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {history.map(r => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-3.5 py-3 font-semibold text-gray-900">{r.batches?.name || 'General Batch'}</td>
-                    <td className="px-3.5 py-3">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        r.fee_mode === 'one_time' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {r.fee_mode === 'one_time' ? 'One-Time' : 'Monthly'}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-3 font-medium text-xs">
-                      {r.fee_mode === 'one_time' ? (
-                        r.valid_until ? (
-                          <span className="text-purple-700">Till {new Date(r.valid_until).toLocaleDateString('en-IN')}</span>
-                        ) : (
-                          'Course Fee'
-                        )
-                      ) : (
-                        r.payment_month
-                      )}
-                    </td>
-                    <td className="px-3.5 py-3 font-semibold">₹{r.amount}</td>
-                    <td className="px-3.5 py-3 text-gray-500 font-mono text-xs">{r.reference_id || '—'}</td>
-                    <td className="px-3.5 py-3">
-                      <div>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${FEE_STATUS[r.status]?.color}`}>
-                          {FEE_STATUS[r.status]?.label}
-                        </span>
-                        {r.status === 'rejected' && r.notes && (
-                          <p className="text-[11px] text-red-600 mt-0.5 max-w-[160px] truncate" title={r.notes}>
-                            Reason: {r.notes}
-                          </p>
-                        )}
-                        {r.status === 'pending' && (
-                          <p className="text-[10px] text-sky-600 mt-0.5 font-medium">
-                            Provisional Active
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3.5 py-3 text-gray-500 text-xs">
-                      {r.paid_at ? new Date(r.paid_at).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
