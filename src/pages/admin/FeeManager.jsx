@@ -15,7 +15,10 @@ import {
   UserX,
   Clock,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  Check,
+  X,
+  Minus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -24,17 +27,23 @@ import { normalizeUrl } from '../../utils/formatters'
 import CustomSelect from '../../components/ui/CustomSelect'
 import { checkBatchFeeStatus, getIndianDay, BATCH_ACCESS_STATUS } from '../../utils/feeAccess'
 
-function getMonths() {
+function getRecentMonths(count = 6) {
   const months = []
   const now = new Date()
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    months.push(d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }))
+    months.push({
+      fullName: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+      shortLabel: d.toLocaleDateString('en-IN', { month: 'short' }),
+      year: d.getFullYear(),
+      monthIndex: d.getMonth(),
+    })
   }
   return months
 }
 
-const MONTHS = getMonths()
+const MONTH_OBJECTS = getRecentMonths(6)
+const MONTHS = MONTH_OBJECTS.map(m => m.fullName)
 const TABS = ['Fee Defaulters', 'Pending Verifications', 'All Records']
 const STATUS_COLORS = {
   pending: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -74,8 +83,8 @@ export default function FeeManager() {
         supabase.from('fee_records').select('*, profiles!student_id(full_name, email), batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').eq('status', 'pending').order('paid_at'),
         supabase.from('fee_records').select('*, profiles!student_id(full_name, email), batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)').order('paid_at', { ascending: false }).limit(200),
         supabase.from('batches').select('id, name, fee_mode, fee_amount, validity_days, validity_end_date').eq('is_active', true).order('name'),
-        supabase.from('profiles').select('id, full_name, email, phone, is_active').eq('role', 'student').eq('is_active', true).order('full_name'),
-        supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, trial_ends_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)'),
+        supabase.from('profiles').select('id, full_name, email, phone, is_active, created_at').eq('role', 'student').eq('is_active', true).order('full_name'),
+        supabase.from('student_profiles').select('id, batch_id, roll_number, parent_phone, trial_ends_at, created_at, batches(id, name, fee_mode, fee_amount, validity_days, validity_end_date)'),
         supabase.from('fee_records').select('id, student_id, batch_id, amount, payment_month, fee_mode, valid_until, status, reference_id, paid_at')
       ])
 
@@ -97,6 +106,7 @@ export default function FeeManager() {
           roll_number: sp.roll_number || '—',
           parent_phone: sp.parent_phone || '—',
           trial_ends_at: sp.trial_ends_at || null,
+          created_at: p.created_at || sp.created_at || null,
         }
       })
 
@@ -377,11 +387,36 @@ export default function FeeManager() {
       }
 
       // Monthly fee analysis
-      const history = MONTHS.map(m => {
-        const rec = feeLookup[`${st.id}__${m}`]
+      const joinedDate = st.created_at ? new Date(st.created_at) : null
+      const hasValidJoinedDate = joinedDate && !isNaN(joinedDate.getTime())
+      const joinedYear = hasValidJoinedDate ? joinedDate.getFullYear() : null
+      const joinedMonth = hasValidJoinedDate ? joinedDate.getMonth() : null
+
+      const history = MONTH_OBJECTS.map(mObj => {
+        const rec = feeLookup[`${st.id}__${mObj.fullName}`]
+
+        let isBeforeEnrollment = false
+        if (hasValidJoinedDate) {
+          if (mObj.year < joinedYear || (mObj.year === joinedYear && mObj.monthIndex < joinedMonth)) {
+            isBeforeEnrollment = true
+          }
+        }
+
+        let status = 'not_submitted'
+        if (rec) {
+          status = rec.status
+        } else if (isBeforeEnrollment) {
+          status = 'not_enrolled'
+        } else {
+          status = 'not_submitted'
+        }
+
         return {
-          month: m,
-          status: rec ? rec.status : 'not_submitted',
+          month: mObj.fullName,
+          shortLabel: mObj.shortLabel,
+          year: mObj.year,
+          monthIndex: mObj.monthIndex,
+          status,
           record: rec || null,
         }
       })
@@ -390,6 +425,9 @@ export default function FeeManager() {
 
       let consecutiveUnpaid = 0
       for (const h of history) {
+        if (h.status === 'not_enrolled') {
+          break
+        }
         if (h.status === 'not_submitted' || h.status === 'rejected') {
           consecutiveUnpaid++
         } else {
@@ -397,11 +435,12 @@ export default function FeeManager() {
         }
       }
 
+      const enrolledHistory = history.filter(h => h.status !== 'not_enrolled')
       const totalUnpaid6M = history.filter(h => h.status === 'not_submitted' || h.status === 'rejected').length
       const totalVerified6M = history.filter(h => h.status === 'verified').length
 
       const isRepeatDefaulter = consecutiveUnpaid >= 2 || (totalUnpaid6M >= 3 && currentMonthInfo.status !== 'verified')
-      const isTimelyPayer = totalVerified6M >= 4 && consecutiveUnpaid === 0
+      const isTimelyPayer = enrolledHistory.length >= 2 && totalVerified6M === enrolledHistory.length && consecutiveUnpaid === 0
       const inGracePeriod = currentIndianDay <= 10 && (currentMonthInfo.status === 'not_submitted')
 
       return {
@@ -468,7 +507,8 @@ export default function FeeManager() {
     const verifiedCount = pool.filter(s => s.currentStatus === 'verified').length
     const repeatCount = pool.filter(s => s.isRepeatDefaulter).length
 
-    const complianceRate = total > 0 ? Math.round((verifiedCount / total) * 100) : 0
+    const activePool = pool.filter(s => s.currentStatus !== 'not_enrolled')
+    const complianceRate = activePool.length > 0 ? Math.round((verifiedCount / activePool.length) * 100) : 0
 
     const totalCollected = pool.reduce((acc, s) => {
       if (s.currentStatus === 'verified' && s.currentRecord?.amount) {
@@ -679,9 +719,20 @@ export default function FeeManager() {
                 <UserX className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-rose-500 shrink-0" />
                 <span>Student Fee Status ({defaulterMonth})</span>
               </h3>
-              <span className="text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-lg">
-                {filteredDefaulterStudents.length} Students
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-[10px] text-slate-400 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded-lg">
+                  <span className="flex items-center gap-0.5 font-semibold text-emerald-700"><Check className="h-2.5 w-2.5 stroke-[3]" /> Paid</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="flex items-center gap-0.5 font-semibold text-amber-700"><Clock className="h-2.5 w-2.5 stroke-[2.5]" /> Pending</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="flex items-center gap-0.5 font-semibold text-rose-700"><X className="h-2.5 w-2.5 stroke-[3]" /> Unpaid</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="flex items-center gap-0.5 font-semibold text-slate-500"><Minus className="h-2.5 w-2.5 stroke-[2.5]" /> N/A</span>
+                </div>
+                <span className="text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-lg">
+                  {filteredDefaulterStudents.length} Students
+                </span>
+              </div>
             </div>
 
             {filteredDefaulterStudents.length === 0 ? (
@@ -698,6 +749,7 @@ export default function FeeManager() {
                   const isUnpaid = student.currentStatus === 'not_submitted' || student.currentStatus === 'rejected'
                   const isPending = student.currentStatus === 'pending'
                   const isVerified = student.currentStatus === 'verified'
+                  const isNotEnrolled = student.currentStatus === 'not_enrolled'
 
                   return (
                     <div
@@ -802,6 +854,13 @@ export default function FeeManager() {
                                 </span>
                               )
                             )}
+
+                            {isNotEnrolled && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[11px] sm:text-xs font-semibold">
+                                <Minus className="h-3.5 w-3.5 text-slate-400 stroke-[2.5]" />
+                                Not Enrolled Yet
+                              </span>
+                            )}
                           </div>
 
                           {/* 6-Month History / Course Type Visual */}
@@ -831,24 +890,51 @@ export default function FeeManager() {
                                 ) : null}
                               </div>
 
-                              <div className="flex items-center gap-1">
-                                {student.history.map((h, i) => (
-                                  <div
-                                    key={i}
-                                    title={`${h.month}: ${
-                                      h.status === 'verified' ? 'Paid' : h.status === 'pending' ? 'Pending' : 'Unpaid'
-                                    }`}
-                                    className={`w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-md flex items-center justify-center text-[9px] font-black cursor-help transition-transform hover:scale-110 ${
-                                      h.status === 'verified'
-                                        ? 'bg-emerald-500 text-white'
-                                        : h.status === 'pending'
-                                        ? 'bg-amber-400 text-slate-900'
-                                        : 'bg-rose-200 text-rose-800'
-                                    }`}
-                                  >
-                                    {h.month.slice(0, 1)}
-                                  </div>
-                                ))}
+                              <div className="flex items-center gap-1 sm:gap-1.5">
+                                {student.history.map((h, i) => {
+                                  let icon = null
+                                  let badgeStyle = ''
+                                  let statusLabel = 'Unpaid'
+
+                                  if (h.status === 'verified') {
+                                    icon = <Check className="h-3 w-3 stroke-[3]" />
+                                    badgeStyle = 'bg-emerald-500 text-white shadow-xs'
+                                    statusLabel = h.record?.amount ? `Paid (₹${h.record.amount})` : 'Paid & Verified'
+                                  } else if (h.status === 'pending') {
+                                    icon = <Clock className="h-3 w-3 stroke-[2.5]" />
+                                    badgeStyle = 'bg-amber-400 text-slate-900 shadow-xs'
+                                    statusLabel = 'Pending Proof'
+                                  } else if (h.status === 'not_enrolled') {
+                                    icon = <Minus className="h-3 w-3 text-slate-400 stroke-[2.5]" />
+                                    badgeStyle = 'bg-slate-100 text-slate-400 border border-slate-200'
+                                    statusLabel = 'Not Enrolled'
+                                  } else {
+                                    icon = <X className="h-3 w-3 stroke-[3]" />
+                                    badgeStyle = 'bg-rose-500 text-white shadow-xs'
+                                    statusLabel = h.status === 'rejected' ? 'Rejected' : 'Unpaid'
+                                  }
+
+                                  const isTargetMonth = h.month === defaulterMonth
+
+                                  return (
+                                    <div key={i} className="flex flex-col items-center gap-1">
+                                      <span
+                                        className={`text-[9px] font-bold tracking-tight transition-colors ${
+                                          isTargetMonth ? 'text-indigo-600 font-extrabold' : 'text-slate-400'
+                                        }`}
+                                        title={`${h.month}: ${statusLabel}`}
+                                      >
+                                        {h.shortLabel}
+                                      </span>
+                                      <div
+                                        title={`${h.month}: ${statusLabel}`}
+                                        className={`w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-md flex items-center justify-center cursor-help transition-all duration-150 hover:scale-115 ${badgeStyle}`}
+                                      >
+                                        {icon}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             </div>
                           )}
