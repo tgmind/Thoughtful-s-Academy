@@ -159,7 +159,6 @@ describe('Chapter Duplication, Synchronization and Realtime Consistency', () => 
         batch_id: 'batch-1',
         subject: 'Physics',
         title: 'Demo Chapter',
-        description: 'Foundations of physics',
         display_order: 1,
       },
       {
@@ -167,7 +166,6 @@ describe('Chapter Duplication, Synchronization and Realtime Consistency', () => 
         batch_id: 'batch-1',
         subject: 'Physics',
         title: 'Projectile Motion PYQs',
-        description: 'Past year questions and solved examples',
         display_order: 2,
       },
     ]

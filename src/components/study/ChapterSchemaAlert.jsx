@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS chapters (
   batch_id      UUID REFERENCES batches(id) ON DELETE CASCADE,
   subject       TEXT NOT NULL,
   title         TEXT NOT NULL,
-  description   TEXT,
   display_order INTEGER DEFAULT 0,
   created_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at    TIMESTAMPTZ DEFAULT NOW(),

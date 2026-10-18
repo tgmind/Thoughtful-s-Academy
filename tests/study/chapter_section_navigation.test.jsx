@@ -151,7 +151,6 @@ describe('Chapter-Based Video Lectures Architecture', () => {
         batch_id: 'batch-1',
         subject: 'Physics',
         title: 'Electrostatics & Electric Field',
-        description: 'Gauss Law, Coulomb Force & Field lines',
         display_order: 1,
       },
       {
@@ -159,7 +158,6 @@ describe('Chapter-Based Video Lectures Architecture', () => {
         batch_id: 'batch-1',
         subject: 'Physics',
         title: 'Current Electricity',
-        description: 'Ohm Law, Kirchhoff Rules and Potentiometer',
         display_order: 2,
       },
     ]
@@ -278,7 +276,7 @@ describe('Chapter-Based Video Lectures Architecture', () => {
 
       const heading = await screen.findByText('Electrostatics & Electric Field')
       const ch1Btn = heading.closest('button')
-      const reactPropsKey = Object.keys(ch1Btn).find(k => k.startsWith('__reactProps'))
+      const reactPropsKey = Object.getOwnPropertyNames(ch1Btn).find(k => k.startsWith('__reactProps'))
       ch1Btn[reactPropsKey].onClick()
 
       // Lecture belonging to Chapter 1 is visible
@@ -427,7 +425,6 @@ describe('Chapter-Based Video Lectures Architecture', () => {
           batch_id: 'batch-1',
           subject: 'Physics',
           title: 'Electrostatics & Electric Field',
-          description: 'Field lines and Gauss Law',
           display_order: 1,
         },
       ]
@@ -532,6 +529,54 @@ describe('Chapter-Based Video Lectures Architecture', () => {
 
       // The virtual chapter is extracted and rendered
       expect(await screen.findByText('Waves & Sound')).toBeInTheDocument()
+    })
+  })
+
+  describe('Chapter Description Removal & Responsive UI Validation', () => {
+    it('does not render description input in create/edit chapter modal', async () => {
+      mockAuthState = {
+        user: { id: 'admin-1', email: 'admin@example.com' },
+        profile: { id: 'admin-1', role: 'admin', full_name: 'Administrator' },
+        loading: false,
+      }
+
+      render(
+        <MemoryRouter initialEntries={['/admin/study?batch=batch-1&subject=Physics&folder=video']}>
+          <TeacherStudySection isAdmin={true} />
+        </MemoryRouter>
+      )
+
+      await screen.findByText('Electrostatics & Electric Field')
+
+      const createBtn = screen.getByRole('button', { name: /Create Chapter/i })
+      fireEvent.click(createBtn)
+
+      // Chapter Title must exist
+      expect(screen.getByPlaceholderText(/e\.g\. Electric Charges and Fields/i)).toBeInTheDocument()
+
+      // Description field must NOT exist anywhere in the modal
+      expect(screen.queryByPlaceholderText(/Brief chapter overview or syllabus scope/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Description \(Optional\)/i)).not.toBeInTheDocument()
+    })
+
+    it('renders chapter cards without description paragraph in student portal', async () => {
+      render(
+        <MemoryRouter initialEntries={['/student/study?subject=Physics&category=video']}>
+          <StudentStudySection />
+        </MemoryRouter>
+      )
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Loading Study Workspace/i)).not.toBeInTheDocument()
+      })
+
+      // Must show chapter cards with non-truncating badge pills
+      expect(screen.getByText('Electrostatics & Electric Field')).toBeInTheDocument()
+      expect(screen.getByText('Chapter 1')).toBeInTheDocument()
+      expect(screen.getAllByText('1 Video').length).toBeGreaterThan(0)
+
+      // Ensure no description paragraph text exists
+      expect(screen.queryByText(/Gauss Law, Coulomb Force & Field lines/i)).not.toBeInTheDocument()
     })
   })
 })

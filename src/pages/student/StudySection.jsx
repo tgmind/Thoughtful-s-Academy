@@ -917,7 +917,6 @@ export default function StudySection() {
           id: `virtual_${chName}`,
           title: chName,
           subject: selectedSubject,
-          description: null,
           display_order: 999,
           isVirtual: true,
         })
@@ -942,11 +941,11 @@ export default function StudySection() {
   const activeChapterObj = useMemo(() => {
     if (!selectedChapter) return null
     if (selectedChapter === 'general') {
-      return { id: 'general', title: 'General & Introductory Lectures', description: 'Introductory concepts, syllabus and unassigned lectures' }
+      return { id: 'general', title: 'General & Introductory Lectures' }
     }
     const found = subjectChapters.find(ch => ch.id === selectedChapter || ch.title?.toLowerCase() === selectedChapter.toLowerCase())
     if (found) return found
-    return { id: selectedChapter, title: selectedChapter, description: '' }
+    return { id: selectedChapter, title: selectedChapter }
   }, [selectedChapter, subjectChapters])
 
   // Active videos to render when a specific chapter is open
@@ -1651,37 +1650,42 @@ export default function StudySection() {
                 !selectedChapter ? (
                   /* ── B-1a: CHAPTERS LIST VIEW ── */
                   <div className="space-y-5">
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <button
-                          onClick={() => selectCategory(null)}
-                          className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
-                          title="Back to Categories"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          <span>Categories</span>
-                        </button>
+                    <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs space-y-3">
+                      {/* Tier 1: Back Navigation, Title & Count Pill */}
+                      <div className="flex items-center justify-between gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <button
+                            onClick={() => selectCategory(null)}
+                            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
+                            title="Back to Categories"
+                          >
+                            <ChevronLeft className="h-4.5 w-4.5 text-slate-800" />
+                          </button>
 
-                        <div className="h-5 w-px bg-gray-200" />
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-sm font-black text-gray-900">
-                            🎥 Video Lectures • Chapters
-                          </span>
-                          {(() => {
-                            const totalCh = subjectChapters.length + (unassignedVideoCards.length > 0 || subjectChapters.length === 0 ? 1 : 0)
-                            const totalVids = subjectVideoCards.length
-                            return (
-                              <span className="text-xs font-bold text-gray-400">
-                                ({totalCh} {totalCh === 1 ? 'Chapter' : 'Chapters'} • {totalVids} {totalVids === 1 ? 'Video' : 'Videos'})
-                              </span>
-                            )
-                          })()}
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-blue-600 block truncate">
+                              {selectedSubject} • Study Materials
+                            </span>
+                            <h2 className="text-sm sm:text-base font-black text-slate-900 truncate leading-snug">
+                              🎥 Video Lectures • Chapters
+                            </h2>
+                          </div>
                         </div>
+
+                        {/* Dedicated Count Badge Pill */}
+                        {(() => {
+                          const totalCh = subjectChapters.length + (unassignedVideoCards.length > 0 || subjectChapters.length === 0 ? 1 : 0)
+                          const totalVids = subjectVideoCards.length
+                          return (
+                            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0 whitespace-nowrap shadow-2xs">
+                              ({totalCh} {totalCh === 1 ? 'Chapter' : 'Chapters'} • {totalVids} {totalVids === 1 ? 'Video' : 'Videos'})
+                            </span>
+                          )
+                        })()}
                       </div>
 
-                      {/* Quick Category Switcher Tabs */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      {/* Tier 2: Category Switcher Tabs */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-slate-100">
                         {[
                           { id: 'video', label: 'Videos' },
                           { id: 'drive', label: 'Notes' },
@@ -1691,10 +1695,10 @@ export default function StudySection() {
                           <button
                             key={cat.id}
                             onClick={() => selectCategory(cat.id)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                               selectedCategory === cat.id
                                 ? 'bg-blue-950 text-white shadow-2xs'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                           >
                             {cat.label}
@@ -1753,23 +1757,17 @@ export default function StudySection() {
                                 </div>
 
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">
+                                  <div className="flex items-center flex-wrap gap-1.5">
+                                    <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
                                       Chapter {idx + 1}
                                     </span>
-                                    <span className="text-[10px] font-bold text-slate-400">•</span>
-                                    <span className="text-[10px] font-bold text-slate-500">
+                                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                       {videoCount} {videoCount === 1 ? 'Video' : 'Videos'}
                                     </span>
                                   </div>
-                                  <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-indigo-600 transition-colors truncate mt-0.5">
+                                  <h4 className="text-sm sm:text-base font-bold text-slate-900 sm:group-hover:text-indigo-600 transition-colors line-clamp-2 break-words mt-1 leading-snug">
                                     {ch.title}
                                   </h4>
-                                  {ch.description && (
-                                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                                      {ch.description}
-                                    </p>
-                                  )}
                                 </div>
                               </div>
 
@@ -1793,21 +1791,17 @@ export default function StudySection() {
                               </div>
 
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider bg-amber-100/80 px-1.5 py-0.2 rounded-md">
+                                <div className="flex items-center flex-wrap gap-1.5">
+                                  <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/80 border border-amber-200/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
                                     General
                                   </span>
-                                  <span className="text-[10px] font-bold text-slate-400">•</span>
-                                  <span className="text-[10px] font-bold text-slate-500">
+                                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                     {unassignedVideoCards.length} {unassignedVideoCards.length === 1 ? 'Video' : 'Videos'}
                                   </span>
                                 </div>
-                                <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-amber-700 transition-colors truncate mt-0.5">
+                                <h4 className="text-sm sm:text-base font-bold text-slate-900 sm:group-hover:text-amber-700 transition-colors line-clamp-2 break-words mt-1 leading-snug">
                                   General & Introductory Lectures
                                 </h4>
-                                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                                  Introductory concepts, syllabus and unassigned lectures
-                                </p>
                               </div>
                             </div>
 
@@ -1822,31 +1816,40 @@ export default function StudySection() {
                 ) : (
                   /* ── B-1b: CHAPTER SPECIFIC VIDEO LECTURES VIEW ── */
                   <div className="space-y-5">
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                        <button
-                          onClick={() => selectChapter(null)}
-                          className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
-                          title="Back to Chapters"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          <span>Chapters</span>
-                        </button>
+                    <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs space-y-3">
+                      {/* Tier 1: Circular Back Button & Context Hierarchy Breadcrumb + Non-Truncating Count Badge */}
+                      <div className="flex items-center justify-between gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <button
+                            onClick={() => selectChapter(null)}
+                            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
+                            title="Back to Chapters"
+                          >
+                            <ChevronLeft className="h-4.5 w-4.5 text-slate-800" />
+                          </button>
 
-                        <div className="h-5 w-px bg-gray-200" />
-
-                        <div className="flex items-center gap-2 min-w-0 truncate">
-                          <span className="text-xs sm:text-sm font-black text-gray-900 truncate">
-                            🎥 {activeChapterObj?.title || 'Chapter Lectures'}
-                          </span>
-                          <span className="text-xs font-bold text-gray-400 shrink-0">
-                            ({activeChapterVideos.length})
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-blue-600 block truncate">
+                              {selectedSubject} • Chapter Lectures
+                            </span>
+                          </div>
                         </div>
+
+                        {/* Dedicated Non-Truncating Count Badge Pill */}
+                        <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80 shrink-0 whitespace-nowrap shadow-2xs">
+                          {activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'}
+                        </span>
                       </div>
 
-                      {/* Quick Category Switcher Tabs */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      {/* Tier 2: Full Multi-Line Chapter Title */}
+                      <div className="pt-0.5">
+                        <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight leading-snug break-words line-clamp-2">
+                          🎥 {activeChapterObj?.title || 'Chapter Lectures'}
+                        </h2>
+                      </div>
+
+                      {/* Tier 3: Category Switcher Tabs */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-slate-100">
                         {[
                           { id: 'video', label: 'Videos' },
                           { id: 'drive', label: 'Notes' },
@@ -1856,10 +1859,10 @@ export default function StudySection() {
                           <button
                             key={cat.id}
                             onClick={() => selectCategory(cat.id)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                               selectedCategory === cat.id
                                 ? 'bg-blue-950 text-white shadow-2xs'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                           >
                             {cat.label}

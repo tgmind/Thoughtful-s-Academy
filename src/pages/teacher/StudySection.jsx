@@ -805,7 +805,7 @@ export default function StudySection({ isAdmin = false }) {
 
   // Chapter Management Modal State
   const [showChapterModal, setShowChapterModal] = useState(false)
-  const [chapterForm, setChapterForm] = useState({ title: '', description: '', display_order: 1 })
+  const [chapterForm, setChapterForm] = useState({ title: '', display_order: 1 })
   const [editingChapterId, setEditingChapterId] = useState(null)
   const [savingChapter, setSavingChapter] = useState(false)
 
@@ -1092,7 +1092,6 @@ export default function StudySection({ isAdmin = false }) {
   const openCreateChapter = () => {
     setChapterForm({
       title: '',
-      description: '',
       display_order: batchSubjectChapters.length > 0 ? Math.max(...batchSubjectChapters.map(c => c.display_order || 0)) + 1 : 1
     })
     setEditingChapterId(null)
@@ -1105,7 +1104,6 @@ export default function StudySection({ isAdmin = false }) {
       : (ch.display_order || 0)
     setChapterForm({
       title: ch.title,
-      description: ch.description || '',
       display_order: order
     })
     setEditingChapterId(ch.id)
@@ -1125,7 +1123,6 @@ export default function StudySection({ isAdmin = false }) {
     setSavingChapter(true)
     const payload = {
       title: chapterForm.title.trim(),
-      description: chapterForm.description?.trim() || null,
       display_order: parseInt(chapterForm.display_order, 10) || 0,
       batch_id: selectedBatch.id,
       subject: selectedSubject,
@@ -1733,7 +1730,6 @@ export default function StudySection({ isAdmin = false }) {
           title: chName,
           subject: selectedSubject,
           batch_id: selectedBatch.id,
-          description: null,
           display_order: 999,
           isVirtual: true,
         })
@@ -1758,11 +1754,11 @@ export default function StudySection({ isAdmin = false }) {
   const activeChapterObj = useMemo(() => {
     if (!selectedChapter) return null
     if (selectedChapter === 'general') {
-      return { id: 'general', title: 'General & Introductory Lectures', description: 'Unassigned video lectures for this subject' }
+      return { id: 'general', title: 'General & Introductory Lectures' }
     }
     const found = batchSubjectChapters.find(ch => ch.id === selectedChapter || ch.title?.toLowerCase() === selectedChapter.toLowerCase())
     if (found) return found
-    return { id: selectedChapter, title: selectedChapter, description: '' }
+    return { id: selectedChapter, title: selectedChapter }
   }, [selectedChapter, batchSubjectChapters])
 
   // Videos belonging to active chapter
@@ -2222,16 +2218,15 @@ export default function StudySection({ isAdmin = false }) {
       {/* ───────────────────────────────────────────────────────────────────────── */}
       {/* COMPACT STACKED-HIERARCHY HEADER BAR                                      */}
       {/* ───────────────────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3 sm:p-3.5 space-y-2.5 transition-all">
-        
-        {/* Row 1: Circular Back Button & Full Stacked Context Hierarchy + Contextual Add CTAs */}
-        <div className="flex items-center justify-between gap-2 min-w-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3 sm:p-4 space-y-2.5 sm:space-y-3 transition-all">
+        {/* Tier 1: Circular Back Button & Context Hierarchy Breadcrumb + Non-Truncating Count Badge */}
+        <div className="flex items-center justify-between gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {(selectedBatch || selectedSubject || selectedFolder || selectedChapter) && (
               <button
                 type="button"
                 onClick={goBackStep}
-                className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-900 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
+                className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
                 title={
                   selectedChapter
                     ? 'Back to Chapters'
@@ -2242,12 +2237,12 @@ export default function StudySection({ isAdmin = false }) {
                     : 'Back to Batches'
                 }
               >
-                <ArrowLeft className="h-5 w-5 text-slate-800" />
+                <ArrowLeft className="h-4.5 w-4.5 text-slate-800" />
               </button>
             )}
 
-            <div className="min-w-0 flex-1 leading-none">
-              <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block truncate">
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-blue-600 block truncate">
                 {selectedChapter
                   ? `${activeFolderObj?.name || 'Video Lectures'} • ${selectedSubject}`
                   : selectedFolder 
@@ -2258,59 +2253,63 @@ export default function StudySection({ isAdmin = false }) {
                   ? 'Workspace' 
                   : 'Study Workspace'}
               </span>
-              <div className="flex items-center gap-2 truncate mt-0.5">
-                <h2 className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                  {selectedChapter
-                    ? (activeChapterObj?.title || 'Chapter Lectures')
-                    : selectedFolder === 'video'
-                    ? `${selectedSubject} Video Chapters`
-                    : selectedFolder 
-                    ? (activeFolderObj?.name || 'Folder Material')
-                    : selectedSubject 
-                    ? selectedSubject 
-                    : selectedBatch 
-                    ? selectedBatch.name 
-                    : 'All Batches'}
-                </h2>
-                {selectedFolder === 'video' && !selectedChapter && (
-                  <span className="text-[11px] font-bold text-slate-500 shrink-0">
-                    {(() => {
-                      const totalCh = batchSubjectChapters.length + (unassignedVideos.length > 0 || batchSubjectChapters.length === 0 ? 1 : 0)
-                      const totalVids = batchSubjectVideoCards.length
-                      return `(${totalCh} ${totalCh === 1 ? 'Chapter' : 'Chapters'} • ${totalVids} ${totalVids === 1 ? 'Video' : 'Videos'})`
-                    })()}
-                  </span>
-                )}
-                {selectedChapter && (
-                  <span className="text-[11px] font-bold text-slate-500 shrink-0">
-                    ({activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'})
-                  </span>
-                )}
-                {selectedFolder && selectedFolder !== 'video' && (
-                  <span className="text-[11px] font-bold text-slate-500 shrink-0">
-                    ({processedCards.length} {processedCards.length === 1 ? 'Item' : 'Items'})
-                  </span>
-                )}
-              </div>
             </div>
           </div>
 
+          {/* Dedicated Non-Truncating Count Badges */}
+          {selectedFolder === 'video' && !selectedChapter && (
+            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0 whitespace-nowrap shadow-2xs">
+              {(() => {
+                const totalCh = batchSubjectChapters.length + (unassignedVideos.length > 0 || batchSubjectChapters.length === 0 ? 1 : 0)
+                const totalVids = batchSubjectVideoCards.length
+                return `(${totalCh} ${totalCh === 1 ? 'Chapter' : 'Chapters'} • ${totalVids} ${totalVids === 1 ? 'Video' : 'Videos'})`
+              })()}
+            </span>
+          )}
+          {selectedChapter && (
+            <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80 shrink-0 whitespace-nowrap shadow-2xs">
+              ({activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'})
+            </span>
+          )}
+          {selectedFolder && selectedFolder !== 'video' && (
+            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0 whitespace-nowrap shadow-2xs">
+              ({processedCards.length} {processedCards.length === 1 ? 'Item' : 'Items'})
+            </span>
+          )}
+        </div>
+
+        {/* Tier 2: Full Title & Responsive Action CTAs */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 pt-0.5">
+          <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug break-words line-clamp-2 min-w-0 flex-1">
+            {selectedChapter
+              ? (activeChapterObj?.title || 'Chapter Lectures')
+              : selectedFolder === 'video'
+              ? `${selectedSubject} Video Chapters`
+              : selectedFolder 
+              ? (activeFolderObj?.name || 'Folder Material')
+              : selectedSubject 
+              ? selectedSubject 
+              : selectedBatch 
+              ? selectedBatch.name 
+              : 'All Batches'}
+          </h2>
+
           {canManageBatch(selectedBatch) && (
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
               {selectedFolder === 'video' && !selectedChapter ? (
                 <>
                   <button
                     type="button"
                     onClick={openCreateChapter}
-                    className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span className="hidden xs:inline">Create Chapter</span>
+                    <span>Create Chapter</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => openAddForm('video')}
-                    className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Add Video</span>
@@ -2320,7 +2319,7 @@ export default function StudySection({ isAdmin = false }) {
                 <button
                   type="button"
                   onClick={() => openAddForm('video')}
-                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
+                  className="w-full sm:w-auto px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>Add Video to Chapter</span>
@@ -2329,7 +2328,7 @@ export default function StudySection({ isAdmin = false }) {
                 <button
                   type="button"
                   onClick={() => openAddForm(activeFolderObj?.cardType || 'external_link')}
-                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
+                  className="w-full sm:w-auto px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>Add Study Card</span>
@@ -2338,10 +2337,10 @@ export default function StudySection({ isAdmin = false }) {
                 <button
                   type="button"
                   onClick={() => openAddForm('external_link')}
-                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0 border border-blue-400/30"
+                  className="w-full sm:w-auto px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs border border-blue-400/30"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  <span className="hidden xs:inline">Add Card</span>
+                  <span>Add Study Card</span>
                 </button>
               )}
             </div>
@@ -2558,23 +2557,17 @@ export default function StudySection({ isAdmin = false }) {
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">
+                              <div className="flex items-center flex-wrap gap-1.5">
+                                <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
                                   Chapter {idx + 1}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-400">•</span>
-                                <span className="text-[10px] font-bold text-slate-500">
+                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                   {videoCount} {videoCount === 1 ? 'Lecture' : 'Lectures'}
                                 </span>
                               </div>
-                              <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-indigo-600 transition-colors truncate mt-0.5">
+                              <h4 className="text-sm sm:text-base font-bold text-slate-900 sm:group-hover:text-indigo-600 transition-colors line-clamp-2 break-words mt-1 leading-snug">
                                 {ch.title}
                               </h4>
-                              {ch.description && (
-                                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                                  {ch.description}
-                                </p>
-                              )}
                             </div>
                           </div>
 
@@ -2625,25 +2618,21 @@ export default function StudySection({ isAdmin = false }) {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider bg-amber-100/80 px-1.5 py-0.2 rounded-md">
+                            <div className="flex items-center flex-wrap gap-1.5">
+                              <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/80 border border-amber-200/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
                                 General
                               </span>
-                              <span className="text-[10px] font-bold text-slate-400">•</span>
-                              <span className="text-[10px] font-bold text-slate-500">
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                 {unassignedVideos.length} {unassignedVideos.length === 1 ? 'Lecture' : 'Lectures'}
                               </span>
                             </div>
-                            <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-amber-700 transition-colors truncate mt-0.5">
+                            <h4 className="text-sm sm:text-base font-bold text-slate-900 sm:group-hover:text-amber-700 transition-colors line-clamp-2 break-words mt-1 leading-snug">
                               General & Introductory Lectures
                             </h4>
-                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                              Introductory concepts, syllabus and unassigned lectures
-                            </p>
                           </div>
                         </div>
 
-                        <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-400 sm:group-hover:text-slate-600 sm:group-hover:bg-slate-200/80 flex items-center justify-center transition-all shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-400 sm:group-hover:text-slate-600 sm:group-hover:bg-slate-200/80 flex items-center justify-center transition-all shrink-0 ml-1">
                           <ChevronRight className="h-4 w-4 sm:group-hover:translate-x-0.5 transition-transform" />
                         </div>
                       </div>
@@ -2983,18 +2972,6 @@ export default function StudySection({ isAdmin = false }) {
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Description (Optional)
-                </label>
-                <textarea
-                  value={chapterForm.description}
-                  onChange={(e) => setChapterForm(f => ({ ...f, description: e.target.value }))}
-                  rows={2}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
-                  placeholder="Brief chapter overview or syllabus scope..."
-                />
-              </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
