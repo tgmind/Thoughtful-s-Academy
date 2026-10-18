@@ -578,5 +578,28 @@ describe('Chapter-Based Video Lectures Architecture', () => {
       // Ensure no description paragraph text exists
       expect(screen.queryByText(/Gauss Law, Coulomb Force & Field lines/i)).not.toBeInTheDocument()
     })
+
+    it('removes local search input from Teacher/Admin study header and gives Tier 1 full available width', async () => {
+      mockAuthState = {
+        user: { id: 'admin-1', email: 'admin@example.com' },
+        profile: { id: 'admin-1', role: 'admin', full_name: 'Administrator' },
+        loading: false,
+      }
+
+      render(
+        <MemoryRouter initialEntries={['/admin/study?batch=batch-1&subject=Physics&folder=video']}>
+          <TeacherStudySection isAdmin={true} />
+        </MemoryRouter>
+      )
+
+      await screen.findByText('Electrostatics & Electric Field')
+
+      // Competing local search input must NOT exist
+      expect(screen.queryByPlaceholderText(/Search chapters or lectures/i)).not.toBeInTheDocument()
+
+      // Relocated lower row count badge is rendered
+      expect(screen.getByText('(3 Chapters • 3 Videos)')).toBeInTheDocument()
+    })
   })
 })
+

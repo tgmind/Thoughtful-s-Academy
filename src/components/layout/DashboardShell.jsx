@@ -191,7 +191,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
 
           let query = supabase
             .from('study_cards')
-            .select('id, title, description, subject, type, is_public, batch_id, batch_ids')
+            .select('id, title, description, subject, type, is_public, batch_id, batch_ids, chapter, chapter_id')
             .eq('is_active', true)
             .order('display_order', { ascending: true })
 
@@ -208,7 +208,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
               // Resilient fallback for public cards
               supabase
                 .from('study_cards')
-                .select('id, title, description, subject, type, is_public, batch_id, batch_ids')
+                .select('id, title, description, subject, type, is_public, batch_id, batch_ids, chapter, chapter_id')
                 .eq('is_active', true)
                 .eq('is_public', true)
                 .then(({ data: pubData }) => {
@@ -217,12 +217,40 @@ export default function DashboardShell({ navItems, pageTitle }) {
             }
           })
         })
-    } else if (profile?.role === 'admin') {
+    } else if (profile?.role === 'admin' || profile?.role === 'teacher') {
+      // Fetch batches for Admin & Teacher
       supabase
         .from('batches')
-        .select('id, name, is_active')
+        .select('id, name, subjects, teacher_id, teacher_ids, is_active')
         .order('name')
-        .then(({ data }) => setAdminBatches(data || []))
+        .then(({ data: batchData }) => {
+          const allBatches = batchData || []
+          const filteredBatches = profile?.role === 'teacher'
+            ? allBatches.filter(b => b.teacher_id === user.id || (Array.isArray(b.teacher_ids) && b.teacher_ids.includes(user.id)))
+            : allBatches
+
+          const effectiveBatches = filteredBatches.length > 0 ? filteredBatches : allBatches
+          setAdminBatches(effectiveBatches)
+
+          // Derive unique subjects from batches
+          const subjSet = new Set()
+          effectiveBatches.forEach(b => {
+            if (Array.isArray(b.subjects)) {
+              b.subjects.forEach(s => s && subjSet.add(s))
+            }
+          })
+          setStudentSubjects(Array.from(subjSet))
+        })
+
+      // Fetch active study cards for Global Search
+      supabase
+        .from('study_cards')
+        .select('id, title, description, subject, type, is_public, batch_id, batch_ids, chapter, chapter_id')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .then(({ data: cardData }) => {
+          setStudyCards(cardData || [])
+        })
     }
   }, [user?.id, profile?.role])
 
@@ -274,10 +302,33 @@ export default function DashboardShell({ navItems, pageTitle }) {
       })
     }
 
-    // 2. Subject Workspaces (for enrolled student)
-    if (profile?.role === 'student' && studentSubjects.length > 0) {
+    // 2. Batches (for Admin & Teacher)
+    if ((profile?.role === 'admin' || profile?.role === 'teacher') && adminBatches.length > 0 && q) {
+      const matchingBatches = adminBatches.filter(b => (b.name || '').toLowerCase().includes(q)).slice(0, 5)
+      if (matchingBatches.length > 0) {
+        const studyBasePath = profile?.role === 'admin' ? '/admin/study' : '/teacher/study'
+        sections.push({
+          title: 'Batches',
+          items: matchingBatches.map(b => ({
+            id: `batch-${b.id}`,
+            type: 'batch',
+            label: b.name,
+            subtext: Array.isArray(b.subjects) && b.subjects.length > 0 ? b.subjects.join(' • ') : undefined,
+            icon: <School className="h-4 w-4 text-indigo-500" />,
+            action: () => {
+              navigate(`${studyBasePath}?batch=${b.id}`)
+              setShowCommandPalette(false)
+            }
+          }))
+        })
+      }
+    }
+
+    // 3. Subject Workspaces (for all roles)
+    if (studentSubjects.length > 0) {
       const matchingSubjs = studentSubjects.filter(s => !q || s.toLowerCase().includes(q))
       if (matchingSubjs.length > 0) {
+        const studyBasePath = profile?.role === 'admin' ? '/admin/study' : profile?.role === 'teacher' ? '/teacher/study' : '/student/study'
         sections.push({
           title: 'Subject Workspaces',
           items: matchingSubjs.map(s => ({
@@ -286,7 +337,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
             label: `${s} Workspace`,
             icon: <BookOpen className="h-4 w-4 text-amber-500" />,
             action: () => {
-              navigate(`/student/study?subject=${encodeURIComponent(s)}`)
+              navigate(`${studyBasePath}?subject=${encodeURIComponent(s)}`)
               setShowCommandPalette(false)
             }
           }))
@@ -294,17 +345,21 @@ export default function DashboardShell({ navItems, pageTitle }) {
       }
     }
 
-    // 3. Lectures & Study Materials (for students)
-    if (profile?.role === 'student' && studyCards.length > 0 && q) {
+    // 4. Lectures & Study Materials (for all roles)
+    if (studyCards.length > 0 && q) {
       const matchingCards = studyCards.filter(c => {
         return (
           (c.title || '').toLowerCase().includes(q) ||
           (c.subject || '').toLowerCase().includes(q) ||
+          (c.chapter || '').toLowerCase().includes(q) ||
           (c.description || '').toLowerCase().includes(q)
         )
-      }).slice(0, 5)
+      }).slice(0, 6)
 
       if (matchingCards.length > 0) {
+        const isStudent = profile?.role === 'student'
+        const studyBasePath = profile?.role === 'admin' ? '/admin/study' : profile?.role === 'teacher' ? '/teacher/study' : '/student/study'
+
         sections.push({
           title: 'Lectures & Study Materials',
           items: matchingCards.map(card => {
@@ -313,16 +368,22 @@ export default function DashboardShell({ navItems, pageTitle }) {
               id: `card-${card.id}`,
               type: 'study',
               label: card.title,
-              subtext: card.subject ? `${card.subject}` : undefined,
+              subtext: card.subject ? `${card.subject}${card.chapter ? ` • ${card.chapter}` : ''}` : card.chapter || undefined,
               icon: isVideo ? <PlayCircle className="h-4 w-4 text-rose-500" /> : <FileText className="h-4 w-4 text-emerald-500" />,
               badgeLabel: card.type === 'youtube_playlist' ? 'Playlist' : isVideo ? 'Video' : 'Notes',
               badgeColor: isVideo ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
               action: () => {
-                if (isVideo) {
-                  const chParam = card.chapter_id || card.chapter ? `&returnChapter=${encodeURIComponent(card.chapter_id || card.chapter)}` : ''
-                  navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(card.subject || '')}${chParam}`)
+                if (isStudent) {
+                  if (isVideo) {
+                    const chParam = card.chapter_id || card.chapter ? `&returnChapter=${encodeURIComponent(card.chapter_id || card.chapter)}` : ''
+                    navigate(`/student/watch/${card.id}?returnSubject=${encodeURIComponent(card.subject || '')}${chParam}`)
+                  } else {
+                    navigate(`/student/study?subject=${encodeURIComponent(card.subject || '')}&cardId=${card.id}`)
+                  }
                 } else {
-                  navigate(`/student/study?subject=${encodeURIComponent(card.subject || '')}&cardId=${card.id}`)
+                  const bParam = card.batch_id ? `batch=${card.batch_id}&` : ''
+                  const sParam = card.subject ? `subject=${encodeURIComponent(card.subject)}&` : ''
+                  navigate(`${studyBasePath}?${bParam}${sParam}cardId=${card.id}`)
                 }
                 setShowCommandPalette(false)
               }
@@ -332,39 +393,33 @@ export default function DashboardShell({ navItems, pageTitle }) {
       }
     }
 
-    // 3 (Admin variant): Batches
-    if (profile?.role === 'admin' && adminBatches.length > 0 && q) {
-      const matchingBatches = adminBatches.filter(b => (b.name || '').toLowerCase().includes(q)).slice(0, 4)
-      if (matchingBatches.length > 0) {
-        sections.push({
-          title: 'Batches',
-          items: matchingBatches.map(b => ({
-            id: `batch-${b.id}`,
-            type: 'batch',
-            label: b.name,
-            icon: <School className="h-4 w-4 text-indigo-500" />,
-            action: () => {
-              navigate('/admin/batches')
-              setShowCommandPalette(false)
-            }
-          }))
+    // 5. Quick Actions
+    const quickActions = []
+    if (q) {
+      if (profile?.role === 'student') {
+        quickActions.push({
+          id: 'action-search-study',
+          type: 'action',
+          label: `Filter Study Hub for "${searchQuery.trim()}"`,
+          icon: <Search className="h-4 w-4 text-blue-600" />,
+          action: () => {
+            navigate(`/student/study?search=${encodeURIComponent(searchQuery.trim())}`)
+            setShowCommandPalette(false)
+          }
+        })
+      } else {
+        const studyBasePath = profile?.role === 'admin' ? '/admin/study' : '/teacher/study'
+        quickActions.push({
+          id: 'action-search-study',
+          type: 'action',
+          label: `Filter Study Materials for "${searchQuery.trim()}"`,
+          icon: <Search className="h-4 w-4 text-blue-600" />,
+          action: () => {
+            navigate(`${studyBasePath}?search=${encodeURIComponent(searchQuery.trim())}`)
+            setShowCommandPalette(false)
+          }
         })
       }
-    }
-
-    // 4. Quick Actions
-    const quickActions = []
-    if (profile?.role === 'student' && q) {
-      quickActions.push({
-        id: 'action-search-study',
-        type: 'action',
-        label: `Filter Study Hub for "${searchQuery.trim()}"`,
-        icon: <Search className="h-4 w-4 text-blue-600" />,
-        action: () => {
-          navigate(`/student/study?search=${encodeURIComponent(searchQuery.trim())}`)
-          setShowCommandPalette(false)
-        }
-      })
     }
 
     if (quickActions.length > 0) {

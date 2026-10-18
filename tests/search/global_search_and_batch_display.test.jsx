@@ -3,11 +3,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import DashboardShell from '../../src/components/layout/DashboardShell'
 import StudySection from '../../src/pages/student/StudySection'
+import TeacherStudySection from '../../src/pages/teacher/StudySection'
 
 // Test helpers and mocks
 let mockStudyCards = []
 let mockStudentProfile = null
 let mockBatches = []
+let mockChapters = []
 
 function createChainableQueryBuilder(getTableData) {
   const handler = {
@@ -44,6 +46,9 @@ vi.mock('../../src/lib/supabase', () => ({
       }
       if (table === 'batches') {
         return createChainableQueryBuilder(() => mockBatches)
+      }
+      if (table === 'chapters') {
+        return createChainableQueryBuilder(() => mockChapters)
       }
       if (table === 'student_bookmarks') {
         return createChainableQueryBuilder(() => [])
@@ -422,6 +427,205 @@ describe('Study Section Refinement — StudySection.jsx', () => {
 
     // 3. The card title must be displayed in the thumbnail in place of CHAPTER NOTES
     expect(thumbnail.textContent).toContain('Class 9 Public Chapter Notes')
+  })
+})
+
+describe('Teacher & Admin Global Search & Study Header Refinements', () => {
+  const TEACHER_BATCH_ID = 'batch-teach-10'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    globalThis.localStorage = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    }
+
+    mockAuthState = {
+      user: { id: 'teacher-uuid-1', email: 'teacher@example.com' },
+      profile: { id: 'teacher-uuid-1', role: 'teacher', full_name: 'Teacher Jane' },
+      loading: false,
+      signOut: vi.fn(),
+    }
+
+    mockBatches = [
+      {
+        id: TEACHER_BATCH_ID,
+        name: 'Class 10 Advanced Physics',
+        subjects: ['Physics', 'Chemistry'],
+      },
+    ]
+
+    mockChapters = [
+      {
+        id: 'ch-rotational',
+        title: 'Rotational Motion',
+        chapter_number: 1,
+        subject: 'Physics',
+        batch_id: TEACHER_BATCH_ID,
+      },
+    ]
+
+    mockStudyCards = [
+      {
+        id: 'card-rot-1',
+        title: 'Torque and Physics Dynamics',
+        subject: 'Physics',
+        type: 'youtube_video',
+        chapter_id: 'ch-rotational',
+        chapter: 'Rotational Motion',
+        is_public: true,
+        is_active: true,
+        batch_id: TEACHER_BATCH_ID,
+        batch_ids: [TEACHER_BATCH_ID],
+      },
+      {
+        id: 'card-rot-2',
+        title: 'Rigid Body Equilibrium Notes',
+        subject: 'Physics',
+        type: 'google_drive',
+        chapter_id: 'ch-rotational',
+        chapter: 'Rotational Motion',
+        is_public: true,
+        is_active: true,
+        batch_id: TEACHER_BATCH_ID,
+        batch_ids: [TEACHER_BATCH_ID],
+      },
+    ]
+  })
+
+  it('provides Global Search for Teacher role with Batches, Subject Workspaces, Lectures, and Quick Actions', async () => {
+    const TEACHER_NAV = [
+      { path: '/teacher/home', label: 'Dashboard' },
+      { path: '/teacher/study', label: 'Study Hub' },
+    ]
+
+    render(
+      <MemoryRouter initialEntries={['/teacher/home']}>
+        <DashboardShell navItems={TEACHER_NAV} pageTitle="Teacher Portal" />
+        <LocationDisplay />
+      </MemoryRouter>
+    )
+
+    // Open search modal via top nav search button
+    const searchBtn = screen.getByRole('button', { name: /Global Search \(⌘K \/ Ctrl\+K\)/i })
+    expect(searchBtn).toBeInTheDocument()
+    fireEvent.click(searchBtn)
+
+    const input = await screen.findByPlaceholderText(/Search modules, subjects, lectures, or notes/i)
+    fireEvent.change(input, { target: { value: 'Phys' } })
+
+    // 1. Batches category
+    expect(await screen.findByText('Batches')).toBeInTheDocument()
+    expect(screen.getByText('Class 10 Advanced Physics')).toBeInTheDocument()
+
+    // 2. Subject Workspaces category
+    expect(screen.getByText('Subject Workspaces')).toBeInTheDocument()
+    expect(screen.getByText('Physics Workspace')).toBeInTheDocument()
+
+    // 3. Lectures & Study Materials category
+    expect(screen.getByText('Lectures & Study Materials')).toBeInTheDocument()
+    const lectureOption = screen.getByText('Torque and Physics Dynamics')
+    expect(lectureOption).toBeInTheDocument()
+
+    // 4. Quick Action filter option for teacher study
+    expect(screen.getByText('Quick Actions')).toBeInTheDocument()
+    expect(screen.getByText(/Filter Study Materials for "Phys"/i)).toBeInTheDocument()
+
+    // Select the lecture: navigates teacher to study section with cardId target
+    fireEvent.click(lectureOption)
+    expect(screen.getByTestId('location-display').textContent).toBe(
+      `/teacher/study?batch=${TEACHER_BATCH_ID}&subject=Physics&cardId=card-rot-1`
+    )
+  })
+
+  it('provides Global Search for Admin role with Batch results navigating to admin study batch', async () => {
+    mockAuthState = {
+      user: { id: 'admin-uuid-1', email: 'admin@example.com' },
+      profile: { id: 'admin-uuid-1', role: 'admin', full_name: 'Institute Admin' },
+      loading: false,
+      signOut: vi.fn(),
+    }
+
+    const ADMIN_NAV = [
+      { path: '/admin/dashboard', label: 'Dashboard' },
+      { path: '/admin/study', label: 'Study Material' },
+    ]
+
+    render(
+      <MemoryRouter initialEntries={['/admin/dashboard']}>
+        <DashboardShell navItems={ADMIN_NAV} pageTitle="Admin Portal" />
+        <LocationDisplay />
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Global Search \(⌘K \/ Ctrl\+K\)/i }))
+    const input = await screen.findByPlaceholderText(/Search modules, subjects, lectures, or notes/i)
+    fireEvent.change(input, { target: { value: 'Class 10' } })
+
+    // Batches section
+    expect(await screen.findByText('Batches')).toBeInTheDocument()
+    const batchItem = screen.getByText('Class 10 Advanced Physics')
+    expect(batchItem).toBeInTheDocument()
+
+    // Click batch item navigates to admin study with batch param
+    fireEvent.click(batchItem)
+    expect(screen.getByTestId('location-display').textContent).toBe(`/admin/study?batch=${TEACHER_BATCH_ID}`)
+  })
+
+  it('removes local search input from Teacher/Admin study header and renders count badge in lower row', async () => {
+    render(
+      <MemoryRouter initialEntries={[`/teacher/study?batch=${TEACHER_BATCH_ID}&subject=Physics&folder=video`]}>
+        <TeacherStudySection isAdmin={false} />
+      </MemoryRouter>
+    )
+
+    // Wait for content to render
+    await screen.findByText('Physics Video Chapters')
+
+    // Local search input must NOT exist
+    expect(screen.queryByPlaceholderText(/Search chapters or lectures/i)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Search cards/i)).not.toBeInTheDocument()
+
+    // Relocated count badge must be rendered
+    expect(screen.getByText(/\(1 Chapter • 1 Video\)/i)).toBeInTheDocument()
+  })
+
+  it('displays dismissible search banner when navigated via Global Search filter and clears filter on click', async () => {
+    render(
+      <MemoryRouter initialEntries={[`/teacher/study?batch=${TEACHER_BATCH_ID}&subject=Physics&folder=video&search=Torque`]}>
+        <Routes>
+          <Route
+            path="/teacher/study"
+            element={
+              <>
+                <TeacherStudySection isAdmin={false} />
+                <LocationDisplay />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    // Banner indicates global search filter is active
+    expect(await screen.findByText(/Global search filter:/i)).toBeInTheDocument()
+    expect(screen.getByText(/“Torque”/i)).toBeInTheDocument()
+
+    // Click "Clear filter" button
+    const clearBtn = screen.getByRole('button', { name: /Clear filter/i })
+    expect(clearBtn).toBeInTheDocument()
+    fireEvent.click(clearBtn)
+
+    // Filter banner is removed and search param stripped from URL
+    await waitFor(() => {
+      expect(screen.queryByText(/Global search filter:/i)).not.toBeInTheDocument()
+      expect(screen.getByTestId('location-display').textContent).toBe(
+        `/teacher/study?batch=${TEACHER_BATCH_ID}&subject=Physics&folder=video`
+      )
+    })
   })
 })
 

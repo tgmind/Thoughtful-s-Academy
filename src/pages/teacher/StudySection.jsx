@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  BookOpen, PlayCircle, Youtube, Video,
+  BookOpen, PlayCircle, Youtube, Video, Layers,
   Link as LinkIcon, Sparkles, Globe, Search, X, FolderOpen,
   ArrowRight, Play, School, FileText, Plus, Edit2,
   Trash2, Lock, Eye, EyeOff, ChevronDown, Check,
@@ -479,6 +479,7 @@ function ManageableStudyCard({
   if (viewMode === 'list') {
     return (
       <div
+        id={`card-${card.id}`}
         className={`group relative isolate rounded-2xl border transition-all duration-300 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${card.is_featured
             ? 'bg-slate-900/95 border-amber-500/40 shadow-sm hover:border-amber-400'
             : 'bg-white border-slate-200/90 hover:border-blue-400 shadow-2xs hover:shadow-md'
@@ -598,6 +599,7 @@ function ManageableStudyCard({
 
   return (
     <div
+      id={`card-${card.id}`}
       className={`group relative isolate rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col justify-between ${card.is_featured
           ? 'bg-slate-900/95 border-amber-500/40 shadow-md hover:shadow-amber-500/20 hover:border-amber-400'
           : 'bg-white border-slate-200/90 hover:border-blue-400 shadow-2xs hover:shadow-lg'
@@ -811,6 +813,7 @@ export default function StudySection({ isAdmin = false }) {
 
   // View & Search Filters
   const [searchQuery, setSearchQuery] = useState('')
+  const [highlightedCardId, setHighlightedCardId] = useState(null)
   const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
 
   // Modal Form State
@@ -932,6 +935,15 @@ export default function StudySection({ isAdmin = false }) {
     const subjParam = params.get('subject')
     const folderParam = params.get('folder')
     const chapterParam = params.get('chapter')
+    const searchParam = params.get('search')
+    const cardIdParam = params.get('cardId')
+
+    if (searchParam !== null) {
+      setSearchQuery(searchParam)
+    } else {
+      setSearchQuery('')
+    }
+    setHighlightedCardId(cardIdParam || null)
 
     if (batchParam && batches.length > 0) {
       const batch = batches.find(b => b.id === batchParam)
@@ -946,8 +958,36 @@ export default function StudySection({ isAdmin = false }) {
           setSelectedChapter(null)
         }
       }
+    } else if (subjParam && !batchParam) {
+      setSelectedSubject(subjParam)
+      if (folderParam) {
+        setSelectedFolder(folderParam)
+        setSelectedChapter(chapterParam || null)
+      }
     }
   }, [location.search, batches])
+
+  // Scroll to targeted card after loading
+  useEffect(() => {
+    if (!loading && highlightedCardId) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`card-${highlightedCardId}`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 350)
+      return () => clearTimeout(timer)
+    }
+  }, [loading, highlightedCardId])
+
+  // Helper to clear active search filter while preserving existing workspace context
+  const handleClearSearchFilter = () => {
+    setSearchQuery('')
+    const params = new URLSearchParams(location.search)
+    params.delete('search')
+    const remaining = params.toString()
+    navigate(remaining ? `${rolePrefix}/study?${remaining}` : `${rolePrefix}/study`, { replace: true })
+  }
 
   // YouTube oEmbed & Playlist Thumbnail Auto-Fetcher
   useEffect(() => {
@@ -2219,63 +2259,40 @@ export default function StudySection({ isAdmin = false }) {
       {/* COMPACT STACKED-HIERARCHY HEADER BAR                                      */}
       {/* ───────────────────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3 sm:p-4 space-y-2.5 sm:space-y-3 transition-all">
-        {/* Tier 1: Circular Back Button & Context Hierarchy Breadcrumb + Non-Truncating Count Badge */}
-        <div className="flex items-center justify-between gap-2.5 min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            {(selectedBatch || selectedSubject || selectedFolder || selectedChapter) && (
-              <button
-                type="button"
-                onClick={goBackStep}
-                className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
-                title={
-                  selectedChapter
-                    ? 'Back to Chapters'
-                    : selectedFolder
-                    ? 'Back to Content Folders'
-                    : selectedSubject
-                    ? 'Back to Subjects'
-                    : 'Back to Batches'
-                }
-              >
-                <ArrowLeft className="h-4.5 w-4.5 text-slate-800" />
-              </button>
-            )}
+        {/* Tier 1: Circular Back Button & Context Hierarchy Breadcrumb (Full Available Width) */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          {(selectedBatch || selectedSubject || selectedFolder || selectedChapter) && (
+            <button
+              type="button"
+              onClick={goBackStep}
+              className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 shadow-2xs shrink-0"
+              title={
+                selectedChapter
+                  ? 'Back to Chapters'
+                  : selectedFolder
+                  ? 'Back to Content Folders'
+                  : selectedSubject
+                  ? 'Back to Subjects'
+                  : 'Back to Batches'
+              }
+            >
+              <ArrowLeft className="h-4.5 w-4.5 text-slate-800" />
+            </button>
+          )}
 
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-blue-600 block truncate">
-                {selectedChapter
-                  ? `${activeFolderObj?.name || 'Video Lectures'} • ${selectedSubject}`
-                  : selectedFolder 
-                  ? `${selectedSubject} • ${selectedBatch?.name}`
-                  : selectedSubject 
-                  ? selectedBatch?.name 
-                  : selectedBatch 
-                  ? 'Workspace' 
-                  : 'Study Workspace'}
-              </span>
-            </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-blue-600 block truncate">
+              {selectedChapter
+                ? `${activeFolderObj?.name || 'Video Lectures'} • ${selectedSubject}`
+                : selectedFolder 
+                ? `${selectedSubject} • ${selectedBatch?.name}`
+                : selectedSubject 
+                ? selectedBatch?.name 
+                : selectedBatch 
+                ? 'Workspace' 
+                : 'Study Workspace'}
+            </span>
           </div>
-
-          {/* Dedicated Non-Truncating Count Badges */}
-          {selectedFolder === 'video' && !selectedChapter && (
-            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0 whitespace-nowrap shadow-2xs">
-              {(() => {
-                const totalCh = batchSubjectChapters.length + (unassignedVideos.length > 0 || batchSubjectChapters.length === 0 ? 1 : 0)
-                const totalVids = batchSubjectVideoCards.length
-                return `(${totalCh} ${totalCh === 1 ? 'Chapter' : 'Chapters'} • ${totalVids} ${totalVids === 1 ? 'Video' : 'Videos'})`
-              })()}
-            </span>
-          )}
-          {selectedChapter && (
-            <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80 shrink-0 whitespace-nowrap shadow-2xs">
-              ({activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'})
-            </span>
-          )}
-          {selectedFolder && selectedFolder !== 'video' && (
-            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0 whitespace-nowrap shadow-2xs">
-              ({processedCards.length} {processedCards.length === 1 ? 'Item' : 'Items'})
-            </span>
-          )}
         </div>
 
         {/* Tier 2: Full Title & Responsive Action CTAs */}
@@ -2347,59 +2364,110 @@ export default function StudySection({ isAdmin = false }) {
           )}
         </div>
 
-        {/* Row 2: Full-Width Search Input & View Mode Toggle */}
-        <div className="flex items-center justify-between gap-2 min-w-0 pt-1 border-t border-slate-100">
-          <div className="relative flex-1 min-w-0">
-            <Search className="h-3 w-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={selectedFolder === 'video' ? 'Search chapters or lectures...' : 'Search cards...'}
-              className="w-full pl-7 pr-6 py-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-[11px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer">
-                <X className="h-3 w-3" />
-              </button>
+        {/* Row 2: Context Stats / Count Badge & View Controls */}
+        <div className="flex items-center justify-between gap-2.5 min-w-0 pt-2 border-t border-slate-100 flex-wrap sm:flex-nowrap">
+          {/* Left: Count Badge Info Pill */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {selectedFolder === 'video' && !selectedChapter ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
+                <Layers className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                <span className="truncate">
+                  {(() => {
+                    const totalCh = batchSubjectChapters.length + (unassignedVideos.length > 0 || batchSubjectChapters.length === 0 ? 1 : 0)
+                    const totalVids = batchSubjectVideoCards.length
+                    return `(${totalCh} ${totalCh === 1 ? 'Chapter' : 'Chapters'} • ${totalVids} ${totalVids === 1 ? 'Video' : 'Videos'})`
+                  })()}
+                </span>
+              </span>
+            ) : selectedChapter ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80 shadow-2xs max-w-full">
+                <Video className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                <span className="truncate">
+                  ({activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'})
+                </span>
+              </span>
+            ) : selectedFolder ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
+                <FolderOpen className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span className="truncate">
+                  ({processedCards.length} {processedCards.length === 1 ? 'Item' : 'Items'})
+                </span>
+              </span>
+            ) : selectedBatch && !selectedSubject ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
+                <BookOpen className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                <span className="truncate">
+                  ({(selectedBatch.subjects || []).length} {(selectedBatch.subjects || []).length === 1 ? 'Module' : 'Modules'})
+                </span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
+                <School className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span className="truncate">
+                  ({batches.length} {batches.length === 1 ? 'Batch' : 'Batches'})
+                </span>
+              </span>
             )}
           </div>
 
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
-              title="Grid View"
-            >
-              <Grid className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
-              title="List View"
-            >
-              <List className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          {/* Right: View Mode Toggle & 24h Activity Log */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+                title="Grid View"
+              >
+                <Grid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+                title="List View"
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+            </div>
 
-          {/* 24-Hour Activity Log Audit Trail Button */}
-          {selectedBatch && canManageBatch(selectedBatch) && (
-            <button
-              type="button"
-              onClick={() => setShowActivityLog(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200/90 text-slate-700 hover:text-blue-900 hover:bg-slate-50 text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
-              title="View recent 24-hour activity audit trail for this batch"
-            >
-              <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-              <span className="hidden sm:inline">Activity Log</span>
-              <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700">24h</span>
-            </button>
-          )}
+            {/* 24-Hour Activity Log Audit Trail Button */}
+            {selectedBatch && canManageBatch(selectedBatch) && (
+              <button
+                type="button"
+                onClick={() => setShowActivityLog(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200/90 text-slate-700 hover:text-blue-900 hover:bg-slate-50 text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+                title="View recent 24-hour activity audit trail for this batch"
+              >
+                <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span className="hidden sm:inline">Activity Log</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700">24h</span>
+              </button>
+            )}
+          </div>
         </div>
 
       </div>
+
+      {/* Active Search Filter Banner (from Global Search) */}
+      {searchQuery.trim() && (
+        <div className="flex items-center justify-between gap-2 px-3.5 py-2 bg-blue-50/90 border border-blue-200 rounded-xl text-xs text-blue-900 shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Search className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+            <span className="font-semibold truncate">
+              Global search filter: <span className="font-extrabold">&ldquo;{searchQuery}&rdquo;</span>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleClearSearchFilter}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-white px-2 py-0.5 rounded-lg border border-blue-200 shadow-2xs hover:bg-blue-50 cursor-pointer shrink-0 transition-colors"
+          >
+            <span>Clear filter</span>
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {/* ───────────────────────────────────────────────────────────────────────── */}
       {/* CONTENT CANVAS                                                           */}
@@ -2423,7 +2491,7 @@ export default function StudySection({ isAdmin = false }) {
               <Search className="h-10 w-10 text-slate-300 mx-auto" />
               <p className="text-xs font-bold text-slate-700">No study cards match your search criteria</p>
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={handleClearSearchFilter}
                 className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
               >
                 Clear Search
