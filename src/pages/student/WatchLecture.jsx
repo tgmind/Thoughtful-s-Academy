@@ -129,6 +129,11 @@ export default function WatchLecture() {
     cardLoading: loading,
   })
   const canAskDoubt = eligibilityStatus === DOUBT_ELIGIBILITY_STATUS.STUDENT_ELIGIBLE
+  const canBookmark = Boolean(
+    user &&
+    profile?.role === 'student' &&
+    location.pathname.startsWith('/student')
+  )
 
   const effectivePlaylistId = card?.url ? (getYTPlaylistId(card.url) || discoveredListId) : discoveredListId
   const hasMultipleLectures = Boolean(
@@ -487,9 +492,12 @@ export default function WatchLecture() {
     }
   }, [activeVideoIndex])
 
-  // Fetch bookmark status for current user
+  // Fetch bookmark status for current user (students only)
   useEffect(() => {
-    if (!user || !cardId) return
+    if (!canBookmark || !user?.id || !cardId) {
+      setIsBookmarked(false)
+      return
+    }
     supabase
       .from('student_bookmarks')
       .select('id')
@@ -497,7 +505,7 @@ export default function WatchLecture() {
       .eq('study_card_id', cardId)
       .maybeSingle()
       .then(({ data }) => setIsBookmarked(!!data))
-  }, [user, cardId])
+  }, [canBookmark, user?.id, cardId])
 
   // Fetch related video lectures from same subject
   useEffect(() => {
@@ -547,9 +555,9 @@ export default function WatchLecture() {
     }
   }, [])
 
-  // Toggle Bookmark
+  // Toggle Bookmark (students only)
   const toggleBookmark = async () => {
-    if (!user || bookmarkLoading || !card) return
+    if (!canBookmark || !user || bookmarkLoading || !card) return
     setBookmarkLoading(true)
 
     if (isBookmarked) {
@@ -816,8 +824,8 @@ export default function WatchLecture() {
 
       {/* ─── 1. APPLE-GRADE MINIMAL LIGHT HEADER ─────────────────────────────── */}
       <header className="flex-shrink-0 h-12 sm:h-14 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-3 sm:px-6 flex items-center justify-between gap-3 z-30 sticky top-0 shadow-2xs">
-        {/* Left Section: Back Arrow + Subject Badge + Title */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        {/* Left Section: Back Arrow + Stylized Heading (Classroom) */}
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <button
             onClick={handleGoBack}
             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center shrink-0 cursor-pointer border border-slate-200/80 active:scale-95"
@@ -826,20 +834,8 @@ export default function WatchLecture() {
             <ArrowLeft className="h-4 w-4 text-indigo-600" />
           </button>
 
-          {card.subject && (
-            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-lg shrink-0">
-              {card.subject}
-            </span>
-          )}
-
-          {(card.chapter || location.state?.returnChapter || searchParams.get('returnChapter')) && (
-            <span className="hidden sm:inline-flex text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-lg truncate max-w-[140px]" title={card.chapter || location.state?.returnChapter || searchParams.get('returnChapter')}>
-              {card.chapter || location.state?.returnChapter || searchParams.get('returnChapter')}
-            </span>
-          )}
-
-          <h1 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate min-w-0 flex-1 tracking-tight">
-            {dynamicTitle || currentTitle}
+          <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 select-none">
+            Classroom
           </h1>
         </div>
 
@@ -861,19 +857,21 @@ export default function WatchLecture() {
             <span className="hidden sm:inline">Protected</span>
           </div>
 
-          <button
-            onClick={toggleBookmark}
-            disabled={bookmarkLoading}
-            className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs transition-all border flex items-center gap-1 cursor-pointer active:scale-95 ${
-              isBookmarked
-                ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
-                : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-            }`}
-            title={isBookmarked ? 'Bookmarked' : 'Bookmark'}
-          >
-            <Heart className={`h-4 w-4 ${isBookmarked ? 'fill-current text-white' : 'text-slate-400'}`} />
-            <span className="hidden sm:inline">{isBookmarked ? 'Saved' : 'Save'}</span>
-          </button>
+          {canBookmark && (
+            <button
+              onClick={toggleBookmark}
+              disabled={bookmarkLoading}
+              className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs transition-all border flex items-center gap-1 cursor-pointer active:scale-95 ${
+                isBookmarked
+                  ? 'bg-rose-500 border-rose-600 text-white shadow-xs'
+                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+              }`}
+              title={isBookmarked ? 'Bookmarked' : 'Bookmark'}
+            >
+              <Heart className={`h-4 w-4 ${isBookmarked ? 'fill-current text-white' : 'text-slate-400'}`} />
+              <span className="hidden sm:inline">{isBookmarked ? 'Saved' : 'Save'}</span>
+            </button>
+          )}
         </div>
       </header>
 

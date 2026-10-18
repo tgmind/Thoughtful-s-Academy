@@ -16,6 +16,7 @@ const EMPTY = { title:'', platform:'zoom', join_url:'', password:'', batch_id:''
 
 export default function LiveClass({ isAdmin = false }) {
   const { user } = useAuth()
+  const userId = user?.id
   const [allowed,     setAllowed]     = useState(isAdmin)
   const [active,      setActive]      = useState(null)
   const [past,        setPast]        = useState([])
@@ -26,21 +27,21 @@ export default function LiveClass({ isAdmin = false }) {
   const [loading,     setLoading]     = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     let cancelled = false
     let channel = null
 
     // Reload active + recent classes from the DB.
     const loadClasses = async () => {
       let activeQuery = supabase.from('live_classes').select('*, batches(name), profiles!teacher_id(full_name)').eq('is_active', true).order('created_at', { ascending: false }).limit(1)
-      let pastQuery = supabase.from('live_classes').select('*, batches(name), profiles!teacher_id(full_name)').eq('is_active', false).order('created_at', { ascending: false }).limit(10)
+      let pastQuery = supabase.from('live_classes').select('*, batches(name), profiles!teacher_id(full_name)').eq('is_active', false).order('created_at', { ascending: false }).limit(20)
 
       if (!isAdmin) {
         // Fetch batches assigned to this teacher
-        const { data: bList } = await supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`)
+        const { data: bList } = await supabase.from('batches').select('id').or(`teacher_id.eq.${userId},teacher_ids.cs.{${userId}}`)
         const assignedBatchIds = (bList ?? []).map(b => b.id)
         
-        let filterOrStr = `teacher_id.eq.${user.id},batch_id.is.null`
+        let filterOrStr = `teacher_id.eq.${userId},batch_id.is.null`
         if (assignedBatchIds.length > 0) {
           filterOrStr += `,batch_id.in.(${assignedBatchIds.join(',')})`
         }
@@ -52,14 +53,14 @@ export default function LiveClass({ isAdmin = false }) {
       const [a, p] = await Promise.all([activeQuery, pastQuery])
       if (cancelled) return
       setActive(a.data?.[0] ?? null)
-      setPast(p.data ?? [])
+      setPast((p.data ?? []).slice(0, 20))
     }
 
     const permCheck = isAdmin
       ? Promise.resolve(true)
       : Promise.all([
-          supabase.from('teacher_profiles').select('can_drop_live_class').eq('id', user.id).maybeSingle(),
-          supabase.from('batches').select('id').or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`).eq('is_active', true)
+          supabase.from('teacher_profiles').select('can_drop_live_class').eq('id', userId).maybeSingle(),
+          supabase.from('batches').select('id').or(`teacher_id.eq.${userId},teacher_ids.cs.{${userId}}`).eq('is_active', true)
         ]).then(([{ data: p }, { data: b }]) => (p?.can_drop_live_class ?? false) || (b && b.length > 0))
           .catch(() => false)
 
@@ -71,7 +72,7 @@ export default function LiveClass({ isAdmin = false }) {
       // For non-admin teachers, restrict batch selection to assigned batches
       let bQuery = supabase.from('batches').select('id, name').eq('is_active', true).order('name')
       if (!isAdmin) {
-        bQuery = bQuery.or(`teacher_id.eq.${user.id},teacher_ids.cs.{${user.id}}`)
+        bQuery = bQuery.or(`teacher_id.eq.${userId},teacher_ids.cs.{${userId}}`)
       }
       const { data: b } = await bQuery
       if (cancelled) return
@@ -84,13 +85,13 @@ export default function LiveClass({ isAdmin = false }) {
       const channelConfig = { event: '*', schema: 'public', table: 'live_classes' }
 
       channel = supabase
-        .channel(`lc_manage_${user.id}`)
+        .channel(`lc_manage_${userId}`)
         .on('postgres_changes', channelConfig, loadClasses)
         .subscribe()
     })
 
     return () => { cancelled = true; if (channel) supabase.removeChannel(channel) }
-  }, [user, isAdmin])
+  }, [userId, isAdmin])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -136,7 +137,7 @@ export default function LiveClass({ isAdmin = false }) {
     const { error } = await supabase.from('live_classes').update({ is_active: false }).eq('id', ended.id)
     setEnding(false)
     if (error) { toast.error(error.message); return }
-    setPast(p => [{ ...ended, is_active: false }, ...p.filter(x => x.id !== ended.id)])
+    setPast(p => [{ ...ended, is_active: false }, ...p.filter(x => x.id !== ended.id)].slice(0, 20))
     setActive(null)
     toast.success('Class ended.')
   }
@@ -274,14 +275,19 @@ export default function LiveClass({ isAdmin = false }) {
 
       {/* Past classes */}
       {past.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-gray-400" />
-            <h3 className="font-semibold text-gray-900 text-sm">Past Classes</h3>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-2xs">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gray-400" />
+              <h3 className="font-semibold text-gray-900 text-sm">Past Classes</h3>
+            </div>
+            <span className="text-xs text-gray-400 font-medium">
+              Showing past {past.length} {past.length === 1 ? 'class' : 'classes'}
+            </span>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 max-h-[580px] overflow-y-auto">
             {past.map(c => (
-              <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-gray-50/50 transition-colors">
                 <div>
                   <p className="font-medium text-gray-900 text-sm">{c.title}</p>
                   <p className="text-xs text-gray-400 mt-0.5">

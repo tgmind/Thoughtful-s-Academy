@@ -344,8 +344,8 @@ describe('Chapter-Based Video Lectures Architecture', () => {
         </MemoryRouter>
       )
 
-      // Chapter badge displayed in player header
-      expect(await screen.findByText('Electrostatics & Electric Field')).toBeInTheDocument()
+      // Stylized Classroom heading displayed in player header
+      expect(await screen.findByRole('heading', { name: 'Classroom' })).toBeInTheDocument()
 
       // Click Go Back
       const backBtn = screen.getByTitle('Back to portal')
