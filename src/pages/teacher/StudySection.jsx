@@ -2365,13 +2365,13 @@ export default function StudySection({ isAdmin = false }) {
         </div>
 
         {/* Row 2: Context Stats / Count Badge & View Controls */}
-        <div className="flex items-center justify-between gap-2.5 min-w-0 pt-2 border-t border-slate-100 flex-wrap sm:flex-nowrap">
-          {/* Left: Count Badge Info Pill */}
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2 min-w-0 pt-2 border-t border-slate-100 flex-wrap sm:flex-nowrap">
+          {/* Left: Count Badge Info Pill (Never truncated, beautiful non-chopping layout) */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {selectedFolder === 'video' && !selectedChapter ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
-                <Layers className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                <span className="truncate">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs whitespace-nowrap shrink-0">
+                <Layers className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-purple-600 shrink-0" />
+                <span>
                   {(() => {
                     const totalCh = batchSubjectChapters.length + (unassignedVideos.length > 0 || batchSubjectChapters.length === 0 ? 1 : 0)
                     const totalVids = batchSubjectVideoCards.length
@@ -2380,30 +2380,30 @@ export default function StudySection({ isAdmin = false }) {
                 </span>
               </span>
             ) : selectedChapter ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80 shadow-2xs max-w-full">
-                <Video className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                <span className="truncate">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80 shadow-2xs whitespace-nowrap shrink-0">
+                <Video className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-600 shrink-0" />
+                <span>
                   ({activeChapterVideos.length} {activeChapterVideos.length === 1 ? 'Video' : 'Videos'})
                 </span>
               </span>
             ) : selectedFolder ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
-                <FolderOpen className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                <span className="truncate">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs whitespace-nowrap shrink-0">
+                <FolderOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 shrink-0" />
+                <span>
                   ({processedCards.length} {processedCards.length === 1 ? 'Item' : 'Items'})
                 </span>
               </span>
             ) : selectedBatch && !selectedSubject ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
-                <BookOpen className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                <span className="truncate">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs whitespace-nowrap shrink-0">
+                <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-600 shrink-0" />
+                <span>
                   ({(selectedBatch.subjects || []).length} {(selectedBatch.subjects || []).length === 1 ? 'Module' : 'Modules'})
                 </span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs max-w-full">
-                <School className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                <span className="truncate">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs whitespace-nowrap shrink-0">
+                <School className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 shrink-0" />
+                <span>
                   ({batches.length} {batches.length === 1 ? 'Batch' : 'Batches'})
                 </span>
               </span>
@@ -2411,12 +2411,12 @@ export default function StudySection({ isAdmin = false }) {
           </div>
 
           {/* Right: View Mode Toggle & 24h Activity Log */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`p-1 sm:p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
                 title="Grid View"
               >
                 <Grid className="h-3.5 w-3.5" />
@@ -2424,7 +2424,7 @@ export default function StudySection({ isAdmin = false }) {
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`p-1 sm:p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
                 title="List View"
               >
                 <List className="h-3.5 w-3.5" />
@@ -2436,7 +2436,7 @@ export default function StudySection({ isAdmin = false }) {
               <button
                 type="button"
                 onClick={() => setShowActivityLog(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200/90 text-slate-700 hover:text-blue-900 hover:bg-slate-50 text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-slate-200/90 text-slate-700 hover:text-blue-900 hover:bg-slate-50 text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
                 title="View recent 24-hour activity audit trail for this batch"
               >
                 <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
