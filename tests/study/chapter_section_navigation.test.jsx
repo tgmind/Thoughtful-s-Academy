@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import StudentStudySection from '../../src/pages/student/StudySection'
 import TeacherStudySection from '../../src/pages/teacher/StudySection'
@@ -599,6 +599,87 @@ describe('Chapter-Based Video Lectures Architecture', () => {
 
       // Relocated lower row count badge is rendered
       expect(screen.getByText('(3 Chapters • 3 Videos)')).toBeInTheDocument()
+    })
+  })
+
+  describe('Touch & Hold Multi-Chapter Selection & Batch Deletion', () => {
+    beforeEach(() => {
+      mockAuthState = {
+        user: { id: 'admin-1', email: 'admin@example.com' },
+        profile: { id: 'admin-1', role: 'admin', full_name: 'Administrator' },
+        loading: false,
+      }
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('activates selection mode on long press, renders dashed border on selected chapter, and supports batch deletion', async () => {
+      render(
+        <MemoryRouter initialEntries={['/admin/study?batch=batch-1&subject=Physics&folder=video']}>
+          <TeacherStudySection isAdmin={true} />
+        </MemoryRouter>
+      )
+
+      await screen.findByText('Electrostatics & Electric Field')
+
+      // Both chapters exist
+      const ch1Title = screen.getByText('Electrostatics & Electric Field')
+      const ch2Title = screen.getByText('Current Electricity')
+      const ch1Card = ch1Title.closest('.group')
+      const ch2Card = ch2Title.closest('.group')
+
+      // Initially neither card has dashed border
+      expect(ch1Card.className).not.toContain('border-dashed')
+      expect(ch2Card.className).not.toContain('border-dashed')
+
+      // Simulate pointer down to trigger long press on Chapter 1
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      fireEvent.pointerDown(ch1Card, { clientX: 100, clientY: 100, button: 0 })
+
+      // Advance timer by 500ms
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+
+      // Complete pointer release & click on Chapter 1
+      act(() => {
+        fireEvent.pointerUp(ch1Card)
+        fireEvent.click(ch1Card)
+      })
+      vi.useRealTimers()
+
+      // Chapter 1 is now selected and has dashed border!
+      const updatedCh1Card = screen.getByText('Electrostatics & Electric Field').closest('.group')
+      expect(updatedCh1Card.className).toContain('border-dashed')
+      expect(updatedCh1Card.className).toContain('border-purple-500')
+
+      // Floating batch action bar appears with count 1
+      expect(screen.getByText('Selected')).toBeInTheDocument()
+      expect(screen.getByText('Delete (1)')).toBeInTheDocument()
+
+      // While in selection mode, tapping Chapter 2 selects it too
+      const currentCh2Card = screen.getByText('Current Electricity').closest('.group')
+      act(() => {
+        fireEvent.click(currentCh2Card)
+      })
+      const updatedCh2Card = screen.getByText('Current Electricity').closest('.group')
+      expect(updatedCh2Card.className).toContain('border-dashed')
+      expect(screen.getByText('Delete (2)')).toBeInTheDocument()
+
+      // Test "Select All" / "Deselect All"
+      const toggleAllBtn = screen.getByRole('button', { name: /Deselect All/i })
+      expect(toggleAllBtn).toBeInTheDocument()
+
+      // Batch Delete
+      const deleteBatchBtn = screen.getByRole('button', { name: /Delete \(2\)/i })
+      act(() => {
+        fireEvent.click(deleteBatchBtn)
+      })
+
+      // Confirm dialog was triggered
+      expect(window.confirm).toHaveBeenCalled()
     })
   })
 })

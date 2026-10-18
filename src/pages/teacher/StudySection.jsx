@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -811,6 +811,13 @@ export default function StudySection({ isAdmin = false }) {
   const [editingChapterId, setEditingChapterId] = useState(null)
   const [savingChapter, setSavingChapter] = useState(false)
 
+  // Multi-Chapter Selection & Batch Delete State
+  const [selectedChapterIds, setSelectedChapterIds] = useState([])
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false)
+  const chapterLongPressTimerRef = useRef(null)
+  const chapterLongPressPosRef = useRef({ x: 0, y: 0 })
+  const isChapterLongPressTriggeredRef = useRef(false)
+
   // View & Search Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightedCardId, setHighlightedCardId] = useState(null)
@@ -1032,6 +1039,15 @@ export default function StudySection({ isAdmin = false }) {
       .catch(() => { })
     return () => controller.abort()
   }, [form.url, form.type])
+
+  // Reset multi-select chapter state on folder, subject, batch, or chapter changes
+  useEffect(() => {
+    setSelectedChapterIds([])
+    if (chapterLongPressTimerRef.current) {
+      clearTimeout(chapterLongPressTimerRef.current)
+      chapterLongPressTimerRef.current = null
+    }
+  }, [selectedBatch?.id, selectedSubject, selectedFolder, selectedChapter])
 
   const selectBatch = (batch) => {
     setSelectedBatch(batch)
@@ -1832,6 +1848,165 @@ export default function StudySection({ isAdmin = false }) {
     }).length
   }
 
+  // --- Multi-Chapter Selection & Batch Delete Handlers ---
+  const handleChapterPointerDown = (e, chapterId) => {
+    if (!canManageBatch(selectedBatch)) return
+    if (e.button !== undefined && e.button !== 0) return
+
+    isChapterLongPressTriggeredRef.current = false
+    chapterLongPressPosRef.current = { x: e.clientX || 0, y: e.clientY || 0 }
+
+    if (chapterLongPressTimerRef.current) clearTimeout(chapterLongPressTimerRef.current)
+    chapterLongPressTimerRef.current = setTimeout(() => {
+      isChapterLongPressTriggeredRef.current = true
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try {
+          navigator.vibrate(40)
+        } catch {
+          // Ignore vibration permissions/unsupported errors silently
+        }
+      }
+      setSelectedChapterIds(prev => (prev.includes(chapterId) ? prev : [...prev, chapterId]))
+    }, 450)
+  }
+
+  const handleChapterPointerMove = (e) => {
+    if (!chapterLongPressTimerRef.current) return
+    const dx = Math.abs((e.clientX || 0) - chapterLongPressPosRef.current.x)
+    const dy = Math.abs((e.clientY || 0) - chapterLongPressPosRef.current.y)
+    // If movement is > 10px, the user is scrolling the page, so abort long press
+    if (dx > 10 || dy > 10) {
+      clearTimeout(chapterLongPressTimerRef.current)
+      chapterLongPressTimerRef.current = null
+    }
+  }
+
+  const handleChapterPointerUp = () => {
+    if (chapterLongPressTimerRef.current) {
+      clearTimeout(chapterLongPressTimerRef.current)
+      chapterLongPressTimerRef.current = null
+    }
+    if (isChapterLongPressTriggeredRef.current) {
+      setTimeout(() => {
+        isChapterLongPressTriggeredRef.current = false
+      }, 100)
+    }
+  }
+
+  const handleChapterCardClick = (e, chapterId) => {
+    // If long press just completed, suppress navigation
+    if (isChapterLongPressTriggeredRef.current) {
+      isChapterLongPressTriggeredRef.current = false
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+
+    // In selection mode: toggle chapter selection
+    if (selectedChapterIds.length > 0) {
+      e.preventDefault()
+      e.stopPropagation()
+      setSelectedChapterIds(prev =>
+        prev.includes(chapterId) ? prev.filter(id => id !== chapterId) : [...prev, chapterId]
+      )
+      return
+    }
+
+    // Normal mode: open chapter
+    openChapter(chapterId)
+  }
+
+  const toggleSelectAllChapters = () => {
+    if (selectedChapterIds.length === batchSubjectChapters.length) {
+      setSelectedChapterIds([])
+    } else {
+      setSelectedChapterIds(batchSubjectChapters.map(c => c.id))
+    }
+  }
+
+  const clearChapterSelection = () => {
+    setSelectedChapterIds([])
+  }
+
+  const deleteBatchChapters = async (chapterIdsToDelete = selectedChapterIds) => {
+    if (!chapterIdsToDelete || chapterIdsToDelete.length === 0) return
+    const count = chapterIdsToDelete.length
+    const confirmMessage = count === 1
+      ? `Are you sure you want to delete this chapter? Any lectures in it will be preserved and moved to General Lectures.`
+      : `Are you sure you want to delete ${count} chapters? All lectures in these chapters will be safely preserved and moved to General Lectures.`
+
+    if (!window.confirm(confirmMessage)) return
+
+    setIsBatchDeleting(true)
+    const localOrVirtualIds = chapterIdsToDelete.filter(
+      id => isChaptersTableMissing || String(id).startsWith('ch_local_') || String(id).startsWith('virtual_')
+    )
+    const dbIds = chapterIdsToDelete.filter(id => !localOrVirtualIds.includes(id))
+
+    try {
+      if (dbIds.length > 0) {
+        // Disassociate study cards in DB first so cards remain safely preserved in General Lectures
+        await supabase
+          .from('study_cards')
+          .update({ chapter_id: null, chapter: null })
+          .in('chapter_id', dbIds)
+
+        const { error } = await supabase
+          .from('chapters')
+          .delete()
+          .in('id', dbIds)
+
+        if (error) {
+          if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+            setIsChaptersTableMissing(true)
+          } else {
+            throw error
+          }
+        }
+      }
+
+      // Update local state for chapters and cards
+      const deletedTitles = chapters
+        .filter(c => chapterIdsToDelete.includes(c.id))
+        .map(c => c.title?.trim().toLowerCase())
+        .filter(Boolean)
+
+      setChapters(prev => prev.filter(c => !chapterIdsToDelete.includes(c.id)))
+      setCards(prev => prev.map(c => {
+        if (chapterIdsToDelete.includes(c.chapter_id)) {
+          return { ...c, chapter_id: null, chapter: null }
+        }
+        if (c.chapter && deletedTitles.includes(c.chapter.trim().toLowerCase())) {
+          return { ...c, chapter_id: null, chapter: null }
+        }
+        return c
+      }))
+
+      if (selectedChapter && chapterIdsToDelete.includes(selectedChapter)) {
+        setSelectedChapter(null)
+      }
+
+      logActivity({
+        batchId: selectedBatch?.id,
+        user,
+        userName: user?.user_metadata?.full_name,
+        userRole: isAdmin ? 'admin' : 'teacher',
+        actionType: 'delete',
+        entityType: 'chapter',
+        entityTitle: `${count} Chapters (Batch Delete)`,
+        details: `Subject: ${selectedSubject} • ${count} chapters deleted at once`
+      })
+
+      setSelectedChapterIds([])
+      toast.success(count === 1 ? 'Chapter removed' : `${count} chapters removed`)
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message || 'Failed to delete chapters')
+    } finally {
+      setIsBatchDeleting(false)
+    }
+  }
+
   // Split batches into Assigned ("My Batches") vs Other Batches
   const myBatches = useMemo(() => {
     if (isAdmin) return batches
@@ -2608,18 +2783,41 @@ export default function StudySection({ isAdmin = false }) {
                     {batchSubjectChapters.map((ch, idx) => {
                       const videoCount = getChapterVideoCount(ch)
                       const chapterNum = String(idx + 1).padStart(2, '0')
+                      const isSelected = selectedChapterIds.includes(ch.id)
+                      const isSelectionActive = selectedChapterIds.length > 0
+
                       return (
                         <div
                           key={ch.id}
-                          onClick={() => openChapter(ch.id)}
-                          className="group relative bg-white rounded-2xl border border-slate-200/90 sm:hover:border-purple-300 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer sm:hover:-translate-y-0.5"
+                          onPointerDown={(e) => handleChapterPointerDown(e, ch.id)}
+                          onPointerMove={handleChapterPointerMove}
+                          onPointerUp={handleChapterPointerUp}
+                          onPointerCancel={handleChapterPointerUp}
+                          onClick={(e) => handleChapterCardClick(e, ch.id)}
+                          onContextMenu={(e) => {
+                            if (isSelectionActive || isChapterLongPressTriggeredRef.current) {
+                              e.preventDefault()
+                            }
+                          }}
+                          style={{ WebkitTouchCallout: 'none' }}
+                          className={`group relative rounded-2xl p-4 sm:p-4.5 transition-all duration-200 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer select-none sm:hover:-translate-y-0.5 ${
+                            isSelected
+                              ? 'bg-purple-50/70 border-2 border-dashed border-purple-500 shadow-xs ring-2 ring-purple-400/20'
+                              : isSelectionActive
+                              ? 'bg-white/90 border border-slate-200/90 hover:border-purple-300 shadow-2xs'
+                              : 'bg-white border border-slate-200/90 sm:hover:border-purple-300 shadow-2xs sm:hover:shadow-md'
+                          }`}
                         >
                           <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
-                            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50/80 border border-purple-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-105">
-                              <span className="text-[9px] font-black uppercase tracking-wider text-purple-500">
+                            <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs ${
+                              isSelected
+                                ? 'bg-purple-600 text-white border border-purple-600 scale-105'
+                                : 'bg-gradient-to-br from-purple-50 to-indigo-50/80 border border-purple-200/70 sm:group-hover:scale-105'
+                            }`}>
+                              <span className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-purple-200' : 'text-purple-500'}`}>
                                 CH
                               </span>
-                              <span className="text-sm font-black text-purple-700 leading-none">
+                              <span className={`text-sm font-black leading-none ${isSelected ? 'text-white' : 'text-purple-700'}`}>
                                 {chapterNum}
                               </span>
                             </div>
@@ -2640,7 +2838,18 @@ export default function StudySection({ isAdmin = false }) {
                             </div>
                           </div>
 
-                          {canManageBatch(selectedBatch) && (
+                          {/* Action area: In selection mode, show checkbox badge; otherwise show Edit/Delete buttons */}
+                          {isSelectionActive ? (
+                            <div className="shrink-0 flex items-center justify-center pl-1">
+                              {isSelected ? (
+                                <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs animate-in zoom-in-75 duration-150">
+                                  <Check className="h-4 w-4 stroke-[2.5]" />
+                                </div>
+                              ) : (
+                                <div className="w-7 h-7 rounded-xl border-2 border-slate-300 bg-white group-hover:border-purple-400 transition-colors" />
+                              )}
+                            </div>
+                          ) : canManageBatch(selectedBatch) && (
                             <div
                               onClick={(e) => e.stopPropagation()}
                               className="flex items-center gap-0.5 bg-slate-50/90 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl p-1 shadow-2xs shrink-0 transition-colors"
@@ -2701,6 +2910,46 @@ export default function StudySection({ isAdmin = false }) {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Floating Batch Action Bar for Multi-Select Chapter Deletion */}
+                {selectedChapterIds.length > 0 && (
+                  <div className="fixed bottom-20 lg:bottom-8 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-lg bg-slate-900/95 backdrop-blur-xl border border-slate-800 text-white rounded-2xl p-2.5 sm:p-3 shadow-2xl flex items-center justify-between gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+                    <div className="flex items-center gap-2 pl-1.5">
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-purple-500 text-white text-xs font-black">
+                        {selectedChapterIds.length}
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-slate-100 whitespace-nowrap">
+                        Selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAllChapters}
+                        className="px-2.5 py-1.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        {selectedChapterIds.length === batchSubjectChapters.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteBatchChapters()}
+                        disabled={isBatchDeleting}
+                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-rose-950/50 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete ({selectedChapterIds.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearChapterSelection}
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                        title="Cancel selection"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
