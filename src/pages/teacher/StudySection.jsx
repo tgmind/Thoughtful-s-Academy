@@ -6,7 +6,7 @@ import {
   Link as LinkIcon, Sparkles, Globe, Search, X, FolderOpen,
   ArrowRight, Play, School, FileText, Plus, Edit2,
   Trash2, Lock, Eye, EyeOff, ChevronDown, Check,
-  Folder, ArrowLeft, Grid, List, Clock, ChevronRight
+  Folder, ArrowLeft, Grid, List, Clock
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -2612,10 +2612,10 @@ export default function StudySection({ isAdmin = false }) {
                         <div
                           key={ch.id}
                           onClick={() => openChapter(ch.id)}
-                          className="group relative bg-white rounded-2xl border border-slate-200/90 sm:hover:border-purple-300 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3.5 cursor-pointer"
+                          className="group relative bg-white rounded-2xl border border-slate-200/90 sm:hover:border-purple-300 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer sm:hover:-translate-y-0.5"
                         >
-                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50/80 border border-purple-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-102">
+                          <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+                            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50/80 border border-purple-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-105">
                               <span className="text-[9px] font-black uppercase tracking-wider text-purple-500">
                                 CH
                               </span>
@@ -2624,11 +2624,11 @@ export default function StudySection({ isAdmin = false }) {
                               </span>
                             </div>
 
-                            <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="min-w-0 flex-1 space-y-0.5 pr-1">
                               <span className="text-[11px] font-black uppercase tracking-wider text-purple-600 block leading-tight">
                                 Chapter {idx + 1}
                               </span>
-                              <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-purple-700 transition-colors line-clamp-2 break-words leading-snug">
+                              <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-purple-700 transition-colors break-words leading-snug">
                                 {ch.title}
                               </h4>
                               <div className="flex items-center gap-1.5 pt-0.5">
@@ -2640,37 +2640,35 @@ export default function StudySection({ isAdmin = false }) {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0 ml-1">
-                            {canManageBatch(selectedBatch) && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openEditChapter(ch)
-                                  }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
-                                  title="Edit Chapter"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    deleteChapter(ch.id)
-                                  }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                  title="Delete Chapter"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            )}
-                            <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-400 sm:group-hover:text-slate-600 sm:group-hover:bg-slate-200/80 flex items-center justify-center transition-all ml-1">
-                              <ChevronRight className="h-4 w-4 sm:group-hover:translate-x-0.5 transition-transform" />
+                          {canManageBatch(selectedBatch) && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-0.5 bg-slate-50/90 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl p-1 shadow-2xs shrink-0 transition-colors"
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openEditChapter(ch)
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-purple-700 hover:bg-white active:scale-95 transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                                title="Edit Chapter"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteChapter(ch.id)
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-white active:scale-95 transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                                title="Delete Chapter"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                          </div>
+                          )}
                         </div>
                       )
                     })}
@@ -2679,18 +2677,18 @@ export default function StudySection({ isAdmin = false }) {
                     {(unassignedVideos.length > 0 || batchSubjectChapters.length === 0) && (
                       <div
                         onClick={() => openChapter('general')}
-                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 sm:hover:border-amber-400/80 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3.5 cursor-pointer"
+                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 sm:hover:border-amber-400/80 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer sm:hover:-translate-y-0.5"
                       >
-                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-50/90 border border-amber-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-102">
+                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+                          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-50/90 border border-amber-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-105">
                             <Folder className="h-5 w-5 text-amber-600 transition-colors" />
                           </div>
 
-                          <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="min-w-0 flex-1 space-y-0.5 pr-1">
                             <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 block leading-tight">
                               General
                             </span>
-                            <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-amber-700 transition-colors line-clamp-2 break-words leading-snug">
+                            <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-amber-700 transition-colors break-words leading-snug">
                               General & Introductory Lectures
                             </h4>
                             <div className="flex items-center gap-1.5 pt-0.5">
@@ -2700,10 +2698,6 @@ export default function StudySection({ isAdmin = false }) {
                               </span>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-400 sm:group-hover:text-slate-600 sm:group-hover:bg-slate-200/80 flex items-center justify-center transition-all shrink-0 ml-1">
-                          <ChevronRight className="h-4 w-4 sm:group-hover:translate-x-0.5 transition-transform" />
                         </div>
                       </div>
                     )}
