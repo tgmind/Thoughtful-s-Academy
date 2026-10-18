@@ -2545,14 +2545,14 @@ export default function StudySection({ isAdmin = false }) {
                         <div
                           key={ch.id}
                           onClick={() => openChapter(ch.id)}
-                          className="group relative bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 p-4 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer"
+                          className="group relative bg-white rounded-2xl border border-slate-200/90 sm:hover:border-slate-300 p-4 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer"
                         >
                           <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200/80 flex flex-col items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-indigo-400 group-hover:bg-indigo-600 transition-all duration-300 shadow-2xs">
-                              <span className="text-[9px] font-black uppercase tracking-wider text-indigo-500 group-hover:text-indigo-200 transition-colors">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50/90 to-blue-50/90 border border-indigo-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-indigo-500">
                                 CH
                               </span>
-                              <span className="text-sm font-black text-indigo-700 group-hover:text-white transition-colors leading-none">
+                              <span className="text-sm font-black text-indigo-700 leading-none">
                                 {chapterNum}
                               </span>
                             </div>
@@ -2567,7 +2567,7 @@ export default function StudySection({ isAdmin = false }) {
                                   {videoCount} {videoCount === 1 ? 'Lecture' : 'Lectures'}
                                 </span>
                               </div>
-                              <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-indigo-600 transition-colors truncate mt-0.5">
+                              <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-indigo-600 transition-colors truncate mt-0.5">
                                 {ch.title}
                               </h4>
                               {ch.description && (
@@ -2605,8 +2605,8 @@ export default function StudySection({ isAdmin = false }) {
                                 </button>
                               </>
                             )}
-                            <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-indigo-600 text-slate-400 group-hover:text-white flex items-center justify-center transition-all ml-1">
-                              <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                            <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-400 sm:group-hover:text-slate-600 sm:group-hover:bg-slate-200/80 flex items-center justify-center transition-all ml-1">
+                              <ChevronRight className="h-4 w-4 sm:group-hover:translate-x-0.5 transition-transform" />
                             </div>
                           </div>
                         </div>
@@ -2617,11 +2617,11 @@ export default function StudySection({ isAdmin = false }) {
                     {(unassignedVideos.length > 0 || batchSubjectChapters.length === 0) && (
                       <div
                         onClick={() => openChapter('general')}
-                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 hover:border-amber-400 p-4 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer"
+                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 sm:hover:border-amber-400/80 p-4 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer"
                       >
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 flex flex-col items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-amber-400 group-hover:bg-amber-500 transition-all duration-300 shadow-2xs">
-                            <Folder className="h-5 w-5 text-amber-600 group-hover:text-white transition-colors" />
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50/90 border border-amber-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs">
+                            <Folder className="h-5 w-5 text-amber-600 transition-colors" />
                           </div>
 
                           <div className="min-w-0 flex-1">
@@ -2634,7 +2634,7 @@ export default function StudySection({ isAdmin = false }) {
                                 {unassignedVideos.length} {unassignedVideos.length === 1 ? 'Lecture' : 'Lectures'}
                               </span>
                             </div>
-                            <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-amber-700 transition-colors truncate mt-0.5">
+                            <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-amber-700 transition-colors truncate mt-0.5">
                               General & Introductory Lectures
                             </h4>
                             <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
@@ -2643,8 +2643,8 @@ export default function StudySection({ isAdmin = false }) {
                           </div>
                         </div>
 
-                        <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-amber-500 text-slate-400 group-hover:text-white flex items-center justify-center transition-all shrink-0">
-                          <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                        <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-400 sm:group-hover:text-slate-600 sm:group-hover:bg-slate-200/80 flex items-center justify-center transition-all shrink-0">
+                          <ChevronRight className="h-4 w-4 sm:group-hover:translate-x-0.5 transition-transform" />
                         </div>
                       </div>
                     )}

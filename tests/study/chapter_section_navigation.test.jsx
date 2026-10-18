@@ -256,6 +256,12 @@ describe('Chapter-Based Video Lectures Architecture', () => {
 
       // Individual lecture cards should not be directly visible in the chapter list
       expect(screen.queryByText('Coulomb Law Fundamentals')).not.toBeInTheDocument()
+
+      // Ensure no chapter is visually pre-selected or highlighted with active solid indicators
+      const ch1Heading = screen.getByText('Electrostatics & Electric Field')
+      const ch1Card = ch1Heading.closest('button')
+      expect(ch1Card.className).not.toContain('hover:border-indigo-400')
+      expect(ch1Card.innerHTML).not.toContain('group-hover:bg-indigo-600 text-white')
     })
 
     it('filters and displays only lectures belonging to a chapter when clicked', async () => {
@@ -379,6 +385,12 @@ describe('Chapter-Based Video Lectures Architecture', () => {
       // Existing chapters list
       expect(screen.getByText('Electrostatics & Electric Field')).toBeInTheDocument()
       expect(screen.getByText('Current Electricity')).toBeInTheDocument()
+
+      // Ensure teacher chapter cards do not have misleading pre-selected hover styles
+      const tCh1Heading = screen.getByText('Electrostatics & Electric Field')
+      const tCh1Card = tCh1Heading.closest('.group')
+      expect(tCh1Card.className).not.toContain('hover:border-indigo-400')
+      expect(tCh1Card.innerHTML).not.toContain('group-hover:bg-indigo-600 text-white')
 
       // Click Create Chapter button opens modal
       fireEvent.click(screen.getByRole('button', { name: /Create Chapter/i }))
