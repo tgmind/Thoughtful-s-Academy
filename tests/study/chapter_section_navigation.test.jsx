@@ -570,10 +570,10 @@ describe('Chapter-Based Video Lectures Architecture', () => {
         expect(screen.queryByText(/Loading Study Workspace/i)).not.toBeInTheDocument()
       })
 
-      // Must show chapter cards with non-truncating badge pills
+      // Must show chapter cards with non-truncating chapter headings and lecture counts
       expect(screen.getByText('Electrostatics & Electric Field')).toBeInTheDocument()
       expect(screen.getByText('Chapter 1')).toBeInTheDocument()
-      expect(screen.getAllByText('1 Video').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('1 Lecture').length).toBeGreaterThan(0)
 
       // Ensure no description paragraph text exists
       expect(screen.queryByText(/Gauss Law, Coulomb Force & Field lines/i)).not.toBeInTheDocument()

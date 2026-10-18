@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  BookOpen, PlayCircle, Youtube,
+  BookOpen, PlayCircle, Youtube, Video,
   Link as LinkIcon, Sparkles, Globe, Search, X, FolderOpen,
   ArrowRight, Play, School, FileText, Plus, Edit2,
   Trash2, Lock, Eye, EyeOff, ChevronDown, Check,
@@ -2544,34 +2544,35 @@ export default function StudySection({ isAdmin = false }) {
                         <div
                           key={ch.id}
                           onClick={() => openChapter(ch.id)}
-                          className="group relative bg-white rounded-2xl border border-slate-200/90 sm:hover:border-slate-300 p-4 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer"
+                          className="group relative bg-white rounded-2xl border border-slate-200/90 sm:hover:border-purple-300 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3.5 cursor-pointer"
                         >
                           <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50/90 to-blue-50/90 border border-indigo-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs">
-                              <span className="text-[9px] font-black uppercase tracking-wider text-indigo-500">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50/80 border border-purple-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-102">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-purple-500">
                                 CH
                               </span>
-                              <span className="text-sm font-black text-indigo-700 leading-none">
+                              <span className="text-sm font-black text-purple-700 leading-none">
                                 {chapterNum}
                               </span>
                             </div>
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center flex-wrap gap-1.5">
-                                <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                  Chapter {idx + 1}
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <span className="text-[11px] font-black uppercase tracking-wider text-purple-600 block leading-tight">
+                                Chapter {idx + 1}
+                              </span>
+                              <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-purple-700 transition-colors line-clamp-2 break-words leading-snug">
+                                {ch.title}
+                              </h4>
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <Video className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                                <span className="text-xs font-semibold text-slate-500">
                                   {videoCount} {videoCount === 1 ? 'Lecture' : 'Lectures'}
                                 </span>
                               </div>
-                              <h4 className="text-sm sm:text-base font-bold text-slate-900 sm:group-hover:text-indigo-600 transition-colors line-clamp-2 break-words mt-1 leading-snug">
-                                {ch.title}
-                              </h4>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
                             {canManageBatch(selectedBatch) && (
                               <>
                                 <button
@@ -2580,7 +2581,7 @@ export default function StudySection({ isAdmin = false }) {
                                     e.stopPropagation()
                                     openEditChapter(ch)
                                   }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
                                   title="Edit Chapter"
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
@@ -2591,7 +2592,7 @@ export default function StudySection({ isAdmin = false }) {
                                     e.stopPropagation()
                                     deleteChapter(ch.id)
                                   }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                   title="Delete Chapter"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -2610,25 +2611,26 @@ export default function StudySection({ isAdmin = false }) {
                     {(unassignedVideos.length > 0 || batchSubjectChapters.length === 0) && (
                       <div
                         onClick={() => openChapter('general')}
-                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 sm:hover:border-amber-400/80 p-4 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer"
+                        className="group relative bg-white rounded-2xl border border-dashed border-slate-300 sm:hover:border-amber-400/80 p-4 sm:p-4.5 shadow-2xs sm:hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3.5 cursor-pointer"
                       >
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-50/90 border border-amber-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50/90 border border-amber-200/70 flex flex-col items-center justify-center shrink-0 transition-transform duration-200 shadow-2xs sm:group-hover:scale-102">
                             <Folder className="h-5 w-5 text-amber-600 transition-colors" />
                           </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center flex-wrap gap-1.5">
-                              <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/80 border border-amber-200/80 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                General
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 block leading-tight">
+                              General
+                            </span>
+                            <h4 className="text-sm sm:text-base font-black text-slate-900 sm:group-hover:text-amber-700 transition-colors line-clamp-2 break-words leading-snug">
+                              General & Introductory Lectures
+                            </h4>
+                            <div className="flex items-center gap-1.5 pt-0.5">
+                              <Video className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                              <span className="text-xs font-semibold text-slate-500">
                                 {unassignedVideos.length} {unassignedVideos.length === 1 ? 'Lecture' : 'Lectures'}
                               </span>
                             </div>
-                            <h4 className="text-sm sm:text-base font-bold text-slate-900 sm:group-hover:text-amber-700 transition-colors line-clamp-2 break-words mt-1 leading-snug">
-                              General & Introductory Lectures
-                            </h4>
                           </div>
                         </div>
 
