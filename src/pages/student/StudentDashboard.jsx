@@ -336,9 +336,12 @@ export default function StudentDashboard() {
         liveQ = liveQ.is('batch_id', null)
       }
 
-      const hwQ = currentBatchId
-        ? supabase.from('homework').select('id, title, due_date, created_at, description').eq('batch_id', currentBatchId).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
-        : Promise.resolve({ data: [] })
+      let hwQ = supabase.from('homework').select('id, title, due_date, created_at, description').eq('is_active', true).order('created_at', { ascending: false }).limit(4)
+      if (currentBatchId) {
+        hwQ = hwQ.or(`batch_id.is.null,batch_id.eq.${currentBatchId}`)
+      } else {
+        hwQ = hwQ.is('batch_id', null)
+      }
 
       const studyQ = currentBatchId
         ? supabase.from('study_cards').select('id, title, subject, type, created_at').or(`batch_ids.cs.{${currentBatchId}},batch_id.eq.${currentBatchId}`).eq('is_active', true).order('created_at', { ascending: false }).limit(4)
@@ -505,13 +508,17 @@ export default function StudentDashboard() {
 
     const syncHomework = () => debounce('hw', async () => {
       const curBatch = batchIdRef.current
-      if (!curBatch) return
-      const { data } = await supabase.from('homework')
+      let q = supabase.from('homework')
         .select('id, title, due_date, created_at, description')
-        .eq('batch_id', curBatch)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(4)
+      if (curBatch) {
+        q = q.or(`batch_id.is.null,batch_id.eq.${curBatch}`)
+      } else {
+        q = q.is('batch_id', null)
+      }
+      const { data } = await q
       if (isSubscribed && data) setRecentHomework(data)
     })
 

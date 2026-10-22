@@ -8,11 +8,24 @@ import {
   getMaterialEmbedUrl,
   getMaterialDownloadUrl,
   downloadMaterialFile,
-  isGoogleDriveResource,
-  parseGoogleResource
+  isGoogleDriveResource
 } from '../../utils/materialUrl'
 
-export default function MaterialViewerModal({ card, onClose }) {
+/**
+ * Configuration flag for Download button visibility in Material Viewer.
+ * By default, direct file downloads are disabled in student-facing viewer mode.
+ * 
+ * To re-enable downloads:
+ * 1. Globally: change `ENABLE_MATERIAL_DOWNLOAD = true` below, OR
+ * 2. Per-instance: pass `showDownload={true}` prop to <MaterialViewerModal />
+ */
+export const ENABLE_MATERIAL_DOWNLOAD = false
+
+export default function MaterialViewerModal({
+  card,
+  onClose,
+  showDownload = ENABLE_MATERIAL_DOWNLOAD
+}) {
   const containerRef = useRef(null)
   const iframeRef = useRef(null)
   const [loading, setLoading] = useState(true)
@@ -20,7 +33,6 @@ export default function MaterialViewerModal({ card, onClose }) {
   const [downloading, setDownloading] = useState(false)
 
   const isDrive = isGoogleDriveResource(card?.url, card?.type)
-  const { kind } = parseGoogleResource(card?.url)
   const embedUrl = getMaterialEmbedUrl(card?.url, card?.type)
   const downloadUrl = getMaterialDownloadUrl(card?.url, card?.type)
 
@@ -86,13 +98,6 @@ export default function MaterialViewerModal({ card, onClose }) {
 
   if (!card) return null
 
-  let typeLabel = 'Study Material'
-  if (kind === 'doc') typeLabel = 'Google Doc'
-  else if (kind === 'sheet') typeLabel = 'Google Sheet'
-  else if (kind === 'presentation') typeLabel = 'Presentation'
-  else if (isDrive) typeLabel = 'Notes'
-  else if (card?.type === 'external_link') typeLabel = 'Web Resource'
-
   return createPortal(
     <div
       ref={containerRef}
@@ -111,11 +116,11 @@ export default function MaterialViewerModal({ card, onClose }) {
         }
       `}</style>
 
-      {/* ─── TOP HEADER TOOLBAR (GOOGLE MATERIAL DESIGN 3) ─────────────── */}
-      <header className="flex-shrink-0 h-14 sm:h-16 bg-[#1f1f1f] border-b border-[#2d2d2d] px-3 sm:px-6 flex items-center justify-between gap-3 z-30 shadow-xs">
+      {/* ─── COMPACT TOP HEADER TOOLBAR ─────────────────────────────────── */}
+      <header className="flex-shrink-0 h-10 sm:h-11 bg-[#1f1f1f] border-b border-[#2d2d2d] px-2.5 sm:px-4 flex items-center justify-between gap-2 sm:gap-3 z-30 shadow-xs">
         
-        {/* Left: Back Button & Text-Only Document Metadata */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        {/* Left: Back Button & Material Title */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => {
@@ -124,48 +129,43 @@ export default function MaterialViewerModal({ card, onClose }) {
               }
               onClose?.()
             }}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 active:bg-white/20 text-neutral-300 hover:text-white transition-colors flex items-center justify-center shrink-0 cursor-pointer focus:outline-none"
+            className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full hover:bg-white/10 active:bg-white/20 text-neutral-300 hover:text-white transition-colors flex items-center justify-center shrink-0 cursor-pointer focus:outline-none"
             title="Close material (Esc)"
             aria-label="Close viewer"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
           </button>
 
-          <div className="h-5 w-px bg-[#333333] hidden sm:block shrink-0" />
+          <div className="h-4 w-px bg-[#333333] hidden sm:block shrink-0" />
 
-          {/* Text-Only Headline & Context Metadata Hierarchy (No Pills) */}
-          <div className="min-w-0 flex-1 flex flex-col justify-center">
+          {/* Title-Only Document Headline */}
+          <div className="min-w-0 flex-1 flex items-center">
             <h2
-              className="text-sm sm:text-base font-semibold text-white truncate tracking-normal"
+              className="text-xs sm:text-sm font-semibold text-white truncate tracking-normal"
               title={card.title}
             >
               {card.title || 'Untitled Material'}
             </h2>
-            <p className="text-[11px] sm:text-xs text-neutral-400 font-normal flex items-center gap-1.5 truncate mt-0.5">
-              {card.subject && <span className="font-medium text-neutral-300">{card.subject}</span>}
-              {card.subject && <span>•</span>}
-              <span>{typeLabel}</span>
-            </p>
           </div>
         </div>
 
         {/* Right: Manual Download & Close */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           
-          {/* Manual Download Button (Google M3 Icon Button) */}
-          {downloadUrl && (
+          {/* Reversible Download Button (Google M3 Icon Button) */}
+          {showDownload && downloadUrl && (
             <button
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 active:bg-white/20 text-neutral-300 hover:text-white transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50 focus:outline-none"
+              className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full hover:bg-white/10 active:bg-white/20 text-neutral-300 hover:text-white transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50 focus:outline-none"
               title="Download file"
               aria-label="Download"
             >
               {downloading ? (
                 <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
               ) : (
-                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Download className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               )}
             </button>
           )}
@@ -179,11 +179,11 @@ export default function MaterialViewerModal({ card, onClose }) {
               }
               onClose?.()
             }}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full hover:bg-white/10 active:bg-white/20 text-neutral-300 hover:text-white transition-colors flex items-center justify-center cursor-pointer focus:outline-none"
+            className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full hover:bg-white/10 active:bg-white/20 text-neutral-300 hover:text-white transition-colors flex items-center justify-center cursor-pointer focus:outline-none"
             title="Close (Esc)"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
           </button>
         </div>
       </header>
@@ -221,7 +221,7 @@ export default function MaterialViewerModal({ card, onClose }) {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
-              {downloadUrl && (
+              {showDownload && downloadUrl && (
                 <button
                   type="button"
                   onClick={handleDownload}
@@ -242,7 +242,7 @@ export default function MaterialViewerModal({ card, onClose }) {
           </div>
         ) : (
           <div
-            className="w-full h-full relative bg-[#121212]"
+            className="w-full h-full relative bg-[#121212] overflow-hidden"
             onContextMenu={(e) => e.preventDefault()}
           >
             {/* Embedded Material Iframe */}
@@ -250,7 +250,11 @@ export default function MaterialViewerModal({ card, onClose }) {
               ref={iframeRef}
               src={embedUrl}
               title={`Preview: ${card.title || 'Study Material'}`}
-              className="w-full h-full border-0 bg-white"
+              className={`h-full border-0 bg-white ${
+                isDrive
+                  ? 'w-[calc(100%+40px)] -ml-[20px]'
+                  : 'w-full'
+              }`}
               allow="autoplay; encrypted-media; fullscreen"
               loading="eager"
               onLoad={() => setLoading(false)}
@@ -272,7 +276,7 @@ export default function MaterialViewerModal({ card, onClose }) {
               >
                 <div
                   data-testid="drive-redirect-blocker"
-                  className="absolute top-0 right-0 w-16 h-14 sm:w-20 sm:h-16 pointer-events-auto bg-transparent cursor-default select-none"
+                  className="absolute top-0 right-0 w-28 h-20 sm:w-36 sm:h-24 pointer-events-auto bg-transparent cursor-default select-none"
                   style={{ touchAction: 'none' }}
                   title=""
                   aria-label="Protected View"
@@ -297,6 +301,10 @@ export default function MaterialViewerModal({ card, onClose }) {
                     e.stopPropagation()
                   }}
                   onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onPointerUp={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
                   }}

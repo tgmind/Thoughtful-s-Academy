@@ -3,7 +3,7 @@
 **Platform:** Thoughtful's Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Migration Directory:** `supabase/migrations/`  
-**Total Migrations:** 28 SQL Migration Files (`001` through `028`)  
+**Total Migrations:** 45 SQL Migration Files (`001` through `045`)  
 
 ---
 
@@ -39,6 +39,23 @@
 | `026` | `026_security_and_integrity_hardening.sql` | SEC-001/002/003 & DATA-001 fixes | Hardened `handle_new_user()`, column immutability triggers, RLS update locks | YES |
 | `027` | `027_capacity_and_realtime_optimizations.sql` | Realtime channel & index optimization | 11 composite and partial performance indexes, realtime filter optimization | YES |
 | `028` | `028_doubt_resolution_hub.sql` | Doubt Resolution Hub lifecycle | Creates `public.doubts`, 6 composite indexes, RLS, mutation triggers, realtime | YES |
+| `029` | `029_study_cards_attached_notes.sql` | Study card PDF attachments | Adds `attached_notes_url` to `study_cards` | YES |
+| `030` | `030_messages_robustness.sql` | Direct & broadcast messaging hardening | Adds delivery indexes, self-deletion guards | YES |
+| `031` | `031_subject_chapters.sql` | Curriculum chapters hierarchy | Creates `chapters` table, links study cards, defines RLS | YES |
+| `032` | `032_realtime_and_messaging_hardening.sql` | Realtime publication sync | Adds `chapters` and `messages` to `supabase_realtime` | YES |
+| `033` | `033_chapters_realtime_and_sync.sql` | Synchronized chapter titles | Trigger syncing chapter name edits to cards | YES |
+| `034` | `034_messaging_architecture_and_profiles_rls.sql` | Messaging authorization function | Creates `can_send_message` security function | YES |
+| `035` | `035_dual_mode_fees_and_validity.sql` | One-time and monthly fees | Fee validity function, batch fee models | YES |
+| `036` | `036_fee_access_hardening_and_resource_rls.sql` | RLS access gate for resources | Enforces access validity across study cards, live classes | YES |
+| `037` | `037_universal_trial_and_rejection_recovery.sql` | Free trial & admin access overrides | Creates `admin_access_overrides` table, trial protection trigger | YES |
+| `038` | `038_authoritative_student_access_and_fee_status.sql` | Authoritative batch access RPC | Introduces `get_student_batch_access_status()` | YES |
+| `039` | `039_student_bookmarks_role_guard.sql` | Student bookmarks role guard | Ensures student-only access to bookmarking subsystem | YES |
+| `040` | `040_prune_old_live_classes.sql` | Live class history pruning | Limits historical inactive live classes to 20 | YES |
+| `041` | `041_drop_chapter_description.sql` | Deprecate unused description field | Safely drops `description` column from `chapters` | YES |
+| `042` | `042_grant_data_api_access.sql` | Supabase Oct 30 Data API Exposure | Grants API access on all tables & establishes automatic default privileges | YES |
+| `043` | `043_homework_completion_system.sql` | Unified Homework Completion System | Refactors homework_submissions in-place, drops drive_link NOT NULL, adds student DELETE (Undo) policy, enables REPLICA IDENTITY FULL | YES |
+| `044` | `044_homework_visibility_and_rls.sql` | Homework Visibility & RLS Hardening | Fixes RLS violation on homework visibility toggle (is_active), allows admin/teacher read & update of hidden homework | YES |
+| `045` | `045_homework_realtime_replica_identity.sql` | Homework Realtime Replica Identity | Sets REPLICA IDENTITY FULL on public.homework for reliable Realtime WAL payloads on delete/update | YES |
 
 ---
 

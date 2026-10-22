@@ -148,17 +148,24 @@ describe('MaterialViewerModal Component - PDF & Protected Notes', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders title, subject subtitle, and iframe with /preview for Google Drive PDF', () => {
+  it('renders title without subtitle Notes and iframe with /preview for Google Drive PDF', () => {
     render(<MaterialViewerModal card={samplePdfCard} onClose={onCloseMock} />)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Class 9 Mathematics Practice Workbook 1')).toBeInTheDocument()
-    expect(screen.getByText('Maths')).toBeInTheDocument()
-    expect(screen.getByText('Notes')).toBeInTheDocument()
+    // Verify Notes and subject subtitles are removed from header
+    expect(screen.queryByText('Notes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Maths')).not.toBeInTheDocument()
+    // Verify Download button is hidden by default in student viewer
+    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument()
 
     const iframe = document.querySelector('iframe')
     expect(iframe).toBeInTheDocument()
     expect(iframe).toHaveAttribute('src', 'https://drive.google.com/file/d/1IGQw9ZiZlzAFHwXgiQnpOL7mCiDJethI/preview')
+    // Verify edge-to-edge full screen viewport: symmetrical dead margin offsets are shifted and clipped
+    expect(iframe).toHaveClass('w-[calc(100%+40px)]')
+    expect(iframe).toHaveClass('-ml-[20px]')
+    expect(iframe.parentElement).toHaveClass('overflow-hidden')
   })
 
   it('renders transparent mask over viewer and neutralizes redirect button without visible shield overlay', () => {
@@ -168,12 +175,14 @@ describe('MaterialViewerModal Component - PDF & Protected Notes', () => {
     expect(screen.queryByText('Protected Reader')).not.toBeInTheDocument()
     expect(screen.queryByText('Protected')).not.toBeInTheDocument()
 
-    // Blocker is present and completely transparent
+    // Blocker is present and completely transparent with generous coverage
     const blocker = screen.getByTestId('drive-redirect-blocker')
     expect(blocker).toBeInTheDocument()
     expect(blocker.querySelector('svg')).toBeNull()
     expect(blocker).toHaveClass('pointer-events-auto')
     expect(blocker).toHaveClass('bg-transparent')
+    expect(blocker).toHaveClass('w-28')
+    expect(blocker).toHaveClass('h-20')
 
     // Mask container allows full touch pass-through (pointer-events-none) across the viewer
     const maskContainer = blocker.parentElement
@@ -190,11 +199,16 @@ describe('MaterialViewerModal Component - PDF & Protected Notes', () => {
     expect(stopPropagationSpy).toHaveBeenCalled()
     expect(preventDefaultSpy).toHaveBeenCalled()
 
-    // Touch events on the redirect blocker are also intercepted
+    // Touch and pointer events on the redirect blocker are also intercepted
     const touchStartEvt = new TouchEvent('touchstart', { bubbles: true, cancelable: true })
     const touchPreventSpy = vi.spyOn(touchStartEvt, 'preventDefault')
     blocker.dispatchEvent(touchStartEvt)
     expect(touchPreventSpy).toHaveBeenCalled()
+
+    const pointerUpEvt = new PointerEvent('pointerup', { bubbles: true, cancelable: true })
+    const pointerPreventSpy = vi.spyOn(pointerUpEvt, 'preventDefault')
+    blocker.dispatchEvent(pointerUpEvt)
+    expect(pointerPreventSpy).toHaveBeenCalled()
   })
 
   it('prevents browser print (Ctrl+P) and save (Ctrl+S) inside protected viewer', () => {
@@ -242,13 +256,14 @@ describe('MaterialViewerModal Component', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders modal dialog with document title and subject badge for documents', () => {
+  it('renders modal dialog with document title and omits subtitle in compact header', () => {
     render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Chapter 1 Theory Notes')).toBeInTheDocument()
-    expect(screen.getByText('Physics')).toBeInTheDocument()
-    expect(screen.getByText('Google Doc')).toBeInTheDocument()
+    // Verify document type and subject subtitle badges are omitted
+    expect(screen.queryByText('Google Doc')).not.toBeInTheDocument()
+    expect(screen.queryByText('Physics')).not.toBeInTheDocument()
   })
 
   it('renders iframe with the restricted in-app /preview URL for Google Docs', () => {
@@ -259,10 +274,17 @@ describe('MaterialViewerModal Component', () => {
     expect(iframe).toHaveAttribute('src', 'https://docs.google.com/document/d/1ABCXYZ_123-docId/preview')
   })
 
-  it('renders the manual Download button and triggers direct download without target=_blank', async () => {
+  it('hides the manual Download button by default in student-facing viewer', () => {
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
+
+    const downloadBtn = screen.queryByRole('button', { name: /download/i })
+    expect(downloadBtn).not.toBeInTheDocument()
+  })
+
+  it('renders Download button when re-enabled via showDownload={true} and triggers direct download without target=_blank', async () => {
     const appendChildSpy = vi.spyOn(document.body, 'appendChild')
 
-    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
+    render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} showDownload={true} />)
 
     const downloadBtn = screen.getByRole('button', { name: /download/i })
     expect(downloadBtn).toBeInTheDocument()
@@ -310,5 +332,23 @@ describe('MaterialViewerModal Component', () => {
     render(<MaterialViewerModal card={sampleDocCard} onClose={onCloseMock} />)
 
     expect(screen.queryByLabelText('Toggle fullscreen')).not.toBeInTheDocument()
+  })
+
+  it('renders standard full-width iframe without negative margins or Drive redirect blocker for generic web documents', () => {
+    const genericCard = {
+      id: 'generic-doc-1',
+      title: 'Open Education Foundation Notes',
+      type: 'external_link',
+      url: 'https://example.com/notes.html'
+    }
+
+    render(<MaterialViewerModal card={genericCard} onClose={onCloseMock} />)
+
+    const iframe = document.querySelector('iframe')
+    expect(iframe).toBeInTheDocument()
+    expect(iframe).toHaveAttribute('src', 'https://example.com/notes.html')
+    expect(iframe).toHaveClass('w-full')
+    expect(iframe).not.toHaveClass('-ml-[20px]')
+    expect(screen.queryByTestId('drive-redirect-blocker')).not.toBeInTheDocument()
   })
 })

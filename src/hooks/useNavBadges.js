@@ -110,10 +110,15 @@ async function studentLiveActive(batchId) {
 
 // Does the student have active homework they haven't submitted yet?
 async function studentHomeworkPending(userId, batchId) {
-  if (!batchId) return false
   try {
+    let hwQuery = supabase.from('homework').select('id').eq('is_active', true)
+    if (batchId) {
+      hwQuery = hwQuery.or(`batch_id.is.null,batch_id.eq.${batchId}`)
+    } else {
+      hwQuery = hwQuery.is('batch_id', null)
+    }
     const [{ data: hw, error: hwErr }, { data: subs, error: subsErr }] = await Promise.all([
-      supabase.from('homework').select('id').eq('batch_id', batchId).eq('is_active', true),
+      hwQuery,
       supabase.from('homework_submissions').select('homework_id').eq('student_id', userId),
     ])
     if (hwErr || subsErr) return false

@@ -68,6 +68,10 @@ if (targetFile) {
         "039_student_bookmarks_role_guard.sql",
         "040_prune_old_live_classes.sql",
         "041_drop_chapter_description.sql",
+        "042_grant_data_api_access.sql",
+        "043_homework_completion_system.sql",
+        "044_homework_visibility_and_rls.sql",
+        "045_homework_realtime_replica_identity.sql",
       ]
 
   console.log(`Starting automated database migration (${targetFiles.length} migrations)...`)
