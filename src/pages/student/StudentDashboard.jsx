@@ -31,6 +31,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { getYTThumb } from '../../utils/youtube'
 import { checkBatchFeeStatus, BATCH_ACCESS_STATUS } from '../../utils/feeAccess'
+import { getActiveSessionForStudent, markStudentPresent } from '../../services/attendanceService'
 
 function todayISO() {
   const d = new Date()
@@ -209,6 +210,8 @@ export default function StudentDashboard() {
 
   // Interactive UI states
   const [showPopup, setShowPopup] = useState(false)
+  const [activeSession, setActiveSession] = useState(null)
+  const [countdownSeconds, setCountdownSeconds] = useState(0)
   const [confirm, setConfirm] = useState(null)
   const [marking, setMarking] = useState(null)
   const [clearing, setClearing] = useState(false)
@@ -440,9 +443,19 @@ export default function StudentDashboard() {
         todayAttendance: todayStatus,
       })
 
-      // If today's attendance has not been marked, trigger the attendance prompt modal
-      if (!todayRow && !todayStatus) {
-        setShowPopup(true)
+      // Check for live teacher/admin-initiated attendance session
+      try {
+        const { data: sessData } = await getActiveSessionForStudent(uid)
+        if (sessData?.has_active_session && !sessData.already_marked && sessData.seconds_remaining > 0) {
+          setActiveSession(sessData)
+          setCountdownSeconds(sessData.seconds_remaining)
+          setShowPopup(true)
+        } else {
+          setActiveSession(sessData?.has_active_session ? sessData : null)
+          setShowPopup(false)
+        }
+      } catch (sessErr) {
+        console.warn('Error checking active attendance session:', sessErr)
       }
     } catch (err) {
       console.error('Failed to load student dashboard:', err)
@@ -593,6 +606,27 @@ export default function StudentDashboard() {
       }
     })
 
+    const syncAttendanceSessions = () => debounce('att_sess', async () => {
+      try {
+        const { data: sessData } = await getActiveSessionForStudent(uid)
+        if (isSubscribed && sessData) {
+          if (sessData.has_active_session && !sessData.already_marked && sessData.seconds_remaining > 0) {
+            setActiveSession(sessData)
+            setCountdownSeconds(sessData.seconds_remaining)
+            setShowPopup(true)
+          } else if (sessData.already_marked) {
+            setActiveSession(sessData)
+            setShowPopup(false)
+          } else {
+            setActiveSession(null)
+            setShowPopup(false)
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to sync active attendance session:', err)
+      }
+    })
+
     // Light 60s fallback heartbeat (WebSockets handle instant push updates)
     const liveHeartbeat = setInterval(() => {
       if (isSubscribed && document.visibilityState === 'visible') {
@@ -644,6 +678,7 @@ export default function StudentDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_access_overrides', filter: `student_id=eq.${uid}` }, syncFees)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_profiles', filter: `id=eq.${uid}` }, syncFees)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${uid}` }, syncAttendance)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions' }, syncAttendanceSessions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, syncNotifications)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${uid}` }, syncNotifications)
       .subscribe()
@@ -659,62 +694,53 @@ export default function StudentDashboard() {
   }, [user?.id, loadDashboardData, fetchLiveClassDirect])
 
   // ============================================================
-  // Attendance Marking Handler
+  // Active Attendance Session Countdown & Marking Handler
   // ============================================================
-  const markAttendance = async (status) => {
-    setMarking(status)
-    const today = todayISO()
-    const { data, error } = await supabase.from('attendance').insert({
-      student_id: user.id,
-      date: today,
-      status,
-      marked_by: user.id,
-    }).select().maybeSingle()
+  useEffect(() => {
+    if (!showPopup || !activeSession || countdownSeconds <= 0) return
 
-    if (error) {
-      if (error.code === '23505') {
-        toast.error('Attendance already marked for today.')
-        setTodayAttendance(status)
-      } else {
-        toast.error(error.message)
-      }
-    } else {
-      toast.success(`Marked as ${data.status}!`)
-      setTodayAttendance(data.status)
-      setStats(prev => {
-        const newPresent = prev.present + (data.status === 'present' ? 1 : 0)
-        const newLate = (prev.late || 0) + (data.status === 'late' ? 1 : 0)
-        const newAbsent = prev.absent + (data.status === 'absent' ? 1 : 0)
-        const total = newPresent + newLate + newAbsent
-        const newPct = total > 0 ? Math.round(((newPresent + newLate * 0.5) / total) * 100) : 0
-        const newStreak = (data.status === 'present' || data.status === 'late') ? (prev.streak || 0) + 1 : prev.streak
-
-        const updated = {
-          ...prev,
-          present: newPresent,
-          late: newLate,
-          absent: newAbsent,
-          pct: newPct,
-          streak: newStreak,
+    const timer = setInterval(() => {
+      setCountdownSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          setShowPopup(false)
+          setActiveSession(null)
+          toast.error('Attendance window has closed. You have been marked absent.')
+          loadDashboardData(true)
+          return 0
         }
-        setDashboardCache(user.id, {
-          stats: updated,
-          batchId,
-          batchName,
-          trialEndsAt,
-          notifications,
-          recentHomework,
-          recentStudyCards,
-          liveClassData,
-          todayAttendance: data.status,
-        })
-        return updated
+        return prev - 1
       })
-    }
+    }, 1000)
 
-    setShowPopup(false)
-    setConfirm(null)
-    setMarking(null)
+    return () => clearInterval(timer)
+  }, [showPopup, activeSession, countdownSeconds, loadDashboardData])
+
+  const handleMarkPresent = async () => {
+    if (!activeSession?.session_id) return
+    setMarking('present')
+    try {
+      const { data, alreadyMarked, error } = await markStudentPresent({
+        sessionId: activeSession.session_id,
+        studentId: user.id,
+        batchId: activeSession.batch_id,
+      })
+
+      if (error) {
+        toast.error(error.message || 'Failed to mark attendance')
+      } else {
+        toast.success(alreadyMarked ? 'Attendance already recorded!' : 'Marked Present!')
+        setTodayAttendance('present')
+        setShowPopup(false)
+        setActiveSession(prev => (prev ? { ...prev, already_marked: true, marked_status: 'present' } : null))
+        setConfirm(null)
+        loadDashboardData(true)
+      }
+    } catch (err) {
+      toast.error('Error marking attendance: ' + err.message)
+    } finally {
+      setMarking(null)
+    }
   }
 
   // ============================================================
@@ -1076,6 +1102,47 @@ export default function StudentDashboard() {
 
         return null
       })()}
+
+      {/* ── Active Attentiveness Check Alert Banner ── */}
+      {activeSession && !activeSession.already_marked && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 p-4 sm:p-5 text-white shadow-xl shadow-emerald-500/20 border border-emerald-400/30"
+        >
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              <div className="relative p-2.5 sm:p-3 bg-white/20 rounded-2xl text-white shrink-0 shadow-inner">
+                <CalendarCheck className="h-6 w-6" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-300" />
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-white/25 text-white px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm">
+                    Attentiveness Check Live
+                  </span>
+                  <span className="text-xs text-emerald-100 font-mono font-bold">
+                    {String(Math.floor(countdownSeconds / 60)).padStart(2, '0')}:{String(countdownSeconds % 60).padStart(2, '0')} remaining
+                  </span>
+                </div>
+                <h3 className="text-sm sm:text-base font-black text-white truncate">
+                  {activeSession.title || 'Lecture Attendance'}
+                </h3>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPopup(true)}
+              className="px-5 py-2.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 active:scale-95 font-bold text-xs sm:text-sm shrink-0 shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              <span>Mark Present Now</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── 2. Live Class High-Urgency Broadcast Alert Bar ── */}
       {liveClassData && !liveDismissed && (
@@ -1639,9 +1706,9 @@ export default function StudentDashboard() {
 
       </div>
 
-      {/* ── 7. Redesigned Framer Motion Attendance Marking Modal ── */}
+      {/* ── 7. Active Attentiveness Check Realtime Modal ── */}
       <AnimatePresence>
-        {showPopup && !loading && (
+        {showPopup && activeSession && !loading && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Glass Backdrop */}
             <motion.div
@@ -1649,7 +1716,7 @@ export default function StudentDashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowPopup(false)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-950/70 backdrop-blur-md"
             />
 
             {/* Modal Dialog Card */}
@@ -1658,93 +1725,90 @@ export default function StudentDashboard() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 12 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 sm:p-8 z-10 border border-slate-100"
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 sm:p-8 z-10 border border-emerald-100 overflow-hidden"
             >
+              {/* Animated Glowing Top Accent */}
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-blue-600 animate-pulse" />
+
               {/* Close Button */}
               <button
                 onClick={() => setShowPopup(false)}
                 className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                title="Close"
+                title="Minimize"
               >
                 <X className="h-5 w-5" />
               </button>
 
               {/* Modal Header */}
-              <div className="flex items-center gap-3.5 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-950 shadow-inner">
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className="relative w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner">
                   <CalendarCheck className="h-6 w-6" />
+                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+                  </span>
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900 font-display">
-                    Mark Today&apos;s Attendance
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-100 text-emerald-800">
+                      Live Attentiveness Check
+                    </span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 font-display mt-0.5">
+                    {activeSession.title || 'Lecture Attendance'}
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-500">{dateLabel}</p>
                 </div>
               </div>
 
-              {/* Modal Body: Selection vs Confirmation */}
-              <div>
-                {confirm ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center space-y-4"
-                  >
-                    <p className="text-sm font-medium text-slate-800">
-                      Confirm marking yourself as{' '}
-                      <span className={`capitalize font-black px-2 py-0.5 rounded-lg text-white ${
-                        confirm === 'present' ? 'bg-emerald-600' : confirm === 'late' ? 'bg-amber-500' : 'bg-rose-600'
-                      }`}>
-                        {confirm}
-                      </span>{' '}
-                      for today?
-                    </p>
-                    <div className="flex gap-3 justify-center pt-2">
-                      <button
-                        onClick={() => markAttendance(confirm)}
-                        disabled={!!marking}
-                        className="px-6 py-2.5 bg-blue-950 hover:bg-blue-900 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md disabled:opacity-50 active:scale-95"
-                      >
-                        {marking ? 'Saving Record…' : 'Yes, Confirm'}
-                      </button>
-                      <button
-                        onClick={() => setConfirm(null)}
-                        className="px-5 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-all"
-                      >
-                        Back
-                      </button>
+              {/* Session Meta & Countdown Deck */}
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 mb-5 space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Batch: <strong className="text-slate-900">{activeSession.batch_name}</strong></span>
+                  <span>Proctor: <strong className="text-slate-900">{activeSession.created_by_name}</strong></span>
+                </div>
+
+                {/* Animated Countdown Timer */}
+                <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-amber-500 animate-spin-slow" />
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Window Remaining</p>
+                      <p className="text-2xl font-black tracking-tight text-slate-900 font-mono">
+                        {String(Math.floor(countdownSeconds / 60)).padStart(2, '0')}:
+                        {String(countdownSeconds % 60).padStart(2, '0')}
+                      </p>
                     </div>
-                  </motion.div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                    <button
-                      onClick={() => setConfirm('present')}
-                      className="flex flex-col items-center justify-center gap-2 p-4 sm:p-5 bg-emerald-50 hover:bg-emerald-100/80 border-2 border-emerald-200 text-emerald-800 rounded-2xl font-bold text-xs sm:text-sm transition-all hover:-translate-y-1 hover:shadow-md"
-                    >
-                      <CheckCircle className="h-7 w-7 text-emerald-600" />
-                      <span>Present</span>
-                    </button>
-                    <button
-                      onClick={() => setConfirm('late')}
-                      className="flex flex-col items-center justify-center gap-2 p-4 sm:p-5 bg-amber-50 hover:bg-amber-100/80 border-2 border-amber-200 text-amber-800 rounded-2xl font-bold text-xs sm:text-sm transition-all hover:-translate-y-1 hover:shadow-md"
-                    >
-                      <Clock className="h-7 w-7 text-amber-600" />
-                      <span>Late</span>
-                    </button>
-                    <button
-                      onClick={() => setConfirm('absent')}
-                      className="flex flex-col items-center justify-center gap-2 p-4 sm:p-5 bg-rose-50 hover:bg-rose-100/80 border-2 border-rose-200 text-rose-800 rounded-2xl font-bold text-xs sm:text-sm transition-all hover:-translate-y-1 hover:shadow-md"
-                    >
-                      <XCircle className="h-7 w-7 text-rose-600" />
-                      <span>Absent</span>
-                    </button>
                   </div>
-                )}
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                    Closes automatically
+                  </span>
+                </div>
+
+                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full transition-all duration-1000 ease-linear rounded-full"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (countdownSeconds / ((activeSession.duration_minutes || 5) * 60)) * 100))}%`,
+                    }}
+                  />
+                </div>
               </div>
 
-              <p className="text-center text-[11px] text-slate-400 mt-6">
-                You can review or view full monthly trends from the Attendance section anytime.
-              </p>
+              {/* Action Button */}
+              <div className="space-y-3">
+                <button
+                  onClick={handleMarkPresent}
+                  disabled={!!marking}
+                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-base rounded-2xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2.5 disabled:opacity-50"
+                >
+                  <CheckCircle className="h-5 w-5" />
+                  <span>{marking ? 'Recording Attendance…' : 'I am Present in Class'}</span>
+                </button>
+
+                <p className="text-center text-[11px] text-slate-400">
+                  Strict attentiveness check. If you do not mark present before the timer expires, you will automatically be marked absent and it cannot be changed.
+                </p>
+              </div>
             </motion.div>
           </div>
         )}

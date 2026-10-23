@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle, Clock, XCircle, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { CheckCircle, Clock, XCircle, Calendar, ChevronLeft, ChevronRight, ShieldCheck, Flame, Radio } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { getActiveSessionForStudent, markStudentPresent } from '../../services/attendanceService'
 
-// Bug fix: toISOString() returns UTC — use local calendar date instead
 function todayISO() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -44,12 +44,10 @@ function MonthHeatmap({ records }) {
   const monthPresent   = Object.entries(statusMap).filter(([d, s]) => d.startsWith(monthPrefix) && s === 'present').length
   const monthAbsent    = Object.entries(statusMap).filter(([d, s]) => d.startsWith(monthPrefix) && s === 'absent').length
   const monthLate      = Object.entries(statusMap).filter(([d, s]) => d.startsWith(monthPrefix) && s === 'late').length
-  // Bug fix: count only marked days (not all elapsed days) so ring % matches global stats card
   const monthTotal     = monthPresent + monthAbsent + monthLate
   const monthPct       = monthTotal > 0 ? Math.round(((monthPresent + monthLate * 0.5) / monthTotal) * 100) : 0
 
   // consecutive present/late streak up to today
-  // Bug fix: use local date string inside loop, not toISOString() (UTC)
   let streak = 0
   const [cy, cm, cd] = today.split('-').map(Number)
   const check = new Date(cy, cm - 1, cd)
@@ -75,9 +73,8 @@ function MonthHeatmap({ records }) {
   ]
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-
-      {/* ── Header ── */}
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-bold text-gray-900">Study Heatmap</h3>
@@ -98,201 +95,161 @@ function MonthHeatmap({ records }) {
           <button
             onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
             disabled={isCurrentMonth}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 disabled:opacity-20 transition-colors"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* ── Body: calendar stacks on small, side-by-side on md+ ── */}
-      <div className="flex flex-col md:flex-row gap-6">
-
-        {/* Left — calendar */}
-        <div className="shrink-0 w-full md:w-auto">
-          {/* weekday labels */}
-          <div className="grid grid-cols-7 mb-1.5">
-            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
-              <div key={i} className="flex items-center justify-center text-[9px] font-bold text-gray-400 uppercase tracking-wide py-1">
-                {d}
-              </div>
-            ))}
+      {/* Grid */}
+      <div className="grid grid-cols-7 gap-1 text-center mb-4">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+          <div key={i} className="text-[10px] font-semibold text-gray-400 py-1">{day}</div>
+        ))}
+        {cells.map((cell, idx) => (
+          <div
+            key={idx}
+            className={`aspect-square flex items-center justify-center rounded-lg text-xs font-medium transition-all ${
+              !cell
+                ? 'opacity-0 pointer-events-none'
+                : cell.status
+                ? DAY_COLORS[cell.status] || 'bg-gray-100 text-gray-600'
+                : cell.date === today
+                ? 'border-2 border-dashed border-blue-400 text-blue-600 font-bold'
+                : 'text-gray-400 hover:bg-gray-50'
+            }`}
+          >
+            {cell?.d}
           </div>
-
-          {/* day cells — use aspect-square so each cell is always square */}
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((cell, i) => {
-              if (!cell) return <div key={`e-${i}`} className="aspect-square" />
-              const isToday  = cell.date === today
-              const isFuture = cell.date > today
-              return (
-                <div
-                  key={cell.date}
-                  title={cell.status ? `${cell.date} — ${cell.status}` : cell.date}
-                  className={[
-                    'aspect-square rounded-lg flex items-center justify-center text-[11px] font-semibold transition-all cursor-default select-none min-w-0',
-                    cell.status ? DAY_COLORS[cell.status] : isFuture ? 'bg-gray-50 text-gray-300' : 'bg-gray-100 text-gray-400 hover:bg-gray-200',
-                    isToday ? 'ring-2 ring-blue-950 ring-offset-1' : '',
-                  ].join(' ')}
-                >
-                  {cell.d}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* legend */}
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-2.5 border-t border-gray-100">
-            {[
-              { dot: 'bg-emerald-500', label: 'Present' },
-              { dot: 'bg-amber-400',   label: 'Late' },
-              { dot: 'bg-red-400',     label: 'Absent' },
-              { dot: 'bg-gray-100 border border-gray-200', label: 'No record' },
-            ].map(l => (
-              <div key={l.label} className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-sm ${l.dot}`} />
-                <span className="text-[10px] text-gray-400">{l.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Vertical divider — only on md+ */}
-        <div className="hidden md:block w-px bg-gray-100 self-stretch" />
-        {/* Horizontal divider on mobile */}
-        <div className="block md:hidden h-px bg-gray-100 w-full" />
-
-        {/* Right — stats */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-
-          {/* 🔥 Streak hero */}
-          {streak > 0 ? (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-400 p-4 shadow-lg shadow-orange-200">
-              <div className="absolute -top-5 -right-5 w-24 h-24 bg-white/10 rounded-full" />
-              <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/10 rounded-full" />
-              <div className="relative flex items-center gap-3">
-                <span className="text-5xl leading-none drop-shadow-md">🔥</span>
-                <div>
-                  <p className="text-white/75 text-[10px] font-bold uppercase tracking-widest mb-0.5">Current Streak</p>
-                  <p className="text-white font-black leading-none" style={{ fontSize: 30 }}>
-                    {streak}
-                    <span className="text-lg font-bold ml-1">day{streak !== 1 ? 's' : ''}</span>
-                  </p>
-                  <p className="text-white/90 text-xs font-semibold mt-1">{streakMsg}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50 p-4 text-center">
-              <p className="text-3xl mb-1">🔥</p>
-              <p className="text-xs font-bold text-orange-500">Start your streak today!</p>
-              <p className="text-[10px] text-orange-400 mt-0.5">Mark present to light the fire</p>
-            </div>
-          )}
-
-          {/* Ring + bars */}
-          <div className="flex items-center gap-4">
-            {/* circular ring */}
-            <div className="relative shrink-0">
-              <svg width="72" height="72" className="-rotate-90">
-                <circle cx="36" cy="36" r={R} fill="none" stroke="#f3f4f6" strokeWidth="7" />
-                <circle
-                  cx="36" cy="36" r={R} fill="none" stroke={ringColor} strokeWidth="7"
-                  strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-                  style={{ transition: 'stroke-dasharray 0.6s ease' }}
-                />
-              </svg>
-              <span className={`absolute inset-0 flex items-center justify-center text-sm font-extrabold ${pctColor}`}>
-                {monthPct}%
-              </span>
-            </div>
-
-            {/* progress bars */}
-            <div className="flex-1 space-y-2">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">This month</p>
-              {bars.map(({ label, count, bar, text }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-[10px] mb-0.5">
-                    <span className="text-gray-500">{label}</span>
-                    <span className={`font-bold ${text}`}>{count} day{count !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${bar} rounded-full transition-all duration-500`}
-                      style={{ width: monthTotal > 0 ? `${(count / monthTotal) * 100}%` : '0%' }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-        {/* end right stats */}
-
+        ))}
       </div>
-      {/* end body flex */}
 
+      {/* Summary Row */}
+      <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-xs">
+        <div className="flex items-center gap-4">
+          {bars.map(b => (
+            <div key={b.label} className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-full ${b.bar}`} />
+              <span className="text-gray-500 font-medium">{b.label}:</span>
+              <span className={`font-bold ${b.text}`}>{b.count}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 text-amber-600 font-bold">
+          <Flame className="h-4 w-4 text-amber-500 fill-amber-500" />
+          <span>{streak} day streak</span>
+        </div>
+      </div>
     </div>
   )
 }
 
 const STATUS_STYLES = {
-  present: { label: 'Present', color: 'bg-green-100 text-green-800', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  absent:  { label: 'Absent',  color: 'bg-red-100 text-red-800',     icon: <XCircle className="h-3.5 w-3.5" /> },
-  late:    { label: 'Late',    color: 'bg-amber-100 text-amber-800', icon: <Clock className="h-3.5 w-3.5" /> },
+  present: { label: 'Present', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: <CheckCircle className="h-4 w-4 text-emerald-600" /> },
+  absent:  { label: 'Absent',  color: 'bg-rose-100 text-rose-800 border-rose-200',     icon: <XCircle className="h-4 w-4 text-rose-600" /> },
+  late:    { label: 'Late',    color: 'bg-amber-100 text-amber-800 border-amber-200', icon: <Clock className="h-4 w-4 text-amber-600" /> },
 }
 
 export default function Attendance() {
   const { user } = useAuth()
-  const [records,     setRecords]     = useState([])
-  const [todayRecord, setTodayRecord] = useState(null)
-  const [loading,     setLoading]     = useState(true)
-  const [marking,     setMarking]     = useState(null)
-  const [confirm,     setConfirm]     = useState(null)
-  const [page,        setPage]        = useState(1)
+  const [records, setRecords] = useState([])
+  const [activeSession, setActiveSession] = useState(null)
+  const [countdownSeconds, setCountdownSeconds] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [marking, setMarking] = useState(false)
+  const [page, setPage] = useState(1)
   const PER_PAGE = 20
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!user) return
-    supabase.from('attendance').select('*').eq('student_id', user.id)
-      .order('date', { ascending: false })
-      .then(({ data }) => {
-        const all = data ?? []
-        setRecords(all)
-        setTodayRecord(all.find(r => r.date === todayISO()) ?? null)
-        setLoading(false)
-      })
+    try {
+      const [{ data: attData }, { data: sessData }] = await Promise.all([
+        supabase
+          .from('attendance')
+          .select('*, attendance_sessions(title, duration_minutes, profiles:created_by(full_name))')
+          .eq('student_id', user.id)
+          .order('date', { ascending: false })
+          .order('marked_at', { ascending: false }),
+        getActiveSessionForStudent(user.id),
+      ])
+
+      const all = attData ?? []
+      setRecords(all)
+
+      if (sessData?.has_active_session) {
+        setActiveSession(sessData)
+        setCountdownSeconds(sessData.seconds_remaining)
+      } else {
+        setActiveSession(null)
+      }
+    } catch (err) {
+      console.error('Failed to load attendance portal data:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [user])
 
-  const mark = async (status) => {
-    setMarking(status)
-    const dateStr = todayISO()
-    const { data, error } = await supabase.from('attendance').insert({
-      student_id: user.id, date: dateStr, status, marked_by: user.id,
-    }).select().maybeSingle()
-    if (error) {
-      if (error.code === '23505') {
-        // Bug fix: record already exists (admin may have marked it) — fetch and sync UI
-        toast.error('Already marked today.')
-        const { data: existing } = await supabase.from('attendance')
-          .select('*').eq('student_id', user.id).eq('date', dateStr).maybeSingle()
-        if (existing) {
-          setTodayRecord(existing)
-          setRecords(r => [existing, ...r.filter(x => x.date !== dateStr)])
-        }
-        setConfirm(null)
-      } else {
-        // Bug fix: on generic error keep confirm open so user can retry
-        toast.error(error.message)
-      }
-    } else {
-      setTodayRecord(data)
-      setRecords(r => [data, ...r])
-      toast.success(`Marked as ${status}!`)
-      setConfirm(null)
+  useEffect(() => {
+    loadData()
+
+    // Realtime listeners for live sessions and attendance marking
+    const channel = supabase
+      .channel(`student_attendance_portal_${user?.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${user?.id}` }, () => {
+        loadData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
-    setMarking(null)
+  }, [user?.id, loadData])
+
+  // Countdown timer
+  useEffect(() => {
+    if (!activeSession || countdownSeconds <= 0) return
+
+    const timer = setInterval(() => {
+      setCountdownSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          toast.error('Attendance window expired. Unmarked students are recorded as absent.')
+          loadData()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [activeSession, countdownSeconds, loadData])
+
+  // Action: mark Present during live session
+  const handleMarkPresent = async () => {
+    if (!activeSession?.session_id) return
+    setMarking(true)
+    try {
+      const { data, alreadyMarked, error } = await markStudentPresent({
+        sessionId: activeSession.session_id,
+        studentId: user.id,
+        batchId: activeSession.batch_id,
+      })
+
+      if (error) {
+        toast.error(error.message || 'Failed to mark attendance')
+      } else {
+        toast.success(alreadyMarked ? 'Already marked for this session!' : 'Attentiveness verified: Marked Present!')
+        await loadData()
+      }
+    } catch (err) {
+      toast.error('Error marking attendance: ' + err.message)
+    } finally {
+      setMarking(false)
+    }
   }
 
   const present = records.filter(r => r.status === 'present').length
@@ -301,94 +258,181 @@ export default function Attendance() {
   const total   = present + absent + late
   const pct     = total > 0 ? Math.round(((present + late * 0.5) / total) * 100) : 0
 
+  const todayStr = todayISO()
+  const todayRecords = records.filter(r => r.date === todayStr)
+
   const paged      = records.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(records.length / PER_PAGE)
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
 
-      {/* Mark today */}
-      <div className="bg-blue-50 rounded-2xl border border-blue-100 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Calendar className="h-5 w-5 text-blue-950" />
-          <div>
-            <h2 className="font-bold text-gray-900">Today&apos;s Attendance</h2>
-            <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</p>
-          </div>
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-blue-950" />
+            <span>Attendance & Attentiveness</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Realtime session-based verification initiated by faculty during class
+          </p>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+            <ShieldCheck className="h-3.5 w-3.5 text-teal-600" />
+            Official Attentiveness Log
+          </span>
+        </div>
+      </div>
 
-        {todayRecord ? (
-          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl ${STATUS_STYLES[todayRecord.status]?.color}`}>
-            {STATUS_STYLES[todayRecord.status]?.icon}
-            <span className="font-semibold">Marked as {STATUS_STYLES[todayRecord.status]?.label}</span>
-            {todayRecord.marked_at && (
-              <span className="ml-auto text-xs opacity-70">
-                {new Date(todayRecord.marked_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
-              </span>
-            )}
-          </div>
-        ) : confirm ? (
-          <div className="bg-gray-50 rounded-xl p-4 text-center">
-            <p className="font-medium text-gray-900 mb-3">
-              Mark yourself as <span className="capitalize font-bold">{confirm}</span> today?
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button onClick={() => mark(confirm)} disabled={!!marking}
-                className="px-6 py-2 bg-blue-950 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50 transition-colors">
-                {marking ? 'Saving…' : 'Confirm'}
+      {/* ── Active Attentiveness Check Section ── */}
+      {activeSession && !activeSession.already_marked && countdownSeconds > 0 ? (
+        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-3xl p-6 sm:p-7 shadow-xl shadow-emerald-500/20 border border-emerald-400/40">
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl">
+              <div className="flex items-center gap-2">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-300"></span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/20 text-white backdrop-blur-sm">
+                  Live Attentiveness Check in Progress
+                </span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {activeSession.title || 'Lecture Attendance'}
+              </h2>
+
+              <p className="text-xs sm:text-sm text-emerald-100 leading-relaxed">
+                Initiated by <strong>{activeSession.created_by_name}</strong> for batch <strong>{activeSession.batch_name}</strong>. Please confirm your presence now.
+              </p>
+
+              {/* Countdown Deck */}
+              <div className="flex items-center gap-3 pt-1">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/25 backdrop-blur-md border border-white/10 font-mono">
+                  <Clock className="h-4 w-4 text-amber-300 animate-spin-slow" />
+                  <span className="text-xl font-black tracking-tight text-white">
+                    {String(Math.floor(countdownSeconds / 60)).padStart(2, '0')}:
+                    {String(countdownSeconds % 60).padStart(2, '0')}
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-emerald-200 ml-1">remaining</span>
+                </div>
+                <span className="text-[11px] text-emerald-200">
+                  Window closes automatically
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-stretch md:items-end gap-2 shrink-0">
+              <button
+                onClick={handleMarkPresent}
+                disabled={marking}
+                className="px-7 py-4 rounded-2xl bg-white text-emerald-900 hover:bg-emerald-50 active:scale-95 font-black text-base shadow-lg shadow-black/10 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
+              >
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+                <span>{marking ? 'Recording Attendance…' : 'I am Present in Class'}</span>
               </button>
-              <button onClick={() => setConfirm(null)} className="px-6 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100">
-                Cancel
-              </button>
+              <p className="text-[10px] text-emerald-200/90 text-center md:text-right">
+                Unmarked students are permanently recorded as Absent upon expiry.
+              </p>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-3">
-            <button onClick={() => setConfirm('present')}
-              className="flex flex-col items-center gap-1.5 p-4 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl font-semibold transition-colors border-2 border-transparent hover:border-green-300">
+        </div>
+      ) : activeSession && activeSession.already_marked ? (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
               <CheckCircle className="h-6 w-6" />
-              <span className="text-sm">Present</span>
-            </button>
-            <button onClick={() => setConfirm('late')}
-              className="flex flex-col items-center gap-1.5 p-4 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl font-semibold transition-colors border-2 border-transparent hover:border-amber-300">
-              <Clock className="h-6 w-6" />
-              <span className="text-sm">Late</span>
-            </button>
-            <button onClick={() => setConfirm('absent')}
-              className="flex flex-col items-center gap-1.5 p-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-semibold transition-colors border-2 border-transparent hover:border-red-300">
-              <XCircle className="h-6 w-6" />
-              <span className="text-sm">Absent</span>
-            </button>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Attentiveness Verified</span>
+                <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full font-bold">Session Active</span>
+              </div>
+              <h3 className="font-bold text-gray-900 text-sm sm:text-base">{activeSession.title}</h3>
+              <p className="text-xs text-gray-500">
+                You marked yourself present at {activeSession.marked_at ? new Date(activeSession.marked_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'earlier today'}.
+              </p>
+            </div>
           </div>
-        )}
-      </div>
+          <span className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs self-start sm:self-center">
+            Marked Present ✓
+          </span>
+        </div>
+      ) : (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center shrink-0 shadow-sm">
+            <Radio className="h-5 w-5 text-slate-400" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">No Active Attendance Session</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Attendance is initiated live by your assigned teacher or administrator during lectures to gauge attentiveness. When initiated, a live countdown window will appear automatically.
+            </p>
+          </div>
+        </div>
+      )}
 
-      {/* Stats */}
+      {/* ── Today's Sessions Log (if any took place today) ── */}
+      {todayRecords.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-900" />
+            <span>Today&apos;s Lecture Attendance</span>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {todayRecords.map(r => (
+              <div key={r.id} className={`flex items-center justify-between p-3.5 rounded-xl border ${STATUS_STYLES[r.status]?.color}`}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-gray-900 truncate">
+                    {r.attendance_sessions?.title || 'Class Attendance'}
+                  </p>
+                  <p className="text-[11px] text-gray-500">
+                    {r.marked_at ? new Date(r.marked_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : 'Auto-finalized'}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
+                  {STATUS_STYLES[r.status]?.icon}
+                  {STATUS_STYLES[r.status]?.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Summary KPI Cards ── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-          <p className="text-2xl font-bold text-green-600">{present}</p>
-          <p className="text-xs text-gray-500 mt-1">Present</p>
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center shadow-sm">
+          <p className="text-2xl sm:text-3xl font-black text-emerald-600">{present}</p>
+          <p className="text-xs font-semibold text-gray-500 mt-1">Sessions Present</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-          <p className="text-2xl font-bold text-red-500">{absent}</p>
-          <p className="text-xs text-gray-500 mt-1">Absent</p>
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center shadow-sm">
+          <p className="text-2xl sm:text-3xl font-black text-rose-500">{absent}</p>
+          <p className="text-xs font-semibold text-gray-500 mt-1">Sessions Missed</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-          <p className={`text-2xl font-bold ${pct >= 75 ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-red-500'}`}>{pct}%</p>
-          <p className="text-xs text-gray-500 mt-1">Attendance</p>
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center shadow-sm">
+          <p className={`text-2xl sm:text-3xl font-black ${pct >= 75 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
+            {pct}%
+          </p>
+          <p className="text-xs font-semibold text-gray-500 mt-1">Attentiveness Rate</p>
         </div>
       </div>
 
-      {/* Monthly heatmap */}
+      {/* ── Monthly Study Heatmap ── */}
       <MonthHeatmap records={records} />
 
-      {/* Attendance history */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Attendance History</h3>
+      {/* ── Attendance History Log ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 text-sm">Attendance History Log</h3>
+          <span className="text-xs text-gray-400">{records.length} total sessions recorded</span>
         </div>
+
         {loading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Loading…</div>
+          <div className="p-8 text-center text-gray-400 text-sm">Loading attendance history…</div>
         ) : records.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">No attendance records yet.</div>
         ) : (
@@ -397,41 +441,58 @@ export default function Attendance() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    {['Date', 'Day', 'Status', 'Marked At'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                    {['Date', 'Lecture / Session', 'Status', 'Marked At'].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {paged.map(r => (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">
+                    <tr key={r.id} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-gray-900 whitespace-nowrap">
                         {new Date(r.date + 'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {new Date(r.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday:'short' })}
+                      <td className="px-5 py-3.5 text-gray-700">
+                        <span className="font-semibold">{r.attendance_sessions?.title || 'Lecture Attendance'}</span>
+                        {r.attendance_sessions?.profiles?.full_name && (
+                          <span className="block text-[11px] text-gray-400">Proctor: {r.attendance_sessions.profiles.full_name}</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[r.status]?.color}`}>
-                          {STATUS_STYLES[r.status]?.icon} {STATUS_STYLES[r.status]?.label}
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_STYLES[r.status]?.color}`}>
+                          {STATUS_STYLES[r.status]?.icon}
+                          <span>{STATUS_STYLES[r.status]?.label}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">
-                        {r.marked_at ? new Date(r.marked_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '—'}
+                      <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">
+                        {r.marked_at ? new Date(r.marked_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—'}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500">Showing {(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE, records.length)} of {records.length}</p>
+              <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100">
+                <p className="text-xs text-gray-500">
+                  Showing {(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE, records.length)} of {records.length} records
+                </p>
                 <div className="flex gap-2">
-                  <button onClick={() => setPage(p => p-1)} disabled={page===1}
-                    className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">← Prev</button>
-                  <button onClick={() => setPage(p => p+1)} disabled={page===totalPages}
-                    className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">Next →</button>
+                  <button
+                    onClick={() => setPage(p => p - 1)}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={page === totalPages}
+                    className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                  >
+                    Next →
+                  </button>
                 </div>
               </div>
             )}

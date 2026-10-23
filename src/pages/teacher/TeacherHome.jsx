@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, ClipboardList, Video, MessageCircle, DollarSign, Lock, CheckCircle, Receipt, HelpCircle } from 'lucide-react'
+import { BookOpen, ClipboardList, Video, MessageCircle, DollarSign, Lock, CheckCircle, Receipt, HelpCircle, CalendarCheck } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
@@ -82,6 +82,7 @@ export default function TeacherHome() {
   }, [user])
 
   const features = [
+    { key: 'attendance',    label: 'Attendance',     perm: perms?.can_view_attendance ?? true, path: '/teacher/attendance', icon: <CalendarCheck className="h-5 w-5" />, color: 'bg-teal-50 text-teal-700' },
     { key: 'study_cards',   label: 'Study Cards',    perm: perms?.can_manage_study_cards, path: '/teacher/study', icon: <BookOpen className="h-5 w-5" />,    color: 'bg-blue-50 text-blue-700'   },
     { key: 'doubts',        label: 'Doubt Hub',      perm: true,                          path: '/teacher/doubts', icon: <HelpCircle className="h-5 w-5" />, color: 'bg-amber-50 text-amber-700' },
     { key: 'homework',      label: 'Homework',       perm: perms?.can_manage_homework,    path: '/teacher/homework', icon: <ClipboardList className="h-5 w-5" />, color: 'bg-indigo-50 text-indigo-700' },

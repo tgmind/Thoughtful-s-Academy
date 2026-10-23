@@ -42,6 +42,7 @@ const TeacherNotifications  = lazy(() => import('./pages/teacher/Notifications')
 const TeacherFeeRecords     = lazy(() => import('./pages/teacher/FeeRecords'))
 const TeacherHomework       = lazy(() => import('./pages/teacher/Homework'))
 const TeacherDoubts         = lazy(() => import('./pages/teacher/TeacherDoubts'))
+const TeacherAttendance     = lazy(() => import('./pages/teacher/Attendance'))
 
 // Lazy-loaded Admin Pages & Layout
 const AdminLayout       = lazy(() => import('./pages/admin/AdminLayout'))
@@ -120,6 +121,7 @@ export default function App() {
             <Route path="/teacher" element={<TeacherLayout />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard"     element={<TeacherHome />}            />
+              <Route path="attendance"    element={<TeacherAttendance />}       />
               <Route path="study"         element={<TeacherStudySection />}    />
               <Route path="study-cards"   element={<TeacherStudySection />}    />
               <Route path="doubts"        element={<TeacherDoubts />}          />

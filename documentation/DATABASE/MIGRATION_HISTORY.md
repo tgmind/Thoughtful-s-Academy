@@ -56,6 +56,7 @@
 | `043` | `043_homework_completion_system.sql` | Unified Homework Completion System | Refactors homework_submissions in-place, drops drive_link NOT NULL, adds student DELETE (Undo) policy, enables REPLICA IDENTITY FULL | YES |
 | `044` | `044_homework_visibility_and_rls.sql` | Homework Visibility & RLS Hardening | Fixes RLS violation on homework visibility toggle (is_active), allows admin/teacher read & update of hidden homework | YES |
 | `045` | `045_homework_realtime_replica_identity.sql` | Homework Realtime Replica Identity | Sets REPLICA IDENTITY FULL on public.homework for reliable Realtime WAL payloads on delete/update | YES |
+| `046` | `046_attendance_session_system.sql` | Teacher/Admin-Initiated Attentiveness System | Creates `attendance_sessions`, links `attendance.session_id`, replaces daily unique constraint with session-level uniqueness, implements auto-absent finalization RPCs, hardens student RLS to active session only | YES |
 
 ---
 

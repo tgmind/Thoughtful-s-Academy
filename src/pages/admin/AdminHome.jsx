@@ -165,7 +165,7 @@ export default function AdminHome() {
     { label:'Active Teachers',   value: stats.teachers,       icon: <BookUser className="h-5 w-5" />,      color:'bg-purple-50 text-purple-700', link:'/admin/teachers'   },
     { label:'Pending Fees',      value: stats.pending_fees,   icon: <CreditCard className="h-5 w-5" />,    color:'bg-amber-50 text-amber-700',   link:'/admin/fees'       },
     { label:'Unread Messages',   value: stats.unread,         icon: <MessageCircle className="h-5 w-5" />, color:'bg-green-50 text-green-700',   link:'/admin/messages'   },
-    { label:"Today's Attendance",value:`${stats.attendance_pct}%`,icon:<Activity className="h-5 w-5" />,  color:'bg-teal-50 text-teal-700',     link:'/admin/students'   },
+    { label:"Today's Attendance",value:`${stats.attendance_pct}%`,icon:<Activity className="h-5 w-5" />,  color:'bg-teal-50 text-teal-700',     link:'/admin/analytics'  },
     { label:'Live Classes',      value: stats.live,           icon: <Video className="h-5 w-5" />,         color:'bg-red-50 text-red-700',       link:'/admin/live-class' },
   ]
 

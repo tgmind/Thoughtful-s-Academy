@@ -1,8 +1,9 @@
-import { LayoutDashboard, BookOpen, ClipboardList, Video, MessageCircle, DollarSign, Bell, Receipt, HelpCircle } from 'lucide-react'
+import { LayoutDashboard, BookOpen, ClipboardList, Video, MessageCircle, DollarSign, Bell, Receipt, HelpCircle, CalendarCheck } from 'lucide-react'
 import DashboardShell from '../../components/layout/DashboardShell'
 
 const NAV = [
   { label: 'Home',          path: '/teacher/dashboard',     icon: <LayoutDashboard className="h-4 w-4" /> },
+  { label: 'Attendance',    path: '/teacher/attendance',    icon: <CalendarCheck className="h-4 w-4" />   },
   { label: 'Study Cards',   path: '/teacher/study',         icon: <BookOpen className="h-4 w-4" />        },
   { label: 'Doubts',        path: '/teacher/doubts',        icon: <HelpCircle className="h-4 w-4" />      },
   { label: 'Homework',      path: '/teacher/homework',      icon: <ClipboardList className="h-4 w-4" />   },
