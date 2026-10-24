@@ -1083,7 +1083,7 @@ export default function Home() {
             {/* ── Featured Lectures (Framer Atmospheric Spotlight Showcase) ── */}
             {featured.length > 0 && (
               <section
-                className="mb-10 sm:mb-14 p-5 sm:p-7 rounded-3xl bg-black border border-white/10 shadow-[0_24px_50px_rgba(0,0,0,0.35),0_2px_10px_rgba(0,0,0,0.2)] relative overflow-hidden transition-colors"
+                className="mb-12 sm:mb-16 p-5 sm:p-7 rounded-3xl bg-black border border-white/10 shadow-[0_4px_20px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)] relative overflow-hidden transition-colors"
                 style={{
                   background: '#000000',
                 }}
