@@ -216,7 +216,7 @@ export default function Register() {
     <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row overflow-x-hidden">
       {/* ─── LEFT: Editorial Branding Canvas (Deep Charcoal & Spotlights) ─── */}
       <div
-        className="hidden lg:flex flex-col justify-between w-1/2 p-10 xl:p-14 2xl:p-16 relative overflow-hidden text-white border-r border-white/10 shrink-0"
+        className="hidden lg:flex flex-col justify-between w-1/2 px-8 py-5 xl:px-12 xl:py-7 2xl:px-16 2xl:py-8 relative overflow-hidden text-white border-r border-white/10 shrink-0"
         style={{
           background: 'radial-gradient(ellipse 90% 70% at 20% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(30, 27, 75, 0.14) 40%, transparent 75%), linear-gradient(180deg, #09090b 0%, #111115 50%, #09090b 100%)',
         }}
@@ -252,20 +252,20 @@ export default function Register() {
         </div>
 
         {/* Narrative Section */}
-        <div className="relative z-10 max-w-lg my-auto py-6 sm:py-8 origin-left scale-105 xl:scale-110">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-6">
+        <div className="relative z-10 max-w-lg my-auto py-1 xl:py-2 origin-left scale-[1.30]">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-3.5 xl:mb-4.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Admissions Open 2025–26</span>
           </div>
 
-          <h1 className="font-extrabold text-3xl sm:text-4xl xl:text-5xl text-white tracking-tight leading-[1.14] mb-4">
+          <h1 className="font-extrabold text-3xl sm:text-4xl xl:text-5xl text-white tracking-tight leading-[1.14] mb-3 xl:mb-3.5">
             Join the rank of{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-indigo-200 to-white">
               future toppers.
             </span>
           </h1>
 
-          <p className="text-sm xl:text-base text-[#a1a1aa] leading-relaxed mb-8">
+          <p className="text-sm xl:text-base text-[#a1a1aa] leading-relaxed mb-4 xl:mb-5">
             <span className="font-serif italic text-indigo-300 font-normal">
               Empowering Concepts. Building Toppers.
             </span>{' '}
@@ -273,7 +273,7 @@ export default function Register() {
           </p>
 
           {/* Bento Feature Highlights */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-3.5 xl:mb-4.5">
             <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2.5">
                 <Video className="w-4 h-4" />
@@ -316,7 +316,7 @@ export default function Register() {
         </div>
 
         {/* Footer info */}
-        <div className="relative z-10 flex items-center justify-between text-xs text-[#a1a1aa] border-t border-white/10 pt-6">
+        <div className="relative z-10 flex items-center justify-between text-xs text-[#a1a1aa] border-t border-white/10 pt-4 xl:pt-5">
           <span>© {new Date().getFullYear()} {INSTITUTE_NAME}</span>
           <Link to="/" className="inline-flex items-center gap-1.5 text-indigo-300 hover:text-white transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Return to Website
