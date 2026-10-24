@@ -423,22 +423,22 @@ function LectureCard({ card, isFeaturedCard = false }) {
         )}
 
         {/* Top Badges */}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none">
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none max-w-[calc(100%-54px)]">
           {card.is_featured && (
-            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs border border-white/20">
+            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs border border-white/20 shrink-0">
               <Sparkles className="w-2.5 h-2.5 fill-white" />
               <span>Featured</span>
             </span>
           )}
           {card.subject && (
-            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-md border border-white/20">
+            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-md border border-white/20 truncate">
               {card.subject}
             </span>
           )}
         </div>
 
         {/* Top Right: HD indicator */}
-        <div className="absolute top-2 right-2 pointer-events-none">
+        <div className="absolute top-2 right-2 pointer-events-none shrink-0">
           <span className="bg-black/60 backdrop-blur-md text-white/90 text-[9px] font-semibold px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-wider">
             {!isExternal ? '1080p' : 'PDF'}
           </span>
@@ -457,25 +457,25 @@ function LectureCard({ card, isFeaturedCard = false }) {
         </div>
 
         {/* Card Footer Bar */}
-        <div className="pt-3 border-t border-[#f0ede6] shrink-0 flex items-center justify-between mt-3">
-          <span className="text-[11px] font-medium text-[#5f5f5d]">
+        <div className="pt-2.5 sm:pt-3 border-t border-[#f0ede6] shrink-0 flex items-center justify-between mt-2.5 sm:mt-3 gap-1.5">
+          <span className="text-[11px] font-medium text-[#5f5f5d] truncate">
             {!isExternal ? 'Free Video' : 'Reference Notes'}
           </span>
 
           <button
             type="button"
             onClick={handleOpen}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1c1c1c] group-hover:bg-[#2c2c2c] text-[#fcfbf8] text-[11px] font-semibold transition-all duration-200 shadow-2xs group-hover:shadow-xs active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#1c1c1c] group-hover:bg-[#2c2c2c] text-[#fcfbf8] text-[10.5px] sm:text-[11px] font-semibold transition-all duration-200 shadow-2xs group-hover:shadow-xs active:scale-95 cursor-pointer shrink-0"
           >
             {!isExternal ? (
               <>
-                <Youtube className="h-3.5 w-3.5 text-red-400" />
-                <span>Watch lecture</span>
+                <Youtube className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                <span className="whitespace-nowrap">Watch lecture</span>
               </>
             ) : (
               <>
-                <ExternalLink className="h-3.5 w-3.5 text-blue-400" />
-                <span>Open material</span>
+                <ExternalLink className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                <span className="whitespace-nowrap">Open material</span>
               </>
             )}
           </button>
@@ -1083,7 +1083,7 @@ export default function Home() {
             {/* ── Featured Lectures (Framer Atmospheric Spotlight Showcase) ── */}
             {featured.length > 0 && (
               <section
-                className="mb-12 sm:mb-16 p-5 sm:p-7 rounded-3xl bg-black border border-white/10 shadow-[0_4px_20px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)] relative overflow-hidden transition-colors"
+                className="mb-12 sm:mb-16 p-4 sm:p-6 lg:p-7 rounded-3xl bg-black border border-white/10 shadow-[0_4px_20px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)] relative overflow-hidden transition-colors"
                 style={{
                   background: '#000000',
                 }}
@@ -1140,11 +1140,11 @@ export default function Home() {
 
                 <div
                   ref={featRef}
-                  className="relative z-10 overflow-x-auto pt-3.5 pb-3 -mt-2 -mx-2 px-2 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
+                  className="relative z-10 overflow-x-auto pt-3.5 pb-3 -mt-2 -mx-1 px-1 sm:-mx-2 sm:px-2 snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
                 >
-                  <div className="flex gap-4 sm:gap-5 py-1" style={{ width: 'max-content' }}>
+                  <div className="flex gap-3.5 sm:gap-5 py-1" style={{ width: 'max-content' }}>
                     {featured.map(c => (
-                      <div key={c.id} className="w-[78vw] max-w-[280px] sm:w-[320px] flex-shrink-0 snap-start">
+                      <div key={c.id} className="w-[70vw] max-w-[250px] sm:max-w-none sm:w-[310px] lg:w-[320px] flex-shrink-0 snap-start">
                         <LectureCard card={c} isFeaturedCard />
                       </div>
                     ))}
