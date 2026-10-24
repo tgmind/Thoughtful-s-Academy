@@ -3,7 +3,7 @@
 **Platform:** Thoughtful's Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Migration Directory:** `supabase/migrations/`  
-**Total Migrations:** 47 SQL Migration Files (`001` through `047`)  
+**Total Migrations:** 50 SQL Migration Files (`001` through `050`)  
 
 ---
 
