@@ -109,7 +109,7 @@ export default function Login() {
     <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row overflow-x-hidden">
       {/* ─── LEFT: Editorial Branding Canvas (Deep Charcoal & Spotlights) ─── */}
       <div
-        className="hidden lg:flex flex-col justify-between w-1/2 p-8 lg:p-10 xl:p-12 2xl:p-14 relative overflow-hidden text-white border-r border-white/10 shrink-0"
+        className="hidden lg:flex flex-col justify-between w-1/2 p-12 xl:p-16 relative overflow-hidden text-white border-r border-white/10 shrink-0"
         style={{
           background: 'radial-gradient(ellipse 90% 70% at 20% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(30, 27, 75, 0.14) 40%, transparent 75%), linear-gradient(180deg, #09090b 0%, #111115 50%, #09090b 100%)',
         }}
@@ -124,14 +124,14 @@ export default function Login() {
         />
 
         {/* Ambient Spotlights */}
-        <div className="absolute top-10 left-10 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-10 left-10 w-80 h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Brand Header */}
         <div className="relative z-10">
-          <Link to="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-bold shadow-xs shadow-indigo-600/30 group-hover:scale-105 transition-transform">
-              <GraduationCap className="h-4.5 w-4.5" />
+          <Link to="/" className="inline-flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-bold shadow-xs shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+              <GraduationCap className="h-5 w-5" />
             </div>
             <div>
               <span className="font-extrabold text-white text-base tracking-tight block">
@@ -145,13 +145,13 @@ export default function Login() {
         </div>
 
         {/* Hero Narrative */}
-        <div className="relative z-10 max-w-xl 2xl:max-w-2xl my-auto py-5 lg:py-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 text-white text-xs sm:text-[13px] font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-4 sm:mb-5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="relative z-10 max-w-lg my-auto py-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Student &amp; Faculty Portal</span>
           </div>
 
-          <h1 className="font-extrabold text-4xl lg:text-[44px] xl:text-5xl 2xl:text-[54px] text-white tracking-tight leading-[1.12] mb-4">
+          <h1 className="font-extrabold text-3xl sm:text-4xl xl:text-5xl text-white tracking-tight leading-[1.14] mb-4">
             Your path to{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-indigo-200 to-white">
               academic excellence
@@ -159,43 +159,43 @@ export default function Login() {
             starts here.
           </h1>
 
-          <p className="text-base sm:text-lg text-[#d4d4d8] leading-relaxed mb-7 sm:mb-8">
-            <span className="font-serif italic text-indigo-200 font-normal">
+          <p className="text-sm xl:text-base text-[#a1a1aa] leading-relaxed mb-8">
+            <span className="font-serif italic text-indigo-300 font-normal">
               Empowering Concepts. Building Toppers.
             </span>{' '}
             {INSTITUTE_TAGLINE}
           </p>
 
           {/* Bento Feature Highlights */}
-          <div className="grid grid-cols-3 gap-3.5 sm:gap-4">
-            <div className="rounded-2xl p-4 sm:p-5 bg-white/[0.045] border border-white/12 backdrop-blur-md hover:border-indigo-400/50 hover:bg-white/[0.08] transition-all">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3">
-                <Video className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2.5">
+                <Video className="w-4 h-4" />
               </div>
-              <p className="text-white font-extrabold text-base sm:text-lg tracking-tight">Live</p>
-              <p className="text-xs sm:text-[13px] text-[#a1a1aa] mt-1 leading-snug">Daily Classes</p>
+              <p className="text-white font-bold text-sm tracking-tight">Live</p>
+              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Daily Classes</p>
             </div>
 
-            <div className="rounded-2xl p-4 sm:p-5 bg-white/[0.045] border border-white/12 backdrop-blur-md hover:border-indigo-400/50 hover:bg-white/[0.08] transition-all">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center justify-center mb-3">
-                <BookOpen className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
+            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center justify-center mb-2.5">
+                <BookOpen className="w-4 h-4" />
               </div>
-              <p className="text-white font-extrabold text-base sm:text-lg tracking-tight">Smart</p>
-              <p className="text-xs sm:text-[13px] text-[#a1a1aa] mt-1 leading-snug">Study Cards</p>
+              <p className="text-white font-bold text-sm tracking-tight">Smart</p>
+              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Study Cards</p>
             </div>
 
-            <div className="rounded-2xl p-4 sm:p-5 bg-white/[0.045] border border-white/12 backdrop-blur-md hover:border-indigo-400/50 hover:bg-white/[0.08] transition-all">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center justify-center mb-3">
-                <MessageSquare className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
+            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center justify-center mb-2.5">
+                <MessageSquare className="w-4 h-4" />
               </div>
-              <p className="text-white font-extrabold text-base sm:text-lg tracking-tight">Instant</p>
-              <p className="text-xs sm:text-[13px] text-[#a1a1aa] mt-1 leading-snug">1-on-1 Doubts</p>
+              <p className="text-white font-bold text-sm tracking-tight">Instant</p>
+              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">1-on-1 Doubts</p>
             </div>
           </div>
         </div>
 
         {/* Footer info */}
-        <div className="relative z-10 flex items-center justify-between text-xs text-[#a1a1aa] border-t border-white/10 pt-4">
+        <div className="relative z-10 flex items-center justify-between text-xs text-[#a1a1aa] border-t border-white/10 pt-6">
           <span>© {new Date().getFullYear()} {INSTITUTE_NAME}</span>
           <Link to="/" className="inline-flex items-center gap-1.5 text-indigo-300 hover:text-white transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Return to Website
