@@ -136,6 +136,7 @@ export default function ProtectedVideoPlayer({
   const navCooldownRef = useRef(false)
 
   // Live state refs
+  const controlsVisibleRef = useRef(controlsVisible)
   const isPlayingRef = useRef(isPlaying)
   const isScrubbingRef = useRef(isScrubbing)
   const lastSoughtTimestampRef = useRef(null)
@@ -166,6 +167,7 @@ export default function ProtectedVideoPlayer({
   const onNextVideoRef = useRef(onNextVideo)
   const onPrevVideoRef = useRef(onPrevVideo)
 
+  useEffect(() => { controlsVisibleRef.current = controlsVisible }, [controlsVisible])
   useEffect(() => { volumeRef.current = volume }, [volume])
   useEffect(() => { isModalOpenRef.current = isModalOpen }, [isModalOpen])
   useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
@@ -197,6 +199,7 @@ export default function ProtectedVideoPlayer({
   const showControlsTemporarily = useCallback((durationMs = 3500) => {
     if (isScreenLockedRef.current || cleanViewRef.current) return
     setControlsVisible(true)
+    controlsVisibleRef.current = true
     if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current)
 
     // Auto-hide only when playing and menus are closed
@@ -210,6 +213,7 @@ export default function ProtectedVideoPlayer({
         !cleanViewRef.current
       ) {
         setControlsVisible(false)
+        controlsVisibleRef.current = false
       }
     }, durationMs)
   }, [])
@@ -916,7 +920,7 @@ export default function ProtectedVideoPlayer({
     handleShieldTap(touch.clientX, touch.clientY)
   }
 
-  // Single Tap on empty video canvas area: toggles custom player controls
+  // Single Tap on empty video canvas area: awakens / reveals custom player controls
   // When shown, controls stay visible for a few seconds (3.5s) before auto-hiding
   const handleSingleTapOnEmptyArea = useCallback(() => {
     if (isScreenLockedRef.current || cleanViewRef.current) return
@@ -929,23 +933,18 @@ export default function ProtectedVideoPlayer({
       return
     }
 
-    setControlsVisible(prev => {
-      if (prev) {
-        if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current)
-        return false
-      } else {
-        showControlsTemporarily(3500)
-        return true
-      }
-    })
+    setControlsVisible(true)
+    controlsVisibleRef.current = true
+    showControlsTemporarily(3500)
   }, [showControlsTemporarily])
 
-  // Interactive Double-Tap Gestures & Single-Tap Controls Toggle:
-  // - Double Tap Left (<=35% width): Seek Backward -10s (-10s, -20s, ...) with ripple
-  // - Double Tap Right (>=65% width): Seek Forward +10s (+10s, +20s, ...) with ripple
-  // - Double Tap Center: Toggle Play / Pause with center pulse ripple
-  // - Single Tap on empty canvas: Toggles custom player controls (seekbar, buttons, time, etc.) for a few seconds
-  // Accidental touches do NOT trigger play/pause or forward/backward!
+  // Interactive Gesture Engine:
+  // - When player controls ARE visible:
+  //   Single taps work immediately (play/pause, seek rewind -10s, seek forward +10s).
+  //   Double taps are NOT required when controls are visible!
+  // - When player controls are NOT visible:
+  //   Double taps are REQUIRED to seek or toggle play/pause!
+  //   Single tap on empty canvas awakens/reveals controls, protecting against accidental touches while watching.
   const handleShieldTap = (clientX, clientY) => {
     if (isScreenLockedRef.current) {
       setShowLockToast(true)
@@ -958,6 +957,15 @@ export default function ProtectedVideoPlayer({
       setCleanView(false)
       setShowCleanToast(false)
       setControlsVisible(true)
+      controlsVisibleRef.current = true
+      showControlsTemporarily(3500)
+      return
+    }
+
+    // Dismiss open menus on tap
+    if (showSpeedMenuRef.current || showQualityMenuRef.current) {
+      setShowSpeedMenu(false)
+      setShowQualityMenu(false)
       showControlsTemporarily(3500)
       return
     }
@@ -972,6 +980,78 @@ export default function ProtectedVideoPlayer({
     const isRewind = relX < width * 0.35
     const isForward = relX > width * 0.65
     const zone = isRewind ? 'rewind' : isForward ? 'forward' : 'center'
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // A. WHEN PLAYER CONTROLS ARE VISIBLE:
+    // Single taps DO WORK immediately! No double taps required!
+    // ─────────────────────────────────────────────────────────────────────────
+    if (controlsVisibleRef.current) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current)
+        singleTapTimerRef.current = null
+      }
+
+      // Check for rapid consecutive seek taps on visible controls (within 550ms)
+      const isRapidConsecutiveSeek = (
+        (now - last.time < 550) &&
+        last.zone === zone &&
+        (zone === 'rewind' || zone === 'forward')
+      )
+
+      if (isRapidConsecutiveSeek) {
+        const nextCount = (last.count || 1) + 1
+        lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone, isDoubleTapping: true }
+
+        if (zone === 'rewind') {
+          seekRelative(-10)
+          setRipple({ type: 'rewind', count: nextCount * 10, id: now })
+        } else {
+          seekRelative(10)
+          setRipple({ type: 'forward', count: nextCount * 10, id: now })
+        }
+
+        if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+        rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+        showControlsTemporarily(3500)
+        return
+      }
+
+      // Single tap on visible controls executes immediately
+      if (zone === 'rewind') {
+        lastTapRef.current = { time: now, x: clientX, y: clientY, count: 1, zone, isDoubleTapping: false }
+        seekRelative(-10)
+        setRipple({ type: 'rewind', count: 10, id: now })
+        if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+        rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+        showControlsTemporarily(3500)
+        return
+      }
+
+      if (zone === 'forward') {
+        lastTapRef.current = { time: now, x: clientX, y: clientY, count: 1, zone, isDoubleTapping: false }
+        seekRelative(10)
+        setRipple({ type: 'forward', count: 10, id: now })
+        if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+        rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+        showControlsTemporarily(3500)
+        return
+      }
+
+      // Center zone single tap: Toggles Play / Pause immediately!
+      lastTapRef.current = { time: now, x: clientX, y: clientY, count: 1, zone, isDoubleTapping: false }
+      const willPause = isPlayingRef.current
+      togglePlayPause()
+      setRipple({ type: willPause ? 'pause' : 'play', id: now })
+      if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+      rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+      showControlsTemporarily(3500)
+      return
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // B. WHEN PLAYER CONTROLS ARE NOT VISIBLE:
+    // Double taps ARE REQUIRED to seek or toggle play/pause!
+    // ─────────────────────────────────────────────────────────────────────────
 
     // 1. Rapid consecutive tap accumulation (3rd, 4th tap on seek within 550ms)
     const isRapidConsecutiveSeek = (
@@ -1043,8 +1123,9 @@ export default function ProtectedVideoPlayer({
       }
     }
 
-    // 3. First Tap: Schedule single-tap action after 280ms
-    // If no second tap occurs within 280ms, the single-tap action toggles player controls
+    // 3. First Tap when controls are NOT visible:
+    // Schedule single-tap action after 280ms
+    // If no second tap occurs within 280ms, the single-tap action ONLY awakens player controls
     // and does NOT seek or play/pause!
     lastTapRef.current = { time: now, x: clientX, y: clientY, count: 0, zone, isDoubleTapping: false }
     singleTapTimerRef.current = setTimeout(() => {

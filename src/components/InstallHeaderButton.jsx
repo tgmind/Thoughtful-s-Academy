@@ -7,9 +7,9 @@ export default function InstallHeaderButton({ className = '' }) {
   useEffect(() => {
     // 1. Check if running inside installed standalone app mode
     const standalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
+      (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
       window.navigator.standalone === true ||
-      document.referrer.includes('android-app://')
+      document.referrer?.includes('android-app://')
 
     if (standalone) {
       setIsHidden(true)
@@ -43,12 +43,13 @@ export default function InstallHeaderButton({ className = '' }) {
   return (
     <button
       onClick={handleClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 transition-all active:scale-95 cursor-pointer ${className}`}
+      className={`inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-xs shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all active:scale-95 cursor-pointer shrink-0 ${className}`}
       title="Install Thoughtful's Academy Mobile App"
     >
-      <Smartphone className="w-3.5 h-3.5 text-white" />
-      <span>Install App</span>
-      <Download className="w-3 h-3 text-white/80" />
+      <Smartphone className="w-3.5 h-3.5 text-white shrink-0" />
+      <span className="hidden xs:inline">Install App</span>
+      <span className="xs:hidden font-semibold">App</span>
+      <Download className="w-3 h-3 text-white/80 shrink-0" />
     </button>
   )
 }
