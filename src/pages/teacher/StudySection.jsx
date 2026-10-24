@@ -2321,30 +2321,78 @@ export default function StudySection({ isAdmin = false }) {
     }
 
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-        {subjectList.map(sub => {
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+        {subjectList.map((sub, idx) => {
           const count = batchCards.filter(c => c.subject?.toLowerCase() === sub.toLowerCase()).length
           const theme = getSubjectTheme(sub)
           const Icon = theme.icon
+          const isOddLast = idx === subjectList.length - 1 && subjectList.length % 2 !== 0
+
+          if (isOddLast) {
+            return (
+              <button
+                key={sub}
+                onClick={() => selectSubject(sub)}
+                className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xs hover:shadow-xl transition-all duration-300 col-span-2 sm:col-span-1 relative overflow-hidden cursor-pointer border border-white/10`}
+              >
+                {/* Mobile view (< sm): Sleek full-width landscape card */}
+                <div className="flex sm:hidden items-center justify-between gap-3 relative z-10 w-full min-h-[38px]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20 shrink-0">
+                      <Icon className="h-4 w-4 text-white" />
+                    </div>
+                    <h4 className="text-sm font-black text-white tracking-tight truncate group-hover:text-amber-300 transition-colors">
+                      {sub}
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full border border-white/20">
+                      {count} Cards
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-white/80 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* Desktop view (>= sm): Standard vertical grid card matching other cards */}
+                <div className="hidden sm:flex flex-col justify-between min-h-[125px] relative z-10 h-full">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
+                      <Icon className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <span className="text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full border border-white/20">
+                      {count} Cards
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1.5 mt-3">
+                    <h4 className="text-base font-black text-white tracking-tight truncate group-hover:text-amber-300 transition-colors">
+                      {sub}
+                    </h4>
+                    <ArrowRight className="h-4 w-4 text-white/80 shrink-0 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </button>
+            )
+          }
+
           return (
             <button
               key={sub}
               onClick={() => selectSubject(sub)}
-              className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-3xl p-4 shadow-2xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between min-h-[130px] relative overflow-hidden cursor-pointer border border-white/10`}
+              className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between min-h-[105px] sm:min-h-[125px] relative overflow-hidden cursor-pointer border border-white/10`}
             >
               <div className="flex items-center justify-between relative z-10">
-                <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
-                  <Icon className="h-4.5 w-4.5 text-white" />
+                <div className="p-1.5 sm:p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
+                  <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-white" />
                 </div>
-                <span className="text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full border border-white/20">
+                <span className="text-[9.5px] sm:text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2 sm:px-2.5 py-0.5 rounded-full border border-white/20">
                   {count} Cards
                 </span>
               </div>
-              <div className="relative z-10 flex items-center justify-between gap-1.5 mt-3">
+              <div className="relative z-10 flex items-center justify-between gap-1.5 mt-2.5 sm:mt-3">
                 <h4 className="text-xs sm:text-base font-black text-white tracking-tight truncate group-hover:text-amber-300 transition-colors">
                   {sub}
                 </h4>
-                <ArrowRight className="h-4 w-4 text-white/80 shrink-0 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/80 shrink-0 group-hover:translate-x-1 transition-transform" />
               </div>
             </button>
           )
@@ -2391,7 +2439,7 @@ export default function StudySection({ isAdmin = false }) {
     }
 
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
         {FOLDER_TYPES.map(folder => {
           const Icon = folder.icon
           const count = folderCounts[folder.id]
@@ -2400,21 +2448,21 @@ export default function StudySection({ isAdmin = false }) {
             <button
               key={folder.id}
               onClick={() => openFolder(folder.id)}
-              className={`group text-left rounded-3xl border p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all duration-300 flex flex-col justify-between min-h-[135px] cursor-pointer ${folder.cardBg}`}
+              className={`group text-left rounded-2xl sm:rounded-3xl border p-3 sm:p-5 shadow-2xs hover:shadow-md transition-all duration-300 flex flex-col justify-between min-h-[105px] sm:min-h-[135px] cursor-pointer ${folder.cardBg}`}
             >
               <div className="flex items-center justify-between">
-                <div className={`p-2.5 rounded-2xl ${folder.iconBg} group-hover:scale-110 transition-transform`}>
-                  <Icon className="h-5 w-5" />
+                <div className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl ${folder.iconBg} group-hover:scale-110 transition-transform`}>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <span className={`text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full shadow-2xs ${folder.badgeBg}`}>
+                <span className={`text-[9.5px] sm:text-xs px-2 sm:px-2.5 py-0.5 rounded-full shadow-2xs ${folder.badgeBg}`}>
                   {count} {unitName}
                 </span>
               </div>
-              <div className="mt-3">
+              <div className="mt-2.5 sm:mt-3">
                 <h4 className="text-xs sm:text-base font-black text-slate-900 truncate tracking-tight">
                   {folder.name}
                 </h4>
-                <p className={`text-[10px] sm:text-xs font-semibold truncate ${folder.descColor}`}>
+                <p className={`text-[9.5px] sm:text-xs font-semibold truncate ${folder.descColor}`}>
                   {folder.desc}
                 </p>
               </div>
@@ -2428,7 +2476,7 @@ export default function StudySection({ isAdmin = false }) {
   const activeFolderObj = FOLDER_TYPES.find(f => f.id === selectedFolder)
 
   return (
-    <div className="w-full space-y-4 pb-28 sm:pb-12 text-slate-900 min-w-0 overflow-x-hidden">
+    <div className="w-full space-y-4 pb-28 sm:pb-32 lg:pb-12 text-slate-900 min-w-0">
 
       {/* ───────────────────────────────────────────────────────────────────────── */}
       {/* COMPACT STACKED-HIERARCHY HEADER BAR                                      */}

@@ -73,6 +73,10 @@ if (targetFile) {
         "044_homework_visibility_and_rls.sql",
         "045_homework_realtime_replica_identity.sql",
         "046_attendance_session_system.sql",
+        "047_message_retention_and_starred.sql",
+        "048_fix_student_profiles_admin_insert_rls.sql",
+        "049_harden_student_profiles_admin_update_rls.sql",
+        "050_sync_batch_subjects_rpc.sql",
       ]
 
   console.log(`Starting automated database migration (${targetFiles.length} migrations)...`)

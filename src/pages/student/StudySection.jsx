@@ -1079,7 +1079,7 @@ export default function StudySection() {
   const studentName = profile?.full_name?.split(' ')?.[0] || 'Student'
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
+    <div className="space-y-6 pb-28 sm:pb-32 lg:pb-12">
 
       {/* Live class banner */}
       {liveClass && !liveDismissed && (
@@ -1357,11 +1357,75 @@ export default function StudySection() {
                   </div>
 
                   {/* Compact, Flex-Responsive Subject Cards Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                    {studentSubjects.map(sub => {
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                    {studentSubjects.map((sub, idx) => {
                       const theme = getSubjectTheme(sub)
                       const Icon = theme.icon
                       const count = getSubjectCardCount(sub)
+                      const isOddLast = idx === studentSubjects.length - 1 && studentSubjects.length % 2 !== 0
+
+                      if (isOddLast) {
+                        return (
+                          <button
+                            key={sub}
+                            onClick={() => {
+                              selectSubject(sub)
+                            }}
+                            className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl p-3 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 col-span-2 sm:col-span-1 relative overflow-hidden cursor-pointer border border-white/10`}
+                          >
+                            {/* Mobile view (< sm): Sleek full-width landscape card */}
+                            <div className="flex sm:hidden items-center justify-between gap-3 relative z-10 w-full min-h-[38px]">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20 shrink-0">
+                                  <Icon className="h-4 w-4 text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="text-sm font-black text-white tracking-tight truncate group-hover:text-amber-300 transition-colors">
+                                    {sub}
+                                  </h4>
+                                  <p className="text-[10px] text-white/75 font-medium truncate">
+                                    Subject Workspace
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full border border-white/20">
+                                  {count} {count === 1 ? 'Item' : 'Items'}
+                                </span>
+                                <div className="w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors">
+                                  <ArrowRight className="h-3 w-3" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Desktop view (>= sm): Standard vertical grid card */}
+                            <div className="hidden sm:flex flex-col justify-between h-28 sm:h-32 relative z-10">
+                              <div className="flex items-center justify-between">
+                                <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20 group-hover:scale-110 transition-transform">
+                                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                                </div>
+                                <span className="text-[10px] font-black bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded-full border border-white/20">
+                                  {count} {count === 1 ? 'Item' : 'Items'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 mt-2">
+                                <div className="min-w-0">
+                                  <h4 className="text-xs sm:text-base font-black text-white tracking-tight truncate group-hover:text-amber-300 transition-colors">
+                                    {sub}
+                                  </h4>
+                                  <p className="text-[10px] text-white/75 font-medium truncate">
+                                    Subject Workspace
+                                  </p>
+                                </div>
+                                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/20 text-white flex items-center justify-center group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors shrink-0">
+                                  <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      }
 
                       return (
                         <button
@@ -1369,7 +1433,7 @@ export default function StudySection() {
                           onClick={() => {
                             selectSubject(sub)
                           }}
-                          className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-28 sm:h-32 relative overflow-hidden cursor-pointer border border-white/10`}
+                          className={`group text-left bg-gradient-to-br ${theme.gradient} text-white rounded-2xl p-3 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-28 sm:h-32 relative overflow-hidden cursor-pointer border border-white/10`}
                         >
                           <div className="flex items-center justify-between relative z-10">
                             <div className="p-2 bg-white/15 backdrop-blur-md rounded-xl border border-white/20 group-hover:scale-110 transition-transform">

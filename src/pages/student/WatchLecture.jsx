@@ -1219,34 +1219,37 @@ export default function WatchLecture() {
               
               {/* Header (Grey-Whitish Theme with Status & Search) */}
               <div className="p-4 border-b border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-800/90 space-y-2.5 shrink-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-800 dark:text-slate-200 shrink-0">
-                      <FileText className="h-4 w-4 text-amber-500" />
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-center text-amber-600 shrink-0">
+                      <FileText className="h-4 w-4" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider truncate">
-                          {hasMultipleLectures ? 'Notes Playlist' : 'Lecture Notes & Reference'}
+                        <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight">
+                          {hasMultipleLectures ? 'Notes Playlist' : 'Lecture Notes'}
                         </h3>
+                        <span className="hidden sm:inline-block text-[10px] font-bold text-slate-400">
+                          • Study Reference
+                        </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
                         {notesResources.length > 0
-                          ? `${notesResources.length} ${notesResources.length === 1 ? 'document' : 'documents'} attached to this card`
-                          : 'Handwritten notes & study reference'}
+                          ? `${notesResources.length} ${notesResources.length === 1 ? 'document' : 'documents'} attached`
+                          : 'Handwritten notes & formula sheets'}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] font-black bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-extrabold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded-full whitespace-nowrap">
                       {notesResources.length} Notes
                     </span>
                     {isTeacherOrAdmin && (
                       <button
                         type="button"
                         onClick={() => setShowNotesModal(true)}
-                        className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                        className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                         title="Add or update attached notes playlist"
                       >
                         <Edit3 className="h-3 w-3" />

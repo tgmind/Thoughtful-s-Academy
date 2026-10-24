@@ -398,7 +398,11 @@ export default function AdminDoubts() {
             .map((teacher) => {
               const grp = teacherGroups[teacher.id] || { items: [], pendingCount: 0, addressedCount: 0 }
               const filteredItems = grp.items.filter(filterDoubt)
-              const isCollapsed = collapsedSections[`teacher_${teacher.id}`]
+              // Auto-collapse empty educators or educators with 0 pending doubts by default
+              const isCollapsed =
+                collapsedSections[`teacher_${teacher.id}`] !== undefined
+                  ? collapsedSections[`teacher_${teacher.id}`]
+                  : grp.pendingCount === 0
 
               return (
                 <div
@@ -411,11 +415,11 @@ export default function AdminDoubts() {
                     onClick={() => toggleSection(`teacher_${teacher.id}`)}
                     className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-slate-50/80 hover:bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 mr-2">
                       <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs border border-indigo-200/80 shrink-0 shadow-2xs">
                         {teacher.full_name ? teacher.full_name.slice(0, 2).toUpperCase() : 'T'}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h2 className="font-black text-sm text-slate-900 tracking-tight truncate">
                           {teacher.full_name}
                         </h2>
@@ -426,16 +430,31 @@ export default function AdminDoubts() {
                     </div>
 
                     <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100/80 text-amber-900 border border-amber-200/80 shadow-2xs">
-                        {grp.pendingCount} Pending
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100/80 text-emerald-900 border border-emerald-200/80 shadow-2xs">
-                        {grp.addressedCount} Addressed
-                      </span>
+                      {/* Desktop/Tablet: Distinct Badges */}
+                      <div className="hidden sm:inline-flex items-center gap-1.5">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs">
+                          {grp.pendingCount} Pending
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200/80 shadow-2xs">
+                          {grp.addressedCount} Addressed
+                        </span>
+                      </div>
+
+                      {/* Mobile: Compact Single Badge so Teacher Name never truncates */}
+                      <div className="sm:hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 border border-slate-200/90 shadow-2xs">
+                        <span className={grp.pendingCount > 0 ? 'text-amber-800 font-extrabold' : 'text-slate-400 font-medium'}>
+                          {grp.pendingCount} Pending
+                        </span>
+                        <span className="text-slate-300 font-normal">•</span>
+                        <span className="text-emerald-800 font-bold">
+                          {grp.addressedCount} Done
+                        </span>
+                      </div>
+
                       {isCollapsed ? (
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                        <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                        <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
                       )}
                     </div>
                   </button>
@@ -467,62 +486,69 @@ export default function AdminDoubts() {
             })}
 
           {/* Unassigned Section */}
-          {(selectedTeacherId === 'all' || selectedTeacherId === 'unassigned') && (
-            <div className="bg-white rounded-3xl border border-rose-200/80 shadow-xs overflow-hidden transition-all hover:border-rose-300">
-              <button
-                type="button"
-                onClick={() => toggleSection('unassigned')}
-                className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-rose-50/60 hover:bg-rose-100/60 border-b border-rose-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs border border-rose-300 shrink-0 shadow-2xs">
-                    <AlertCircle className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="font-black text-sm text-rose-950 tracking-tight truncate">
-                      Unassigned Doubts Queue
-                    </h2>
-                    <p className="text-[11px] text-rose-700 truncate">
-                      Doubts without an assigned batch teacher
-                    </p>
-                  </div>
-                </div>
+          {(selectedTeacherId === 'all' || selectedTeacherId === 'unassigned') && (() => {
+            const isUnassignedCollapsed =
+              collapsedSections['unassigned'] !== undefined
+                ? collapsedSections['unassigned']
+                : unassignedGroup.items.length === 0 || unassignedGroup.pendingCount === 0
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-200 text-rose-900 shadow-2xs">
-                    {unassignedGroup.items.length} Total
-                  </span>
-                  {collapsedSections['unassigned'] ? (
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                  )}
-                </div>
-              </button>
+            return (
+              <div className="bg-white rounded-3xl border border-rose-200/80 shadow-xs overflow-hidden transition-all hover:border-rose-300">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('unassigned')}
+                  className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-rose-50/60 hover:bg-rose-100/60 border-b border-rose-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs border border-rose-300 shrink-0 shadow-2xs">
+                      <AlertCircle className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="font-black text-sm text-rose-950 tracking-tight truncate">
+                        Unassigned Doubts Queue
+                      </h2>
+                      <p className="text-[11px] text-rose-700 truncate">
+                        Doubts without an assigned batch teacher
+                      </p>
+                    </div>
+                  </div>
 
-              {!collapsedSections['unassigned'] && (
-                <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
-                  {unassignedGroup.items.filter(filterDoubt).length === 0 ? (
-                    <p className="text-xs text-slate-400 italic text-center py-4">
-                      No unassigned doubts in queue.
-                    </p>
-                  ) : (
-                    unassignedGroup.items.filter(filterDoubt).map((doubt) => (
-                      <DoubtCard
-                        key={doubt.id}
-                        doubt={doubt}
-                        role="admin"
-                        onMarkAddressed={handleMarkAddressed}
-                        onDelete={handleDeleteDoubt}
-                        isResolving={resolvingId === doubt.id}
-                        isDeleting={deletingId === doubt.id}
-                      />
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-200 text-rose-900 shadow-2xs">
+                      {unassignedGroup.items.length} Total
+                    </span>
+                    {isUnassignedCollapsed ? (
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+                </button>
+
+                {!isUnassignedCollapsed && (
+                  <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
+                    {unassignedGroup.items.filter(filterDoubt).length === 0 ? (
+                      <div className="py-2.5 px-3 text-center text-xs text-rose-500 italic bg-rose-50/50 rounded-xl border border-rose-100">
+                        No unassigned doubts in queue.
+                      </div>
+                    ) : (
+                      unassignedGroup.items.filter(filterDoubt).map((doubt) => (
+                        <DoubtCard
+                          key={doubt.id}
+                          doubt={doubt}
+                          role="admin"
+                          onMarkAddressed={handleMarkAddressed}
+                          onDelete={handleDeleteDoubt}
+                          isResolving={resolvingId === doubt.id}
+                          isDeleting={deletingId === doubt.id}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       ) : (
         /* ══════════════ VIEW B: SUBJECT & BATCH-WISE GROUPING ══════════════ */
@@ -530,7 +556,10 @@ export default function AdminDoubts() {
           {Object.keys(subjectBatchGroups).map((key) => {
             const grp = subjectBatchGroups[key]
             const filteredItems = grp.items.filter(filterDoubt)
-            const isCollapsed = collapsedSections[`sb_${key}`]
+            const isCollapsed =
+              collapsedSections[`sb_${key}`] !== undefined
+                ? collapsedSections[`sb_${key}`]
+                : grp.pendingCount === 0
 
             if (selectedSubject !== 'all' && grp.subject !== selectedSubject) {
               return null
@@ -546,30 +575,46 @@ export default function AdminDoubts() {
                   onClick={() => toggleSection(`sb_${key}`)}
                   className="w-full px-4 sm:px-5 py-3.5 sm:py-4 bg-slate-50/80 hover:bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between text-left transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100/80 shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                    <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100/80 shrink-0">
                       <Layers className="h-4 w-4" />
                     </div>
-                    <div className="min-w-0">
-                      <h2 className="font-black text-sm text-slate-900 tracking-tight truncate">
-                        {grp.subject}{' '}
-                        <span className="text-slate-400 font-normal">/</span>{' '}
-                        <span className="text-slate-700">{grp.batchName}</span>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-black text-sm text-slate-900 tracking-tight">
+                        {grp.subject}
                       </h2>
+                      <p className="text-[11px] text-slate-500 font-medium truncate">
+                        {grp.batchName}
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100/80 text-amber-900 border border-amber-200/80 shadow-2xs">
-                      {grp.pendingCount} Pending
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100/80 text-emerald-900 border border-emerald-200/80 shadow-2xs">
-                      {grp.addressedCount} Addressed
-                    </span>
+                    {/* Desktop/Tablet: Distinct Badges */}
+                    <div className="hidden sm:inline-flex items-center gap-1.5">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs">
+                        {grp.pendingCount} Pending
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200/80 shadow-2xs">
+                        {grp.addressedCount} Addressed
+                      </span>
+                    </div>
+
+                    {/* Mobile: Compact Single Badge so Subject Name never truncates */}
+                    <div className="sm:hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 border border-slate-200/90 shadow-2xs">
+                      <span className={grp.pendingCount > 0 ? 'text-amber-800 font-extrabold' : 'text-slate-400 font-medium'}>
+                        {grp.pendingCount} Pending
+                      </span>
+                      <span className="text-slate-300 font-normal">•</span>
+                      <span className="text-emerald-800 font-bold">
+                        {grp.addressedCount} Done
+                      </span>
+                    </div>
+
                     {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                      <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                      <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
                     )}
                   </div>
                 </button>

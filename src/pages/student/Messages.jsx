@@ -12,6 +12,9 @@ import {
   Paperclip,
   ExternalLink,
   Trash2,
+  Star,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -23,6 +26,13 @@ import {
   sepLabel,
   renderMessageContent,
 } from '../../utils/messageUtils'
+import MessageRetentionNotice from '../../components/shared/MessageRetentionNotice'
+import BulkMessageActionBar from '../../components/shared/BulkMessageActionBar'
+import {
+  toggleKeepMessage,
+  toggleBulkKeepMessages,
+  triggerOpportunisticCleanup,
+} from '../../services/messageService'
 
 export default function StudentMessages() {
   const { user } = useAuth()
@@ -38,6 +48,12 @@ export default function StudentMessages() {
   const [search, setSearch] = useState('')
   const [studentBatchId, setStudentBatchId] = useState(null)
 
+  // 3-Month Retention, Star/Keep & Bulk Management states
+  const [filterKeptOnly, setFilterKeptOnly] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedMsgIds, setSelectedMsgIds] = useState(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const isNearBottomRef = useRef(true)
@@ -46,6 +62,11 @@ export default function StudentMessages() {
   useEffect(() => {
     selectedRef.current = selected
   }, [selected])
+
+  // Trigger opportunistic automatic database cleanup (dual-defense)
+  useEffect(() => {
+    triggerOpportunisticCleanup()
+  }, [])
 
   // Resolve student enrolled batch ID for batch announcements
   useEffect(() => {
@@ -427,6 +448,87 @@ export default function StudentMessages() {
     }
   }
 
+  const handleToggleKeep = async (msgId, currentStarred) => {
+    const nextStarred = !currentStarred
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId
+          ? {
+              ...m,
+              is_starred: nextStarred,
+              starred_at: nextStarred ? new Date().toISOString() : null,
+              starred_by: nextStarred ? user.id : null,
+            }
+          : m
+      )
+    )
+
+    const { error } = await toggleKeepMessage(msgId, nextStarred, user.id)
+    if (error) {
+      // Rollback
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, is_starred: currentStarred } : m))
+      )
+      toast.error('Could not update keep status: ' + (error.message || 'Error'))
+    } else {
+      toast.success(
+        nextStarred
+          ? 'Message kept · will not be deleted after 3 months'
+          : 'Message unkept · expires after 3 months',
+        { id: `keep-${msgId}`, duration: 2500 }
+      )
+    }
+  }
+
+  const handleBulkKeep = async (keep) => {
+    if (selectedMsgIds.size === 0) return
+    setBulkLoading(true)
+    const targetIds = Array.from(selectedMsgIds)
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((m) =>
+        selectedMsgIds.has(m.id)
+          ? {
+              ...m,
+              is_starred: keep,
+              starred_at: keep ? new Date().toISOString() : null,
+              starred_by: keep ? user.id : null,
+            }
+          : m
+      )
+    )
+
+    const { error } = await toggleBulkKeepMessages(targetIds, keep, user.id)
+    setBulkLoading(false)
+    if (error) {
+      toast.error('Bulk update failed: ' + error.message)
+    } else {
+      toast.success(
+        keep
+          ? `${targetIds.length} message(s) kept permanently`
+          : `${targetIds.length} message(s) unkept (3-month retention applies)`
+      )
+      setSelectionMode(false)
+      setSelectedMsgIds(new Set())
+    }
+  }
+
+  const startSelectionWith = (msgId) => {
+    setSelectionMode(true)
+    setSelectedMsgIds(new Set([msgId]))
+  }
+
+  const toggleSelectMessage = (msgId) => {
+    setSelectedMsgIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(msgId)) next.delete(msgId)
+      else next.add(msgId)
+      return next
+    })
+  }
+
   const openConvo = (c) => {
     setSelected(c)
     setShowList(false)
@@ -465,17 +567,26 @@ export default function StudentMessages() {
     }
   }, [contacts, filteredContacts, selected, location.search, lastMsgs, unread])
 
+  const keptCount = useMemo(() => {
+    return messages.filter((m) => Boolean(m.is_starred)).length
+  }, [messages])
+
+  const displayedMessages = useMemo(() => {
+    if (!filterKeptOnly) return messages
+    return messages.filter((m) => Boolean(m.is_starred))
+  }, [messages, filterKeptOnly])
+
   // Group messages by date + compute tail
   const grouped = useMemo(() => {
     const items = []
     let lastDate = null
-    messages.forEach((m, i) => {
+    displayedMessages.forEach((m, i) => {
       const dk = new Date(m.created_at).toDateString()
       if (dk !== lastDate) {
         items.push({ type: 'sep', label: sepLabel(m.created_at), key: dk })
         lastDate = dk
       }
-      const next = messages[i + 1]
+      const next = displayedMessages[i + 1]
       const tail =
         !next ||
         next.sender_id !== m.sender_id ||
@@ -484,7 +595,7 @@ export default function StudentMessages() {
       items.push({ type: 'msg', ...m, tail })
     })
     return items
-  }, [messages])
+  }, [displayedMessages])
 
   return (
     <div className="flex flex-1 min-h-0 h-[calc(100dvh-12rem)] sm:h-[calc(100dvh-12.5rem)] lg:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
@@ -610,37 +721,131 @@ export default function StudentMessages() {
         ) : (
           <>
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 flex-shrink-0 bg-white">
-              <button
-                onClick={() => setShowList(true)}
-                className="lg:hidden -ml-1 p-1.5 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
-                aria-label="Back to contacts"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div
-                className={`w-9 h-9 rounded-full ${avatarBg(
-                  selected.full_name
-                )} flex items-center justify-center text-white text-sm font-semibold flex-shrink-0`}
-              >
-                {initials(selected.full_name)}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 flex-shrink-0 bg-white">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={() => setShowList(true)}
+                  className="lg:hidden -ml-1 p-1.5 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+                  aria-label="Back to contacts"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <div
+                  className={`w-9 h-9 rounded-full ${avatarBg(
+                    selected.full_name
+                  )} flex items-center justify-center text-white text-sm font-semibold flex-shrink-0`}
+                >
+                  {initials(selected.full_name)}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                      {selected.full_name}
+                    </p>
+                    {keptCount > 0 && (
+                      <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[10px] font-semibold border border-amber-200/60">
+                        <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-500" />
+                        {keptCount} kept
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 capitalize">{selected.role}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-900 text-sm leading-tight truncate">
-                  {selected.full_name}
-                </p>
-                <p className="text-xs text-gray-400 capitalize">{selected.role}</p>
+
+              {/* Header Action Controls: Kept filter toggle & Bulk management mode */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => setFilterKeptOnly((prev) => !prev)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    filterKeptOnly
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs'
+                      : 'bg-gray-100 hover:bg-gray-200/80 text-gray-600'
+                  }`}
+                  title={filterKeptOnly ? 'Show all messages' : 'Filter kept / starred messages'}
+                >
+                  <Star
+                    className={`h-3.5 w-3.5 ${
+                      filterKeptOnly ? 'fill-amber-500 text-amber-500' : 'text-gray-400'
+                    }`}
+                  />
+                  <span className="hidden sm:inline">{filterKeptOnly ? 'All' : 'Kept'}</span>
+                  {keptCount > 0 && (
+                    <span className="text-[10px] px-1 py-0.2 rounded-full bg-white/80 text-amber-900 font-bold ml-0.5">
+                      {keptCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSelectionMode((prev) => !prev)
+                    setSelectedMsgIds(new Set())
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    selectionMode
+                      ? 'bg-violet-600 text-white shadow-xs'
+                      : 'bg-gray-100 hover:bg-gray-200/80 text-gray-600'
+                  }`}
+                  title={selectionMode ? 'Exit selection mode' : 'Manage messages in bulk'}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{selectionMode ? 'Done' : 'Manage'}</span>
+                </button>
               </div>
+            </div>
+
+            {/* Retention notice or Bulk Action Toolbar */}
+            <div className={`${selectionMode ? 'px-4 pt-2' : 'px-2 pt-0.5'} flex-shrink-0`}>
+              {selectionMode ? (
+                <BulkMessageActionBar
+                  selectedCount={selectedMsgIds.size}
+                  totalCount={displayedMessages.length}
+                  onSelectAll={() => setSelectedMsgIds(new Set(displayedMessages.map((m) => m.id)))}
+                  onDeselectAll={() => setSelectedMsgIds(new Set())}
+                  onKeepSelected={() => handleBulkKeep(true)}
+                  onUnkeepSelected={() => handleBulkKeep(false)}
+                  onCancel={() => {
+                    setSelectionMode(false)
+                    setSelectedMsgIds(new Set())
+                  }}
+                  loading={bulkLoading}
+                />
+              ) : (
+                <MessageRetentionNotice
+                  onViewKept={() => setFilterKeptOnly((prev) => !prev)}
+                  isKeptFilterActive={filterKeptOnly}
+                  keptCount={keptCount}
+                />
+              )}
             </div>
 
             {/* Messages container */}
             <div
-              className="flex-1 overflow-y-auto px-4 py-4 space-y-0.5"
+              className="flex-1 overflow-y-auto px-4 py-3 space-y-0.5"
               onScroll={handleScroll}
             >
-              {messages.length === 0 && (
+              {displayedMessages.length === 0 && !filterKeptOnly && (
                 <div className="flex justify-center items-center h-full">
                   <p className="text-sm text-gray-400">No messages yet. Say hello!</p>
+                </div>
+              )}
+
+              {displayedMessages.length === 0 && filterKeptOnly && (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-center p-6">
+                  <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500">
+                    <Star className="h-6 w-6 fill-amber-400" />
+                  </div>
+                  <p className="font-semibold text-gray-800 text-sm">No Kept Messages Yet</p>
+                  <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
+                    Hover over any message and click the ⭐ Star icon or click 'Manage' to keep messages from deleting after 3 months.
+                  </p>
+                  <button
+                    onClick={() => setFilterKeptOnly(false)}
+                    className="mt-2 text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    View All Messages
+                  </button>
                 </div>
               )}
 
@@ -656,13 +861,38 @@ export default function StudentMessages() {
                 }
 
                 const mine = item.sender_id === user.id
+                const isSelected = selectedMsgIds.has(item.id)
+                const isStarred = Boolean(item.is_starred)
+
                 return (
                   <div
                     key={item.id}
-                    className={`group flex items-end gap-2 ${
-                      mine ? 'justify-end' : 'justify-start'
-                    } ${item.tail ? 'mb-3' : 'mb-0.5'}`}
+                    onClick={() => {
+                      if (selectionMode) toggleSelectMessage(item.id)
+                    }}
+                    className={`group flex items-end gap-2 transition-colors ${
+                      selectionMode ? 'cursor-pointer hover:bg-violet-50/30 rounded-xl p-1' : ''
+                    } ${mine ? 'justify-end' : 'justify-start'} ${item.tail ? 'mb-3' : 'mb-0.5'}`}
                   >
+                    {/* Bulk Selection Checkbox */}
+                    {selectionMode && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleSelectMessage(item.id)
+                        }}
+                        className="p-1 rounded-md text-gray-400 hover:text-violet-600 transition-colors flex-shrink-0 self-center"
+                        title={isSelected ? 'Deselect message' : 'Select message'}
+                        aria-label={isSelected ? 'Deselect message' : 'Select message'}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="h-4 w-4 text-violet-600 fill-violet-100" />
+                        ) : (
+                          <Square className="h-4 w-4 text-gray-300" />
+                        )}
+                      </button>
+                    )}
+
                     {!mine && (
                       <div
                         className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[9px] font-semibold self-end ${
@@ -673,19 +903,57 @@ export default function StudentMessages() {
                       </div>
                     )}
 
-                    {mine && !item.is_broadcast && (
-                      <button
-                        onClick={() => deleteMessage(item.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-rose-500 transition-opacity"
-                        title="Delete message"
-                        aria-label="Delete message"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                    {/* Left action triggers for sent messages (when not in selection mode) */}
+                    {mine && !selectionMode && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleToggleKeep(item.id, isStarred)
+                          }}
+                          className={`p-1 rounded-full transition-colors ${
+                            isStarred
+                              ? 'text-amber-500 hover:bg-amber-50'
+                              : 'text-gray-300 hover:text-amber-500 hover:bg-gray-100'
+                          }`}
+                          title={isStarred ? 'Unkeep message' : 'Keep message (prevent 3-month deletion)'}
+                          aria-label={isStarred ? 'Unkeep message' : 'Keep message'}
+                        >
+                          <Star className={`h-3.5 w-3.5 ${isStarred ? 'fill-amber-400' : ''}`} />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            startSelectionWith(item.id)
+                          }}
+                          className="p-1 rounded-full text-gray-300 hover:text-violet-600 hover:bg-gray-100 transition-colors"
+                          title="Select / Manage messages"
+                          aria-label="Select message"
+                        >
+                          <CheckSquare className="h-3.5 w-3.5" />
+                        </button>
+
+                        {!item.is_broadcast && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteMessage(item.id)
+                            }}
+                            className="p-1 rounded-full text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                            title="Delete message"
+                            aria-label="Delete message"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     <div
-                      className={`max-w-[75%] lg:max-w-[60%] px-3.5 py-2 ${
+                      className={`max-w-[75%] lg:max-w-[60%] px-3.5 py-2 transition-shadow ${
+                        isSelected ? 'ring-2 ring-violet-500 shadow-md' : ''
+                      } ${
                         mine
                           ? `bg-gradient-to-br from-violet-500 to-indigo-600 text-white ${
                               item.tail ? 'rounded-2xl rounded-br-sm' : 'rounded-2xl'
@@ -732,10 +1000,25 @@ export default function StudentMessages() {
                       )}
 
                       <div
-                        className={`flex items-center gap-1 mt-0.5 ${
+                        className={`flex items-center gap-1.5 mt-1 ${
                           mine ? 'justify-end' : 'justify-start'
                         }`}
                       >
+                        {/* Kept indicator pill */}
+                        {isStarred && (
+                          <span
+                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                              mine
+                                ? 'bg-white/25 text-amber-200 border border-white/20'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200/60'
+                            }`}
+                            title="Kept message · Preserved permanently (exempt from 3-month automatic purge)"
+                          >
+                            <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-500" />
+                            <span>Kept</span>
+                          </span>
+                        )}
+
                         <span
                           className={`text-[10px] leading-none ${
                             mine ? 'text-white/60' : 'text-gray-400'
@@ -754,6 +1037,39 @@ export default function StudentMessages() {
                           ))}
                       </div>
                     </div>
+
+                    {/* Right action triggers for received messages */}
+                    {!mine && !selectionMode && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleToggleKeep(item.id, isStarred)
+                          }}
+                          className={`p-1 rounded-full transition-colors ${
+                            isStarred
+                              ? 'text-amber-500 hover:bg-amber-50'
+                              : 'text-gray-300 hover:text-amber-500 hover:bg-gray-100'
+                          }`}
+                          title={isStarred ? 'Unkeep message' : 'Keep message (prevent 3-month deletion)'}
+                          aria-label={isStarred ? 'Unkeep message' : 'Keep message'}
+                        >
+                          <Star className={`h-3.5 w-3.5 ${isStarred ? 'fill-amber-400' : ''}`} />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            startSelectionWith(item.id)
+                          }}
+                          className="p-1 rounded-full text-gray-300 hover:text-violet-600 hover:bg-gray-100 transition-colors"
+                          title="Select / Manage messages"
+                          aria-label="Select message"
+                        >
+                          <CheckSquare className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

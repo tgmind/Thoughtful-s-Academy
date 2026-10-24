@@ -124,7 +124,8 @@ export default function ProtectedVideoPlayer({
   const cleanToastTimerRef = useRef(null)
   const progressIntervalRef = useRef(null)
   const singleTapTimerRef = useRef(null)
-  const lastTapRef = useRef({ time: 0, x: 0, y: 0, count: 0, zone: null })
+  const rippleTimerRef = useRef(null)
+  const lastTapRef = useRef({ time: 0, x: 0, y: 0, count: 0, zone: null, isDoubleTapping: false })
   const lastTouchTimeRef = useRef(0)
   const longPressTimerRef = useRef(null)
   const isHoldingRef = useRef(false)
@@ -490,7 +491,8 @@ export default function ProtectedVideoPlayer({
     const singleTapTimer = singleTapTimerRef.current
 
     return () => {
-      if (singleTapTimer) clearTimeout(singleTapTimer)
+      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current)
+      if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current)
       if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current)
@@ -914,7 +916,36 @@ export default function ProtectedVideoPlayer({
     handleShieldTap(touch.clientX, touch.clientY)
   }
 
-  // Smart Interactive Zones: Left/Right Corner 10s Seek + Center Play/Pause Toggle
+  // Single Tap on empty video canvas area: toggles custom player controls
+  // When shown, controls stay visible for a few seconds (3.5s) before auto-hiding
+  const handleSingleTapOnEmptyArea = useCallback(() => {
+    if (isScreenLockedRef.current || cleanViewRef.current) return
+
+    // If speed or quality menus are open, dismiss menus while keeping controls visible
+    if (showSpeedMenuRef.current || showQualityMenuRef.current) {
+      setShowSpeedMenu(false)
+      setShowQualityMenu(false)
+      showControlsTemporarily(3500)
+      return
+    }
+
+    setControlsVisible(prev => {
+      if (prev) {
+        if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current)
+        return false
+      } else {
+        showControlsTemporarily(3500)
+        return true
+      }
+    })
+  }, [showControlsTemporarily])
+
+  // Interactive Double-Tap Gestures & Single-Tap Controls Toggle:
+  // - Double Tap Left (<=35% width): Seek Backward -10s (-10s, -20s, ...) with ripple
+  // - Double Tap Right (>=65% width): Seek Forward +10s (+10s, +20s, ...) with ripple
+  // - Double Tap Center: Toggle Play / Pause with center pulse ripple
+  // - Single Tap on empty canvas: Toggles custom player controls (seekbar, buttons, time, etc.) for a few seconds
+  // Accidental touches do NOT trigger play/pause or forward/backward!
   const handleShieldTap = (clientX, clientY) => {
     if (isScreenLockedRef.current) {
       setShowLockToast(true)
@@ -938,33 +969,88 @@ export default function ProtectedVideoPlayer({
 
     const relX = clientX - rect.left
     const width = rect.width
-    const isRewind = relX < width * 0.32
-    const isForward = relX > width * 0.68
+    const isRewind = relX < width * 0.35
+    const isForward = relX > width * 0.65
+    const zone = isRewind ? 'rewind' : isForward ? 'forward' : 'center'
 
-    if (isRewind) {
-      // Left corner tap: Fast Backward 10s
-      const isRepeat = (now - last.time < 500) && (last.zone === 'rewind')
-      const nextCount = isRepeat ? (last.count || 1) + 1 : 1
-      lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone: 'rewind' }
-      seekRelative(-10)
-      setRipple({ type: 'rewind', count: nextCount * 10, id: now })
-      setTimeout(() => setRipple(null), 750)
+    // 1. Rapid consecutive tap accumulation (3rd, 4th tap on seek within 550ms)
+    const isRapidConsecutiveSeek = (
+      last.isDoubleTapping &&
+      (now - last.time < 550) &&
+      last.zone === zone &&
+      (zone === 'rewind' || zone === 'forward')
+    )
+
+    if (isRapidConsecutiveSeek) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current)
+        singleTapTimerRef.current = null
+      }
+
+      const nextCount = (last.count || 1) + 1
+      lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone, isDoubleTapping: true }
+
+      if (zone === 'rewind') {
+        seekRelative(-10)
+        setRipple({ type: 'rewind', count: nextCount * 10, id: now })
+      } else {
+        seekRelative(10)
+        setRipple({ type: 'forward', count: nextCount * 10, id: now })
+      }
+
+      if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+      rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
       showControlsTemporarily(3500)
-    } else if (isForward) {
-      // Right corner tap: Fast Forward 10s
-      const isRepeat = (now - last.time < 500) && (last.zone === 'forward')
-      const nextCount = isRepeat ? (last.count || 1) + 1 : 1
-      lastTapRef.current = { time: now, x: clientX, y: clientY, count: nextCount, zone: 'forward' }
-      seekRelative(10)
-      setRipple({ type: 'forward', count: nextCount * 10, id: now })
-      setTimeout(() => setRipple(null), 750)
-      showControlsTemporarily(3500)
-    } else {
-      // Center tap: Toggle Play / Pause instantly without intrusive central overlay
-      lastTapRef.current = { time: now, x: clientX, y: clientY, count: 0, zone: 'center' }
-      togglePlayPause()
-      showControlsTemporarily(3500)
+      return
     }
+
+    // 2. Second tap of a potential double tap (within 350ms of 1st tap)
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current)
+      singleTapTimerRef.current = null
+
+      const timeSinceFirstTap = now - last.time
+      const isSameZone = (last.zone === zone)
+
+      // Verified double tap!
+      if (timeSinceFirstTap < 350 && isSameZone) {
+        lastTapRef.current = { time: now, x: clientX, y: clientY, count: 1, zone, isDoubleTapping: true }
+
+        if (zone === 'rewind') {
+          // Double Tap Left: Seek Backward 10s
+          seekRelative(-10)
+          setRipple({ type: 'rewind', count: 10, id: now })
+          if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+          rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+          showControlsTemporarily(3500)
+        } else if (zone === 'forward') {
+          // Double Tap Right: Seek Forward 10s
+          seekRelative(10)
+          setRipple({ type: 'forward', count: 10, id: now })
+          if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+          rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+          showControlsTemporarily(3500)
+        } else {
+          // Double Tap Center: Toggle Play / Pause
+          const willPause = isPlayingRef.current
+          togglePlayPause()
+          setRipple({ type: willPause ? 'pause' : 'play', id: now })
+          if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current)
+          rippleTimerRef.current = setTimeout(() => setRipple(null), 850)
+          showControlsTemporarily(3500)
+        }
+        return
+      }
+    }
+
+    // 3. First Tap: Schedule single-tap action after 280ms
+    // If no second tap occurs within 280ms, the single-tap action toggles player controls
+    // and does NOT seek or play/pause!
+    lastTapRef.current = { time: now, x: clientX, y: clientY, count: 0, zone, isDoubleTapping: false }
+    singleTapTimerRef.current = setTimeout(() => {
+      singleTapTimerRef.current = null
+      handleSingleTapOnEmptyArea()
+    }, 280)
   }
 
   // ─── Classroom Screen Mode Handlers ─────────────────────────────────────────
@@ -1225,6 +1311,11 @@ export default function ProtectedVideoPlayer({
           }}
           onMouseUp={() => {
             if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+            if (isHoldingRef.current) {
+              endLongPress2x()
+              lastTouchTimeRef.current = Date.now()
+              return
+            }
             endLongPress2x()
           }}
           onTouchStart={handleShieldTouchStart}
@@ -1264,12 +1355,14 @@ export default function ProtectedVideoPlayer({
           </div>
         )}
 
-        {/* ─── MULTI-TAP SEEK RIPPLE ──────────────────────────────────────────── */}
+        {/* ─── MULTI-TAP GESTURE RIPPLE OVERLAYS ────────────────────────────── */}
         {ripple?.type === 'rewind' && (
-          <div className="absolute inset-y-0 left-0 w-1/3 z-28 pointer-events-none flex items-center justify-center bg-white/10 backdrop-blur-2xs animate-pulse rounded-r-3xl">
-            <div className="flex flex-col items-center text-white space-y-1">
-              <RotateCcw className="h-7 w-7 animate-spin" />
-              <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase bg-black/80 px-2 py-0.5 rounded-full border border-white/20">
+          <div className="absolute inset-y-0 left-0 w-1/3 z-28 pointer-events-none flex items-center justify-center bg-gradient-to-r from-white/15 to-transparent backdrop-blur-2xs animate-pulse rounded-r-3xl">
+            <div className="flex flex-col items-center text-white space-y-1.5 drop-shadow-lg">
+              <div className="p-2 sm:p-2.5 rounded-full bg-black/60 border border-white/20">
+                <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-spin" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-mono font-bold tracking-wider uppercase bg-black/85 text-white px-2.5 py-0.5 rounded-full border border-white/20 shadow-md">
                 -{ripple.count}s
               </span>
             </div>
@@ -1277,12 +1370,26 @@ export default function ProtectedVideoPlayer({
         )}
 
         {ripple?.type === 'forward' && (
-          <div className="absolute inset-y-0 right-0 w-1/3 z-28 pointer-events-none flex items-center justify-center bg-white/10 backdrop-blur-2xs animate-pulse rounded-l-3xl">
-            <div className="flex flex-col items-center text-white space-y-1">
-              <RotateCw className="h-7 w-7 animate-spin" />
-              <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase bg-black/80 px-2 py-0.5 rounded-full border border-white/20">
+          <div className="absolute inset-y-0 right-0 w-1/3 z-28 pointer-events-none flex items-center justify-center bg-gradient-to-l from-white/15 to-transparent backdrop-blur-2xs animate-pulse rounded-l-3xl">
+            <div className="flex flex-col items-center text-white space-y-1.5 drop-shadow-lg">
+              <div className="p-2 sm:p-2.5 rounded-full bg-black/60 border border-white/20">
+                <RotateCw className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-spin" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-mono font-bold tracking-wider uppercase bg-black/85 text-white px-2.5 py-0.5 rounded-full border border-white/20 shadow-md">
                 +{ripple.count}s
               </span>
+            </div>
+          </div>
+        )}
+
+        {(ripple?.type === 'play' || ripple?.type === 'pause') && (
+          <div className="absolute inset-0 z-28 pointer-events-none flex items-center justify-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/70 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-2xl animate-pulse">
+              {ripple.type === 'play' ? (
+                <Play className="h-8 w-8 sm:h-10 sm:w-10 fill-current ml-1 text-white" />
+              ) : (
+                <Pause className="h-8 w-8 sm:h-10 sm:w-10 fill-current text-white" />
+              )}
             </div>
           </div>
         )}
@@ -1473,7 +1580,10 @@ export default function ProtectedVideoPlayer({
           </div>
 
           {/* 2. BOTTOM FLOATING BAR (TRANSLUCENT GRADIENT OVERLAY) ────────────── */}
-          <div className={`pt-4 pb-2 sm:pb-3 px-2 sm:px-3.5 md:px-4 bg-gradient-to-t from-black/95 via-black/50 to-transparent space-y-1.5 sm:space-y-2 ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+          <div
+            onClick={(e) => { e.stopPropagation(); showControlsTemporarily(3500) }}
+            className={`pt-4 pb-2 sm:pb-3 px-2 sm:px-3.5 md:px-4 bg-gradient-to-t from-black/95 via-black/50 to-transparent space-y-1.5 sm:space-y-2 ${controlsVisible && !cleanView && !isScreenLocked ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          >
 
             {/* Progress Bar */}
             <div

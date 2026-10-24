@@ -725,7 +725,7 @@ export default function DashboardShell({ navItems, pageTitle }) {
         </header>
 
         {/* Page Content Viewport */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-3.5 sm:p-5 md:p-6 pb-28 lg:pb-8">
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 pb-28 lg:pb-8 overscroll-contain [-webkit-overflow-scrolling:touch] no-scrollbar sm:[&::-webkit-scrollbar]:block">
           <EnablePushBanner />
           <Outlet />
         </main>
@@ -769,15 +769,19 @@ export default function DashboardShell({ navItems, pageTitle }) {
                         isLiveItem ? (
                           <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 ring-2 ring-white" />
+                            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 ${
+                              isActive ? 'ring-2 ring-blue-950' : 'ring-2 ring-white'
+                            }`} />
                           </span>
                         ) : (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
+                          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse ${
+                            isActive ? 'ring-2 ring-blue-950' : 'ring-2 ring-white'
+                          }`} />
                         )
                       )}
                     </span>
-                    <span className="text-[10px] leading-tight text-center">
-                      {item.label}
+                    <span className="text-[10px] leading-tight text-center truncate max-w-full px-0.5">
+                      {item.shortLabel || item.label}
                     </span>
                   </span>
                 </>
@@ -813,15 +817,19 @@ export default function DashboardShell({ navItems, pageTitle }) {
                   hasSecondaryLiveBadge ? (
                     <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 ring-2 ring-white" />
+                      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 ${
+                        isSecondaryActive ? 'ring-2 ring-blue-950' : 'ring-2 ring-white'
+                      }`} />
                     </span>
                   ) : (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
+                    <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse ${
+                      isSecondaryActive ? 'ring-2 ring-blue-950' : 'ring-2 ring-white'
+                    }`} />
                   )
                 )}
               </span>
-              <span className="text-[10px] leading-tight text-center truncate max-w-[56px]">
-                {activeSecondaryItem ? activeSecondaryItem.label : 'More'}
+              <span className="text-[10px] leading-tight text-center truncate max-w-full px-0.5">
+                {activeSecondaryItem ? (activeSecondaryItem.shortLabel || activeSecondaryItem.label) : 'More'}
               </span>
             </span>
           </button>

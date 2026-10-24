@@ -30,13 +30,20 @@ function MonthHeatmap({ records }) {
   const daysInMonth  = new Date(year, month + 1, 0).getDate()
   const today        = todayISO()
 
-  const cells = [
+  const rawCells = [
     ...Array(firstWeekday).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => {
       const d    = i + 1
       const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
       return { d, date, status: statusMap[date] }
     }),
+  ]
+
+  // Pad to complete 7-day grid rows cleanly
+  const totalSlots = Math.ceil(rawCells.length / 7) * 7
+  const cells = [
+    ...rawCells,
+    ...Array(totalSlots - rawCells.length).fill(null)
   ]
 
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth()
@@ -59,10 +66,10 @@ function MonthHeatmap({ records }) {
     } else { break }
   }
 
-  const streakMsg  = streak >= 10 ? 'Unstoppable! 🚀' : streak >= 5 ? 'On fire! Keep it up!' : streak >= 2 ? 'Great momentum!' : 'Keep it up!'
+  const streakMsg  = streak >= 10 ? 'Unstoppable! 🚀' : streak >= 5 ? 'On fire! Keep it up!' : streak >= 2 ? 'Great momentum!' : streak === 1 ? 'Good start!' : 'Start your streak today!'
   const pctColor   = monthPct >= 75 ? 'text-emerald-600' : monthPct >= 50 ? 'text-amber-500' : 'text-red-500'
   const ringColor  = monthPct >= 75 ? '#10b981' : monthPct >= 50 ? '#f59e0b' : '#ef4444'
-  const R          = 28
+  const R          = 25
   const circ       = 2 * Math.PI * R
   const dash       = (monthPct / 100) * circ
 
@@ -73,73 +80,236 @@ function MonthHeatmap({ records }) {
   ]
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 mb-5">
         <div>
-          <h3 className="font-bold text-gray-900">Study Heatmap</h3>
-          <p className="text-[11px] text-gray-400 mt-0.5">
-            {viewDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} overview
+          <h3 className="font-bold text-gray-900 text-base sm:text-lg">Study Heatmap</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {viewDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} attendance & attentiveness overview
           </p>
         </div>
-        <div className="flex items-center gap-1">
+
+        {/* Month Navigation */}
+        <div className="flex items-center gap-1 self-start sm:self-auto bg-gray-50/90 p-1 rounded-xl border border-gray-100">
           <button
+            type="button"
             onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white hover:shadow-xs text-gray-600 transition-all active:scale-95"
+            title="Previous month"
+            aria-label="Previous month"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-xs font-semibold text-gray-600 min-w-[96px] text-center">
-            {viewDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+          <span className="text-xs font-bold text-gray-700 min-w-[100px] text-center select-none">
+            {viewDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
           </span>
           <button
+            type="button"
             onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
             disabled={isCurrentMonth}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 disabled:opacity-20 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white hover:shadow-xs text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-95"
+            title="Next month"
+            aria-label="Next month"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-7 gap-1 text-center mb-4">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-          <div key={i} className="text-[10px] font-semibold text-gray-400 py-1">{day}</div>
-        ))}
-        {cells.map((cell, idx) => (
-          <div
-            key={idx}
-            className={`aspect-square flex items-center justify-center rounded-lg text-xs font-medium transition-all ${
-              !cell
-                ? 'opacity-0 pointer-events-none'
-                : cell.status
-                ? DAY_COLORS[cell.status] || 'bg-gray-100 text-gray-600'
-                : cell.date === today
-                ? 'border-2 border-dashed border-blue-400 text-blue-600 font-bold'
-                : 'text-gray-400 hover:bg-gray-50'
-            }`}
-          >
-            {cell?.d}
-          </div>
-        ))}
-      </div>
+      {/* Main Body: Compact side-by-side on Laptop (lg+), clean vertical stack on mobile */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8">
 
-      {/* Summary Row */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-xs">
-        <div className="flex items-center gap-4">
-          {bars.map(b => (
-            <div key={b.label} className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${b.bar}`} />
-              <span className="text-gray-500 font-medium">{b.label}:</span>
-              <span className={`font-bold ${b.text}`}>{b.count}</span>
+        {/* Left Column: Calendar Grid (Constrained on laptop so cells are perfectly proportioned) */}
+        <div className="w-full max-w-md mx-auto lg:mx-0 lg:w-[350px] xl:w-[375px] shrink-0">
+          {/* Weekday labels */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center mb-1.5">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+              <div key={i} className="text-[11px] font-bold text-gray-400 py-1 tracking-wider uppercase select-none">
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{day[0]}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center">
+            {cells.map((cell, idx) => {
+              if (!cell) {
+                return <div key={`empty-${idx}`} className="aspect-square opacity-0 pointer-events-none" />
+              }
+              const isToday  = cell.date === today
+              const isFuture = cell.date > today
+              return (
+                <div
+                  key={cell.date}
+                  title={
+                    cell.status
+                      ? `${new Date(cell.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} — ${cell.status.charAt(0).toUpperCase() + cell.status.slice(1)}`
+                      : isToday
+                      ? `Today (${new Date(cell.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})`
+                      : new Date(cell.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+                  }
+                  className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-semibold transition-all select-none relative ${
+                    cell.status
+                      ? DAY_COLORS[cell.status] || 'bg-gray-100 text-gray-600'
+                      : isToday
+                      ? 'border-2 border-dashed border-blue-500 text-blue-600 bg-blue-50/40 font-bold'
+                      : isFuture
+                      ? 'text-gray-300 bg-gray-50/60'
+                      : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-900'
+                  } ${isToday && cell.status ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+                >
+                  <span>{cell.d}</span>
+                  {isToday && (
+                    <span className={`w-1 h-1 rounded-full mt-0.5 ${cell.status ? 'bg-white' : 'bg-blue-600'}`} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-3.5 border-t border-gray-100 text-[11px] text-gray-500">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 shadow-xs shadow-emerald-200" />
+                <span>Present</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 shadow-xs shadow-amber-200" />
+                <span>Late</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-red-400 shadow-xs shadow-red-200" />
+                <span>Absent</span>
+              </div>
             </div>
-          ))}
+            <div className="flex items-center gap-1.5 text-blue-600 font-medium">
+              <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-blue-500 bg-blue-50/40 inline-block" />
+              <span>Today</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-amber-600 font-bold">
-          <Flame className="h-4 w-4 text-amber-500 fill-amber-500" />
-          <span>{streak} day streak</span>
+
+        {/* Right Column: Monthly Analytics & Streak (Side-by-side on laptop, below on mobile) */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between space-y-4 pt-4 lg:pt-0 border-t lg:border-t-0 lg:border-l border-gray-100 lg:pl-8">
+
+          {/* 🔥 Streak Banner */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            streak > 0
+              ? 'bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-amber-500/10 border-amber-200 shadow-xs'
+              : 'bg-slate-50 border-slate-200/70'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm shrink-0 ${
+                  streak > 0 ? 'bg-gradient-to-tr from-amber-500 to-orange-400 text-white shadow-amber-500/20' : 'bg-slate-200 text-slate-400'
+                }`}>
+                  <Flame className={`h-6 w-6 ${streak > 0 ? 'fill-white animate-pulse' : ''}`} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Attendance Streak</span>
+                    {streak > 0 && (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase tracking-wider">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className={`text-lg sm:text-xl font-black ${streak > 0 ? 'text-amber-600' : 'text-slate-600'}`}>
+                      {streak} day streak
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium hidden sm:inline">
+                      • {streakMsg}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 font-medium mt-1.5 sm:hidden">
+              {streakMsg}
+            </p>
+          </div>
+
+          {/* Monthly Attentiveness Circular Gauge & Distribution Bars */}
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Circular Gauge */}
+              <div className="flex items-center gap-3.5 shrink-0">
+                <div className="relative shrink-0">
+                  <svg width="64" height="64" className="-rotate-90">
+                    <circle cx="32" cy="32" r={R} fill="none" stroke="#e2e8f0" strokeWidth="6" />
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r={R}
+                      fill="none"
+                      stroke={ringColor}
+                      strokeWidth="6"
+                      strokeDasharray={`${dash} ${circ}`}
+                      strokeLinecap="round"
+                      style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                    />
+                  </svg>
+                  <span className={`absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-black ${pctColor}`}>
+                    {monthPct}%
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Monthly Attentiveness</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    {monthTotal > 0 ? `${monthPresent} of ${monthTotal} sessions marked` : 'No sessions recorded this month'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick counts pills */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs px-2.5 py-1 rounded-lg bg-emerald-100/70 text-emerald-800 font-bold">
+                  {monthPresent} Present
+                </span>
+                <span className="text-xs px-2.5 py-1 rounded-lg bg-rose-100/70 text-rose-800 font-bold">
+                  {monthAbsent} Missed
+                </span>
+              </div>
+            </div>
+
+            {/* Distribution Bars */}
+            <div className="pt-2 border-t border-slate-200/50 space-y-2">
+              {bars.map(({ label, count, bar, text }) => (
+                <div key={label}>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-gray-500 font-medium">{label}</span>
+                    <span className={`font-bold ${text}`}>
+                      {count} {count === 1 ? 'session' : 'sessions'}
+                      {monthTotal > 0 ? ` (${Math.round((count / monthTotal) * 100)}%)` : ''}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-200/70 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${bar} rounded-full transition-all duration-500`}
+                      style={{ width: monthTotal > 0 ? `${(count / monthTotal) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Monthly Insight Note */}
+          <div className="flex items-center justify-between text-[11px] text-gray-400 px-1">
+            <span>
+              Recorded for {viewDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+            </span>
+            <span className="font-medium text-gray-500">
+              {monthTotal} total lecture session{monthTotal !== 1 ? 's' : ''}
+            </span>
+          </div>
+
         </div>
+
       </div>
     </div>
   )

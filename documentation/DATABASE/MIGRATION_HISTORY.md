@@ -3,7 +3,7 @@
 **Platform:** Thoughtful's Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Migration Directory:** `supabase/migrations/`  
-**Total Migrations:** 45 SQL Migration Files (`001` through `045`)  
+**Total Migrations:** 47 SQL Migration Files (`001` through `047`)  
 
 ---
 
@@ -57,6 +57,10 @@
 | `044` | `044_homework_visibility_and_rls.sql` | Homework Visibility & RLS Hardening | Fixes RLS violation on homework visibility toggle (is_active), allows admin/teacher read & update of hidden homework | YES |
 | `045` | `045_homework_realtime_replica_identity.sql` | Homework Realtime Replica Identity | Sets REPLICA IDENTITY FULL on public.homework for reliable Realtime WAL payloads on delete/update | YES |
 | `046` | `046_attendance_session_system.sql` | Teacher/Admin-Initiated Attentiveness System | Creates `attendance_sessions`, links `attendance.session_id`, replaces daily unique constraint with session-level uniqueness, implements auto-absent finalization RPCs, hardens student RLS to active session only | YES |
+| `047` | `047_message_retention_and_starred.sql` | Automatic 3-Month Retention & Kept/Starred System | Adds `is_starred`, `starred_at`, `starred_by`, creates 90-day retention cleanup function `clean_expired_messages()`, schedules daily pg_cron job, adds `toggle_keep_messages()` bulk RPC, updates RLS for star updates | YES |
+| `048` | `048_fix_student_profiles_admin_insert_rls.sql` | Fix student_profiles RLS for Admin Insert/Upsert | Grants admin insert/upsert permissions on `student_profiles` via `WITH CHECK (auth.uid() = id OR is_admin())` | YES |
+| `049` | `049_harden_student_profiles_admin_update_rls.sql` | Harden student_profiles RLS for Admin Update | Explicitly adds `WITH CHECK (auth.uid() = id OR is_admin())` and `USING` on `student_profiles FOR UPDATE` to permanently prevent RLS violation on student enrollment modifications | YES |
+| `050` | `050_sync_batch_subjects_rpc.sql` | Batch Subject Multi-Student Sync Engine RPC | Atomic RPC `sync_batch_subjects(batch_id, new_subjects, student_ids)` for syncing added batch subjects to all or selected enrolled students | YES |
 
 ---
 
