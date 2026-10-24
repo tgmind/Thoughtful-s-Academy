@@ -861,33 +861,32 @@ export default function Home() {
               </p>
             </div>
 
-            {/* CTAs - Responsive, balanced button layout on mobile & desktop */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-2.5 sm:gap-3 pt-1 max-w-md mx-auto lg:mx-0">
+            {/* CTAs - Equal proportion and size row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-1 max-w-lg lg:max-w-xl mx-auto lg:mx-0 w-full">
               <Link
                 to="/batch-details"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#1c1c1c] hover:bg-[#2c2c2c] text-[#fcfbf8] font-semibold text-sm transition-all duration-150 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),inset_0px_0px_0px_0.5px_rgba(0,0,0,0.2),0px_4px_12px_rgba(0,0,0,0.12)] active:scale-[0.98] group"
+                className="w-full h-11 sm:h-12 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-[#1c1c1c] hover:bg-[#2c2c2c] text-[#fcfbf8] font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-150 border border-[#1c1c1c] shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),inset_0px_0px_0px_0.5px_rgba(0,0,0,0.2),0px_4px_12px_rgba(0,0,0,0.12)] active:scale-[0.98] group"
               >
-                <BookOpen className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                <BookOpen className="w-4 h-4 text-white shrink-0 group-hover:scale-105 transition-transform" />
                 <span>Explore All Batches</span>
-                <ArrowRight className="w-4 h-4 text-[#fcfbf8]/60 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="w-3.5 h-3.5 text-[#fcfbf8]/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </Link>
 
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5">
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-3 rounded-xl bg-white hover:bg-[#f7f4ed] text-[#1c1c1c] font-semibold text-xs sm:text-sm border border-[#d8d3c5] hover:border-[#1c1c1c] transition-all shadow-2xs active:scale-[0.98]"
-                >
-                  <LogIn className="w-3.5 h-3.5 text-[#5f5f5d]" />
-                  <span>Login</span>
-                </Link>
-                <Link
-                  to="/register"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 text-indigo-950 font-semibold text-xs sm:text-sm border border-indigo-200/80 hover:border-indigo-300 transition-all shadow-2xs active:scale-[0.98]"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Register Free</span>
-                </Link>
-              </div>
+              <Link
+                to="/login"
+                className="w-full h-11 sm:h-12 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-white hover:bg-[#f7f4ed] text-[#1c1c1c] font-semibold text-xs sm:text-sm whitespace-nowrap border border-[#d8d3c5] hover:border-[#1c1c1c] transition-all duration-150 shadow-2xs active:scale-[0.98] group"
+              >
+                <LogIn className="w-4 h-4 text-[#5f5f5d] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                <span>Login</span>
+              </Link>
+
+              <Link
+                to="/register"
+                className="w-full h-11 sm:h-12 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 text-indigo-950 font-semibold text-xs sm:text-sm whitespace-nowrap border border-indigo-200/80 hover:border-indigo-300 transition-all duration-150 shadow-2xs active:scale-[0.98] group"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 group-hover:scale-110 transition-transform" />
+                <span>Register Free</span>
+              </Link>
             </div>
 
             {/* Micro-Trust Highlights - Tactile Bento Tiles */}
