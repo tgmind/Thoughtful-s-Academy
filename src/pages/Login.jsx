@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, GraduationCap, Mail, Lock } from 'lucide-react'
+import { motion } from 'framer-motion'
+import {
+  Eye, EyeOff, GraduationCap, Mail, Lock,
+  ArrowRight, ArrowLeft, ShieldCheck, Video,
+  BookOpen, MessageSquare, Sparkles
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -100,174 +105,321 @@ export default function Login() {
     }
   }
 
-  // Feature highlights displayed in glassmorphic cards (qualitative pillars)
-  const featureHighlights = [
-    { value: 'Live',    label: 'Classes' },
-    { value: 'Smart',   label: 'Study Cards' },
-    { value: 'Instant', label: 'Messaging' },
-  ]
-
-  // ---- Render ---------------------------------------------
   return (
-    <div className="min-h-screen flex">
-      {/* Left — branding panel (hidden on mobile) */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-navy-900 via-navy-800 to-indigo-900 p-12 relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-white/5" />
-        <div className="absolute -bottom-32 -right-16 w-96 h-96 rounded-full bg-brand-400/10" />
-        <div className="absolute top-1/2 right-8 w-40 h-40 rounded-full bg-white/5" />
-        <div className="absolute inset-0 opacity-5 pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* ─── LEFT: Editorial Branding Canvas (Deep Charcoal & Spotlight) ─── */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-1/2 p-12 xl:p-16 relative overflow-hidden text-white border-r border-white/10"
+        style={{
+          background: 'radial-gradient(ellipse 90% 70% at 20% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(30, 27, 75, 0.14) 40%, transparent 75%), linear-gradient(180deg, #09090b 0%, #111115 50%, #09090b 100%)',
+        }}
+      >
+        {/* Architectural Dot Matrix Texture */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.045]"
+          style={{
+            backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        />
 
+        {/* Ambient Spotlights */}
+        <div className="absolute top-10 left-10 w-80 h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Brand Header */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-400 rounded-xl flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-white" />
+          <Link to="/" className="inline-flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-bold shadow-xs shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+              <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="font-display font-bold text-white text-lg">{INSTITUTE_NAME}</span>
-          </div>
+            <div>
+              <span className="font-extrabold text-white text-base tracking-tight block">
+                {INSTITUTE_NAME}
+              </span>
+              <span className="text-[11px] text-[#a1a1aa] tracking-wide block">
+                Center for Science &amp; Mathematics
+              </span>
+            </div>
+          </Link>
         </div>
 
-        <div className="relative z-10">
-          <h2 className="font-display font-bold text-4xl text-white leading-tight mb-4">
-            Your path to<br />
-            <span className="text-brand-400">academic excellence</span><br />
+        {/* Hero Narrative */}
+        <div className="relative z-10 max-w-lg my-auto py-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Student &amp; Faculty Portal</span>
+          </div>
+
+          <h1 className="font-extrabold text-3xl sm:text-4xl xl:text-5xl text-white tracking-tight leading-[1.14] mb-4">
+            Your path to{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-indigo-200 to-white">
+              academic excellence
+            </span>{' '}
             starts here.
-          </h2>
-          <p className="text-navy-200 text-lg">{INSTITUTE_TAGLINE}</p>
+          </h1>
 
-          {/* Feature Highlights Cards (No numbers) */}
-          <div className="mt-10 grid grid-cols-3 gap-4">
-            {featureHighlights.map(s => (
-              <div key={s.label} className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm border border-white/10">
-                <p className="font-display font-bold text-2xl text-white">{s.value}</p>
-                <p className="text-navy-200 text-xs mt-0.5">{s.label}</p>
+          <p className="text-sm xl:text-base text-[#a1a1aa] leading-relaxed mb-8">
+            <span className="font-serif italic text-indigo-300 font-normal">
+              Empowering Concepts. Building Toppers.
+            </span>{' '}
+            {INSTITUTE_TAGLINE}
+          </p>
+
+          {/* Bento Feature Highlights */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2.5">
+                <Video className="w-4 h-4" />
               </div>
-            ))}
+              <p className="text-white font-bold text-sm tracking-tight">Live</p>
+              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Daily Classes</p>
+            </div>
+
+            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center justify-center mb-2.5">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <p className="text-white font-bold text-sm tracking-tight">Smart</p>
+              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Study Cards</p>
+            </div>
+
+            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center justify-center mb-2.5">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <p className="text-white font-bold text-sm tracking-tight">Instant</p>
+              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">1-on-1 Doubts</p>
+            </div>
           </div>
         </div>
 
-        <p className="relative z-10 text-navy-300 text-sm">
-          © {new Date().getFullYear()} {INSTITUTE_NAME}
-        </p>
+        {/* Footer info */}
+        <div className="relative z-10 flex items-center justify-between text-xs text-[#a1a1aa] border-t border-white/10 pt-6">
+          <span>© {new Date().getFullYear()} {INSTITUTE_NAME}</span>
+          <Link to="/" className="inline-flex items-center gap-1.5 text-indigo-300 hover:text-white transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" /> Return to Website
+          </Link>
+        </div>
       </div>
 
-      {/* Right — login form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-9 h-9 bg-navy-800 rounded-xl flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-display font-bold text-navy-900">{INSTITUTE_NAME}</span>
+      {/* ─── RIGHT: Form Area (Signature Parchment #f7f4ed Canvas) ─── */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 lg:p-12 relative overflow-hidden bg-[#f7f4ed]">
+        {/* Architectural Dot Matrix Texture */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.035]"
+          style={{
+            backgroundImage: 'radial-gradient(#1c1c1c 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        />
+
+        <div className="w-full max-w-md relative z-10">
+          {/* Mobile Top Navigation */}
+          <div className="flex items-center justify-between mb-6 lg:hidden">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#1c1c1c] text-[#fcfbf8] flex items-center justify-center font-bold shadow-xs">
+                <GraduationCap className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="font-extrabold text-[#1c1c1c] text-sm block leading-tight">
+                  {INSTITUTE_NAME}
+                </span>
+                <span className="text-[10px] text-[#5f5f5d] block leading-none">
+                  Student Portal
+                </span>
+              </div>
+            </Link>
+
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#d8d3c5] bg-white text-xs font-semibold text-[#1c1c1c] shadow-2xs hover:bg-[#fcfbf8] transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-[#5f5f5d]" />
+              <span>Home</span>
+            </Link>
           </div>
 
-          {resetMode ? (
-            // ---- Forgot password form ----
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-              <h2 className="font-display font-bold text-2xl text-navy-900">Reset Password</h2>
-              <p className="text-gray-500 text-sm mt-1 mb-6">
-                Enter your email and we&apos;ll send a reset link.
-              </p>
-              <form onSubmit={handleReset} className="space-y-4">
-                <div>
-                  <label className="label-base">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="email"
-                      value={resetEmail}
-                      onChange={e => setResetEmail(e.target.value)}
-                      placeholder="you@email.com"
-                      className="input-base pl-10"
-                    />
-                  </div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          >
+            {resetMode ? (
+              /* ── Reset Password Card ── */
+              <div className="bg-white rounded-3xl border border-[#e2ddd1] p-7 sm:p-9 shadow-[0_12px_36px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-indigo-50 border border-indigo-200/80 text-indigo-950 shadow-2xs">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Account Recovery</span>
+                  </span>
                 </div>
-                <button type="submit" disabled={resetLoading} className="btn-primary w-full">
-                  {resetLoading ? <LoadingSpinner size="sm" /> : 'Send Reset Link'}
+
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1c1c1c] tracking-tight">
+                  Reset Password
+                </h2>
+                <p className="text-xs sm:text-sm text-[#5f5f5d] mt-1 mb-6 leading-relaxed">
+                  Enter your registered email address and we&apos;ll send you a secure password reset link.
+                </p>
+
+                <form onSubmit={handleReset} className="space-y-4">
+                  <div>
+                    <label htmlFor="reset-email" className="block text-xs font-bold text-[#1c1c1c] uppercase tracking-wider mb-1.5">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9ca3af]" />
+                      <input
+                        id="reset-email"
+                        type="email"
+                        value={resetEmail}
+                        onChange={e => setResetEmail(e.target.value)}
+                        placeholder="you@email.com"
+                        className="w-full rounded-xl border border-[#d8d3c5] bg-[#fcfbf8] hover:border-[#1c1c1c]/40 pl-10 pr-3.5 py-2.5 sm:py-3 text-sm text-[#1c1c1c] placeholder:text-[#9ca3af] focus:bg-white focus:border-[#1c1c1c] focus:ring-2 focus:ring-[#1c1c1c]/10 transition-all outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="w-full inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-[#1c1c1c] hover:bg-[#2c2c2c] text-[#fcfbf8] font-semibold text-sm transition-all duration-150 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),inset_0px_0px_0px_0.5px_rgba(0,0,0,0.2),0px_4px_12px_rgba(0,0,0,0.12)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
+                  >
+                    {resetLoading ? <LoadingSpinner size="sm" /> : 'Send Reset Link'}
+                  </button>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => setResetMode(false)}
+                  className="mt-5 w-full text-center text-xs font-semibold text-[#5f5f5d] hover:text-[#1c1c1c] transition-colors inline-flex items-center justify-center gap-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back to login
                 </button>
-              </form>
-              <button
-                type="button"
-                onClick={() => setResetMode(false)}
-                className="mt-4 w-full text-center text-sm text-gray-500 hover:text-gray-700"
-              >
-                ← Back to login
-              </button>
-            </div>
-          ) : (
-            // ---- Main login form ----
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-              <h2 className="font-display font-bold text-2xl text-navy-900">Welcome back</h2>
-              <p className="text-gray-500 text-sm mt-1 mb-6">
-                Log in to your account to continue.
-              </p>
-
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label htmlFor="email" className="label-base">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="you@email.com"
-                      autoComplete="email"
-                      className={`input-base pl-10 ${errors.email ? 'border-red-400' : ''}`}
-                    />
-                  </div>
-                  {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
+              </div>
+            ) : (
+              /* ── Main Login Card ── */
+              <div className="bg-white rounded-3xl border border-[#e2ddd1] p-7 sm:p-9 shadow-[0_12px_36px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)]">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-indigo-50 border border-indigo-200/80 text-indigo-950 shadow-2xs">
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Verified Access</span>
+                  </span>
+                  <span className="text-[11px] text-[#5f5f5d] font-medium hidden sm:inline">
+                    Secure 256-bit
+                  </span>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label htmlFor="password" className="label-base mb-0">Password</label>
-                    <button
-                      type="button"
-                      onClick={() => setResetMode(true)}
-                      className="text-xs text-navy-700 hover:underline font-medium"
-                    >
-                      Forgot password?
-                    </button>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1c1c1c] tracking-tight">
+                  Welcome back
+                </h2>
+                <p className="text-xs sm:text-sm text-[#5f5f5d] mt-1 mb-6 leading-relaxed">
+                  Log in to access your classes, study cards, and live batches.
+                </p>
+
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className="block text-xs font-bold text-[#1c1c1c] uppercase tracking-wider mb-1.5">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9ca3af]" />
+                      <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="you@email.com"
+                        autoComplete="email"
+                        className={`w-full rounded-xl border ${
+                          errors.email ? 'border-red-400 bg-red-50/20' : 'border-[#d8d3c5] bg-[#fcfbf8] hover:border-[#1c1c1c]/40'
+                        } pl-10 pr-3.5 py-2.5 sm:py-3 text-sm text-[#1c1c1c] placeholder:text-[#9ca3af] focus:bg-white focus:border-[#1c1c1c] focus:ring-2 focus:ring-[#1c1c1c]/10 transition-all outline-none`}
+                      />
+                    </div>
+                    {errors.email && <p className="mt-1 text-xs text-red-500 font-medium">{errors.email}</p>}
                   </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      id="password"
-                      type={showPw ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Your password"
-                      autoComplete="current-password"
-                      className={`input-base pl-10 pr-10 ${errors.password ? 'border-red-400' : ''}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPw(s => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor="password" className="block text-xs font-bold text-[#1c1c1c] uppercase tracking-wider">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setResetMode(true)}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9ca3af]" />
+                      <input
+                        id="password"
+                        type={showPw ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Your password"
+                        autoComplete="current-password"
+                        className={`w-full rounded-xl border ${
+                          errors.password ? 'border-red-400 bg-red-50/20' : 'border-[#d8d3c5] bg-[#fcfbf8] hover:border-[#1c1c1c]/40'
+                        } pl-10 pr-10 py-2.5 sm:py-3 text-sm text-[#1c1c1c] placeholder:text-[#9ca3af] focus:bg-white focus:border-[#1c1c1c] focus:ring-2 focus:ring-[#1c1c1c]/10 transition-all outline-none`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(s => !s)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#1c1c1c] transition-colors p-0.5"
+                        aria-label={showPw ? 'Hide password' : 'Show password'}
+                      >
+                        {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.password && <p className="mt-1 text-xs text-red-500 font-medium">{errors.password}</p>}
                   </div>
-                  {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-[#1c1c1c] hover:bg-[#2c2c2c] text-[#fcfbf8] font-semibold text-sm transition-all duration-150 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),inset_0px_0px_0px_0.5px_rgba(0,0,0,0.2),0px_4px_12px_rgba(0,0,0,0.12)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer mt-2"
+                  >
+                    {loading ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <>
+                        <span>Log In</span>
+                        <ArrowRight className="w-4 h-4 text-[#fcfbf8]/60 group-hover:translate-x-0.5 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="mt-6 pt-5 border-t border-[#e2ddd1] text-center">
+                  <p className="text-xs sm:text-sm text-[#5f5f5d]">
+                    Don&apos;t have an account?{' '}
+                    <Link to="/register" className="font-bold text-indigo-700 hover:text-indigo-900 transition-colors">
+                      Register now →
+                    </Link>
+                  </p>
                 </div>
+              </div>
+            )}
+          </motion.div>
 
-                <button type="submit" disabled={loading} className="btn-primary w-full">
-                  {loading ? <LoadingSpinner size="sm" /> : 'Log In'}
-                </button>
-              </form>
-
-              <p className="text-center text-sm text-gray-500 mt-6">
-                Don&apos;t have an account?{' '}
-                <Link to="/register" className="font-semibold text-navy-800 hover:underline">
-                  Register now
-                </Link>
-              </p>
+          {/* Mobile Micro-Trust Tiles */}
+          <div className="grid grid-cols-3 gap-2 mt-6 lg:hidden">
+            <div className="p-2.5 rounded-xl bg-white/80 border border-[#e2ddd1] text-center shadow-2xs">
+              <Video className="w-3.5 h-3.5 text-emerald-600 mx-auto mb-1" />
+              <p className="text-[11px] font-bold text-[#1c1c1c]">Live Classes</p>
             </div>
-          )}
+            <div className="p-2.5 rounded-xl bg-white/80 border border-[#e2ddd1] text-center shadow-2xs">
+              <BookOpen className="w-3.5 h-3.5 text-indigo-600 mx-auto mb-1" />
+              <p className="text-[11px] font-bold text-[#1c1c1c]">Smart Notes</p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/80 border border-[#e2ddd1] text-center shadow-2xs">
+              <MessageSquare className="w-3.5 h-3.5 text-purple-600 mx-auto mb-1" />
+              <p className="text-[11px] font-bold text-[#1c1c1c]">1-on-1 Doubts</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
