@@ -216,7 +216,7 @@ export default function Register() {
     <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row overflow-x-hidden">
       {/* ─── LEFT: Editorial Branding Canvas (Deep Charcoal & Spotlights) ─── */}
       <div
-        className="hidden lg:flex flex-col justify-between w-1/2 p-12 xl:p-16 relative overflow-hidden text-white border-r border-white/10 shrink-0"
+        className="hidden lg:flex flex-col justify-between w-1/2 p-10 xl:p-14 2xl:p-16 relative overflow-hidden text-white border-r border-white/10 shrink-0"
         style={{
           background: 'radial-gradient(ellipse 90% 70% at 20% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(30, 27, 75, 0.14) 40%, transparent 75%), linear-gradient(180deg, #09090b 0%, #111115 50%, #09090b 100%)',
         }}
@@ -252,7 +252,7 @@ export default function Register() {
         </div>
 
         {/* Narrative Section */}
-        <div className="relative z-10 max-w-lg my-auto py-8">
+        <div className="relative z-10 max-w-lg my-auto py-6 sm:py-8 origin-left scale-105 xl:scale-110">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Admissions Open 2025–26</span>
