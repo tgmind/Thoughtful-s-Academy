@@ -770,30 +770,29 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] overflow-x-hidden"
-      style={{ zoom: 1.2 }}
+      className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] overflow-x-hidden md:[zoom:1.2]"
     >
 
       {/* ════════════ TOP NAVIGATION BAR ════════════ */}
       <header className="sticky top-0 z-40 bg-[#f7f4ed]/95 backdrop-blur-md border-b border-[#e7e4dc]">
-        <div className={`${CONTAINER} h-16 flex items-center justify-between gap-4`}>
+        <div className={`${CONTAINER} h-16 flex items-center justify-between gap-2 sm:gap-4`}>
           
           {/* Left: Brand Identity */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-[#1c1c1c] text-[#fcfbf8] flex items-center justify-center font-bold shadow-xs">
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 min-w-0 group">
+            <div className="w-8 h-8 rounded-lg bg-[#1c1c1c] text-[#fcfbf8] flex items-center justify-center font-bold shadow-xs shrink-0">
               <GraduationCap className="w-4.5 h-4.5" />
             </div>
-            <span className="font-semibold text-base text-[#1c1c1c] tracking-tight group-hover:opacity-80 transition-opacity">
+            <span className="font-semibold text-sm sm:text-base text-[#1c1c1c] tracking-tight truncate group-hover:opacity-80 transition-opacity">
               {INSTITUTE_NAME}
             </span>
           </Link>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <InstallHeaderButton />
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#1c1c1c]/25 hover:border-[#1c1c1c] text-[#1c1c1c] text-xs font-medium transition-colors bg-white/60"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg border border-[#1c1c1c]/25 hover:border-[#1c1c1c] text-[#1c1c1c] text-xs font-medium transition-colors bg-white/60"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Login</span>
