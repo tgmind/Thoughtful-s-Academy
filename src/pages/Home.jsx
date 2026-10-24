@@ -769,7 +769,10 @@ export default function Home() {
   const hasNew = notifications.some(n => isNew(n.created_at))
 
   return (
-    <div className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8]">
+    <div
+      className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] overflow-x-hidden"
+      style={{ zoom: 1.2 }}
+    >
 
       {/* ════════════ TOP NAVIGATION BAR ════════════ */}
       <header className="sticky top-0 z-40 bg-[#f7f4ed]/95 backdrop-blur-md border-b border-[#e7e4dc]">
