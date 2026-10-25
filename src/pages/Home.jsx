@@ -667,6 +667,8 @@ export default function Home() {
   const [totalCards,    setTotalCards]    = useState(0)
   const [loading,       setLoading]       = useState(true)
   const [cols,          setCols]          = useState(2)
+  const [mobileHeroCard, setMobileHeroCard] = useState('graviton')
+  const [activeDesktopCard, setActiveDesktopCard] = useState('graviton')
   const featRef = useRef(null)
 
   useEffect(() => {
@@ -903,10 +905,10 @@ export default function Home() {
           }}
         />
 
-        <div className={`${CONTAINER} relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-14 items-center`}>
+        <div className={`${CONTAINER} relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-8 xl:gap-12 items-center`}>
           
           {/* LEFT: Editorial Headline & Actions */}
-          <div className="lg:col-span-7 text-center lg:text-left space-y-4 sm:space-y-6">
+          <div className="lg:col-span-6 text-center lg:text-left space-y-4 sm:space-y-6">
             
             {/* Top Pill Tag - Refined, single-line responsive pill */}
             <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-[#dcd7cb] bg-gradient-to-r from-white via-[#fcfbf9] to-white backdrop-blur-sm text-[11px] sm:text-xs text-[#1c1c1c] shadow-xs max-w-full">
@@ -914,9 +916,9 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="font-semibold tracking-tight">Center for Science &amp; Mathematics</span>
+              <span className="font-semibold tracking-tight">Academic Excellence</span>
               <span className="text-[#5f5f5d]/50">·</span>
-              <span className="text-indigo-950 font-semibold whitespace-nowrap">Batch 2025–26</span>
+              <span className="text-indigo-950 font-semibold whitespace-nowrap">Conceptual Mastery</span>
             </div>
 
             {/* Display Headline */}

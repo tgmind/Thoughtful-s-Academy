@@ -146,7 +146,7 @@ describe('Public Landing Page & Batch Details Redesign (Mobbin & Vercel Aestheti
     expect(screen.getAllByText(/Graviton/i).length).toBeGreaterThan(0)
 
     // The hero emblem should render Academy brand text
-    expect(screen.getByText(/Center for Science & Mathematics/i)).toBeInTheDocument()
+    expect(screen.getByText(/Academic Excellence/i)).toBeInTheDocument()
 
     // Must NOT render old personal image or founder photo
     expect(screen.queryByAltText(/Founder/i)).not.toBeInTheDocument()
