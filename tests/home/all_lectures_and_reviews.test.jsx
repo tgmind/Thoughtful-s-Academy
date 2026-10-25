@@ -20,7 +20,7 @@ const mockBatches = [
 
 describe('All Lectures & Desktop Reviews Suite', () => {
   describe('AllLecturesSection', () => {
-    it('renders single unified header and both desktop grid & mobile swipe view', () => {
+    it('renders single unified header and maximum 4 cards on mobile with symmetrical pagination and NO horizontal swipe', () => {
       render(
         <MemoryRouter>
           <AllLecturesSection
@@ -43,17 +43,21 @@ describe('All Lectures & Desktop Reviews Suite', () => {
       expect(screen.getByText('All lectures')).toBeInTheDocument()
       expect(screen.getByText('6 Curated Lessons')).toBeInTheDocument()
 
-      // Desktop section contains all cards
+      // Desktop section contains cards
       expect(screen.getAllByText('Newton Laws of Motion').length).toBeGreaterThanOrEqual(1)
-      expect(screen.getAllByText('Modern Physics & Dual Nature').length).toBeGreaterThanOrEqual(1)
 
-      // Mobile swipe section is present for cards 5+
-      expect(screen.getByText('More in this Batch')).toBeInTheDocument()
-      expect(screen.getByText('+2 more')).toBeInTheDocument()
-      expect(screen.getByText(/Swipe horizontally to explore/i)).toBeInTheDocument()
+      // Verified that old horizontal swipe view is completely removed
+      expect(screen.queryByText('More in this Batch')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Swipe horizontally to explore/i)).not.toBeInTheDocument()
+
+      // Mobile symmetrical pagination controls are present
+      expect(screen.getByText(/Showing 1–4 of 6 lectures/i)).toBeInTheDocument()
+      expect(screen.getByText('1 / 2')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 2' })).toBeInTheDocument()
     })
 
-    it('does not display mobile swipe section when total cards <= 4', () => {
+    it('does not display mobile pagination when total cards <= 4', () => {
       const fourCards = mockCards.slice(0, 4)
       render(
         <MemoryRouter>
@@ -75,8 +79,9 @@ describe('All Lectures & Desktop Reviews Suite', () => {
       )
 
       expect(screen.getByText('All lectures')).toBeInTheDocument()
+      expect(screen.queryByText(/Showing 1–4 of/i)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Go to page 1' })).not.toBeInTheDocument()
       expect(screen.queryByText('More in this Batch')).not.toBeInTheDocument()
-      expect(screen.queryByText(/more$/i)).not.toBeInTheDocument()
     })
   })
 

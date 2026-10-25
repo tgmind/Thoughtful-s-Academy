@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Sparkles, ChevronLeft, ChevronRight, Layers, MoveRight } from 'lucide-react'
-import LectureCard from './LectureCard'
+import { motion } from 'framer-motion'
+import { BookOpen, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 import SkeletonCard from './SkeletonCard'
+import AllLecturesDesktop from './AllLecturesDesktop'
+import AllLecturesMobile from './AllLecturesMobile'
 
 export default function AllLecturesSection({
   cards = [],
@@ -19,53 +19,6 @@ export default function AllLecturesSection({
   getCardWidthClass,
   sectionRef,
 }) {
-  const [activeSwipeIdx, setActiveSwipeIdx] = useState(0)
-  const swipeRef = useRef(null)
-
-  // Mobile: maximum 4 lectures in vertical/symmetrical grid
-  const topCards = cards.slice(0, 4)
-  // Mobile: remaining lectures in clever horizontal swipe view
-  const swipeCards = cards.slice(4)
-
-  useEffect(() => {
-    setActiveSwipeIdx(0)
-    if (swipeRef.current) {
-      swipeRef.current.scrollLeft = 0
-    }
-  }, [activeBatch])
-
-  const handleSwipeScroll = () => {
-    if (!swipeRef.current) return
-    const el = swipeRef.current
-    const cardWidth = 285
-    const idx = Math.round(el.scrollLeft / cardWidth)
-    setActiveSwipeIdx(Math.min(swipeCards.length - 1, Math.max(0, idx)))
-  }
-
-  const scrollSwipe = (direction) => {
-    if (!swipeRef.current) return
-    const cardWidth = 285
-    swipeRef.current.scrollBy({
-      left: direction * cardWidth,
-      behavior: 'smooth',
-    })
-  }
-
-  const scrollToCard = (index) => {
-    if (!swipeRef.current) return
-    const cardWidth = 285
-    swipeRef.current.scrollTo({
-      left: index * cardWidth,
-      behavior: 'smooth',
-    })
-  }
-
-  const getMobileCardWidthClass = (count) => {
-    if (count === 1) return 'w-full max-w-md mx-auto'
-    if (count === 2 || count === 4) return 'w-full sm:w-[calc(50%-10px)] max-w-[420px]'
-    return 'w-full sm:w-[calc(50%-10px)] max-w-[420px]'
-  }
-
   return (
     <section
       id="all-lectures"
@@ -111,6 +64,7 @@ export default function AllLecturesSection({
             </p>
           </div>
 
+          {/* Desktop compact header pager (kept 100% intact for desktop view) */}
           {totalPages > 1 && (
             <div className="hidden lg:flex items-center gap-1.5 self-end sm:self-auto bg-white p-1 rounded-xl border border-[#e2ddd1] shadow-2xs">
               <motion.button
@@ -199,186 +153,21 @@ export default function AllLecturesSection({
         </div>
       ) : (
         <>
-          {/* ════════════ DESKTOP VIEW (hidden lg:block): 100% UNTOUCHED & IDENTICAL ════════════ */}
-          <div className="hidden lg:block">
-            <motion.div
-              layout
-              className="flex flex-wrap justify-center gap-5 sm:gap-6 items-stretch pt-2 pb-2 relative z-10"
-            >
-              <AnimatePresence mode="popLayout">
-                {visibleCards.map((card, idx) => (
-                  <motion.div
-                    key={card.id}
-                    layout
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 300,
-                      damping: 26,
-                      delay: idx * 0.04,
-                    }}
-                    className={`${getCardWidthClass ? getCardWidthClass(visibleCards.length) : 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[430px]'} flex flex-col`}
-                  >
-                    <LectureCard card={card} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
+          {/* Desktop View (hidden lg:block): 100% untouched & identical */}
+          <AllLecturesDesktop
+            visibleCards={visibleCards}
+            getCardWidthClass={getCardWidthClass}
+            totalPages={totalPages}
+            page={page}
+            setPage={setPage}
+          />
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-1.5 mt-10 relative z-10">
-                <motion.button
-                  whileTap={{ scale: 0.92 }}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-2 rounded-xl border border-[#e2ddd1] bg-white hover:border-[#1c1c1c] text-[#1c1c1c] disabled:opacity-30 transition-colors cursor-pointer shadow-2xs"
-                  title="Previous page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </motion.button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <motion.button
-                    key={i}
-                    whileTap={{ scale: 0.92 }}
-                    onClick={() => setPage(i + 1)}
-                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      page === i + 1
-                        ? 'bg-[#1c1c1c] text-[#fcfbf8] shadow-xs'
-                        : 'bg-white border border-[#e2ddd1] text-[#1c1c1c] hover:border-[#1c1c1c]'
-                    }`}
-                  >
-                    {i + 1}
-                  </motion.button>
-                ))}
-                <motion.button
-                  whileTap={{ scale: 0.92 }}
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-2 rounded-xl border border-[#e2ddd1] bg-white hover:border-[#1c1c1c] text-[#1c1c1c] disabled:opacity-30 transition-colors cursor-pointer shadow-2xs"
-                  title="Next page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </motion.button>
-              </div>
-            )}
-          </div>
-
-          {/* ════════════ MOBILE VIEW (lg:hidden): MAX 4 CARDS + HORIZONTAL SWIPE FOR REMAINING ════════════ */}
-          <div className="lg:hidden relative z-10 space-y-6">
-            {/* Primary symmetrical grid: Maximum 4 lectures */}
-            <motion.div
-              layout
-              className="flex flex-wrap justify-center gap-4 sm:gap-5 items-stretch"
-            >
-              <AnimatePresence mode="popLayout">
-                {topCards.map((card, idx) => (
-                  <motion.div
-                    key={card.id}
-                    layout
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 300,
-                      damping: 26,
-                      delay: idx * 0.04,
-                    }}
-                    className={`${getMobileCardWidthClass(topCards.length)} flex flex-col`}
-                  >
-                    <LectureCard card={card} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-
-            {/* Horizontal swipe view for remaining lectures (Cards 5+) */}
-            {swipeCards.length > 0 && (
-              <div className="pt-5 border-t border-[#e8e2d5]">
-                {/* Swipe Sub-Header */}
-                <div className="flex items-center justify-between mb-3.5 px-0.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-700 shadow-2xs">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-xs sm:text-sm text-[#1c1c1c] tracking-tight flex items-center gap-1.5">
-                        <span>More in this Batch</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                          +{swipeCards.length} more
-                        </span>
-                      </h3>
-                      <p className="text-[10px] text-[#71717a] flex items-center gap-1">
-                        <span>Swipe horizontally to explore</span>
-                        <MoveRight className="w-2.5 h-2.5 text-indigo-500" />
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Carousel navigation buttons */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => scrollSwipe(-1)}
-                      disabled={activeSwipeIdx === 0}
-                      aria-label="Previous swipe card"
-                      className="w-7 h-7 rounded-lg border border-[#ded8cb] bg-white hover:bg-[#f7f4ed] disabled:opacity-30 text-[#1c1c1c] flex items-center justify-center shadow-2xs active:scale-95 transition-all cursor-pointer"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => scrollSwipe(1)}
-                      disabled={activeSwipeIdx === swipeCards.length - 1}
-                      aria-label="Next swipe card"
-                      className="w-7 h-7 rounded-lg border border-[#ded8cb] bg-white hover:bg-[#f7f4ed] disabled:opacity-30 text-[#1c1c1c] flex items-center justify-center shadow-2xs active:scale-95 transition-all cursor-pointer"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Smooth Touch Snap Carousel */}
-                <div
-                  ref={swipeRef}
-                  onScroll={handleSwipeScroll}
-                  className="overflow-x-auto pt-1 pb-3 -mx-4 px-4 sm:-mx-6 sm:px-6 snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
-                >
-                  <div className="flex gap-3.5 py-1" style={{ width: 'max-content' }}>
-                    {swipeCards.map((card, idx) => (
-                      <div
-                        key={card.id || idx}
-                        className="w-[78vw] max-w-[285px] sm:w-[310px] flex-shrink-0 snap-start flex flex-col"
-                      >
-                        <LectureCard card={card} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Symmetrical Dot Indicators for Swipe Cards */}
-                {swipeCards.length > 1 && (
-                  <div className="flex items-center justify-center gap-1.5 mt-2">
-                    {swipeCards.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => scrollToCard(i)}
-                        aria-label={`Go to swipe card ${i + 1}`}
-                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                          activeSwipeIdx === i
-                            ? 'w-5 bg-[#1c1c1c]'
-                            : 'w-1.5 bg-[#d4cebf] hover:bg-[#a8a193]'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Mobile View (lg:hidden): Max 4 cards per page with symmetrical pagination */}
+          <AllLecturesMobile
+            cards={cards}
+            activeBatch={activeBatch}
+            sectionRef={sectionRef}
+          />
         </>
       )}
     </section>
