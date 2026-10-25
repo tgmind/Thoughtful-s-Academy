@@ -653,6 +653,111 @@ function WhatsOnCard({ notifications, isNew, hasNew, isMobile = false }) {
   )
 }
 
+// ─── TRUST & METHODOLOGY STRIP (Color-Accented Cards) ─────────────────────────
+
+const TRUST_CARDS = [
+  {
+    icon: Video,
+    iconBg: 'bg-blue-600',
+    border: 'border-sky-100 hover:border-sky-300',
+    bg: 'bg-gradient-to-br from-sky-50/80 to-white',
+    title: 'Live & Recorded Classes',
+    desc: 'Attend daily interactive lectures live or stream unlimited 1080p replays at your own pace.',
+  },
+  {
+    icon: MessageSquare,
+    iconBg: 'bg-indigo-600',
+    border: 'border-indigo-100 hover:border-indigo-300',
+    bg: 'bg-gradient-to-br from-indigo-50/80 to-white',
+    title: 'Personal Doubt Support',
+    desc: 'Message your educator directly or ask doubts during video playback for prompt resolution.',
+  },
+  {
+    icon: BookOpen,
+    iconBg: 'bg-emerald-600',
+    border: 'border-emerald-100 hover:border-emerald-300',
+    bg: 'bg-gradient-to-br from-emerald-50/80 to-white',
+    title: 'Handwritten Notes & DPPs',
+    desc: 'Concise formula sheets, chapter notes, and daily practice problem cards for exam readiness.',
+  },
+  {
+    icon: CheckCircle2,
+    iconBg: 'bg-rose-600',
+    border: 'border-rose-100 hover:border-rose-300',
+    bg: 'bg-gradient-to-br from-rose-50/80 to-white',
+    title: 'Consistency & Attendance',
+    desc: 'Daily streak tracking, attendance gauges, and homework deadlines to foster peak consistency.',
+  },
+]
+
+function TrustMethodologyStrip() {
+  const scrollRef = useRef(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const cardStep = 270
+    const idx = Math.round(el.scrollLeft / cardStep)
+    setActiveIdx(Math.min(Math.max(0, idx), TRUST_CARDS.length - 1))
+  }
+
+  const scrollToCard = (i) => {
+    const el = scrollRef.current
+    if (!el) return
+    const cardStep = 270
+    el.scrollTo({ left: i * cardStep, behavior: 'smooth' })
+  }
+
+  return (
+    <section className="py-10 sm:py-16 border-b border-[#e7e4dc] bg-white overflow-hidden">
+      <div className={CONTAINER}>
+        {/* Track: Horizontal swipe carousel on mobile (<sm), 4-col responsive grid on tablet/desktop (>=sm) */}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x -mx-4 px-4 sm:mx-0 sm:px-0 py-1 sm:py-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
+        >
+          {TRUST_CARDS.map((card) => {
+            const Icon = card.icon
+            return (
+              <div
+                key={card.title}
+                className={`p-5 rounded-2xl border ${card.border} ${card.bg} transition-all shadow-2xs hover:shadow-sm flex flex-col justify-between w-[78vw] max-w-[280px] xs:w-[260px] shrink-0 sm:w-auto sm:shrink sm:max-w-none snap-start`}
+              >
+                <div>
+                  <div className={`w-10 h-10 rounded-xl ${card.iconBg} text-white flex items-center justify-center mb-3 shadow-xs`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-semibold text-sm text-[#1c1c1c] mb-1">{card.title}</h3>
+                  <p className="text-xs text-[#5f5f5d] leading-relaxed">
+                    {card.desc}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Mobile Swipe Pagination Indicator Dots (Hidden on sm and larger) */}
+        <div className="flex sm:hidden items-center justify-center gap-1.5 mt-3 pt-1">
+          {TRUST_CARDS.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => scrollToCard(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                activeIdx === i ? 'w-5 bg-[#1c1c1c]' : 'w-1.5 bg-[#1c1c1c]/20'
+              }`}
+              aria-label={`Go to card ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── MAIN HOME COMPONENT ──────────────────────────────────────────────────────
 
 export default function Home() {
@@ -998,82 +1103,168 @@ export default function Home() {
             </div>
           </div>
 
-          {/* RIGHT: High-Craft 3-Card Physics Deck (Einstein, Graviton Academy, Feynman) */}
-          <div className="lg:col-span-5 flex justify-center lg:justify-end">
-            <div className="relative w-full max-w-[340px] xs:max-w-[380px] sm:max-w-[490px] lg:max-w-[530px] mx-auto group/deck">
+          {/* RIGHT: Modern High-Craft 3-Card Physics Triad (Symmetrical, Independent Desktop & Mobile) */}
+          <div className="lg:col-span-6 flex flex-col items-center lg:items-end justify-center">
+            
+            {/* ─── DESKTOP / LAPTOP PRESENTATION (hidden sm:block) ─── */}
+            <div className="hidden sm:block relative w-full max-w-[550px] lg:max-w-[590px] group/deck">
               
-              {/* Ambient soft glow aura behind the deck */}
-              <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/15 via-sky-400/10 to-amber-300/10 rounded-3xl blur-2xl opacity-70 pointer-events-none" />
+              {/* Multi-spectral ambient glow aura */}
+              <div className="absolute -inset-6 bg-gradient-to-tr from-amber-500/10 via-sky-400/15 to-indigo-500/15 rounded-3xl blur-3xl opacity-75 pointer-events-none" />
 
-              {/* 3-Card Fanned Staging Area */}
-              <div className="relative flex items-center justify-center pt-2 sm:pt-4 pb-2">
+              {/* 3-Card Symmetrical Fanned Gallery Stage */}
+              <div className="relative h-[340px] lg:h-[360px] flex items-center justify-center select-none pt-2">
                 
-                {/* ─── CARD 1 (LEFT SUBSIDIARY): ALBERT EINSTEIN (Theoretical Physics Wing) ─── */}
-                <div 
-                  className="absolute left-0 xs:left-1 sm:left-0 lg:left-1 top-4 xs:top-5 sm:top-6 lg:top-7 z-10 w-[115px] xs:w-[130px] sm:w-[185px] lg:w-[195px] -rotate-[6deg] xs:-rotate-[7deg] sm:-rotate-[7deg] lg:-rotate-[8deg] translate-y-2 sm:translate-y-5 lg:translate-y-6 rounded-2xl sm:rounded-3xl border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-1 sm:p-2 shadow-[0_12px_32px_rgba(28,28,28,0.10),0_2px_6px_rgba(0,0,0,0.04)] transition-all duration-500 ease-out group-hover/deck:sm:-translate-x-3 group-hover/deck:sm:-rotate-[9deg] group-hover/deck:sm:translate-y-4 select-none hover:z-30 hover:scale-[1.03]"
+                {/* ─── CARD 1: ALBERT EINSTEIN (Theoretical Physics) ─── */}
+                <motion.div
+                  initial={{ opacity: 0, x: -35, y: 30, rotate: -10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    x: 0, 
+                    y: [0, -6, 0], 
+                    rotate: activeDesktopCard === 'einstein' ? 0 : -6,
+                    scale: activeDesktopCard === 'einstein' ? 1.04 : 1,
+                    zIndex: activeDesktopCard === 'einstein' ? 30 : 10,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.6, ease: 'easeOut' },
+                    x: { duration: 0.6, ease: 'easeOut' },
+                    rotate: { duration: 0.4 },
+                    scale: { duration: 0.4 },
+                    y: { repeat: Infinity, duration: 4.8, ease: 'easeInOut' }
+                  }}
+                  whileHover={{ 
+                    scale: 1.06, 
+                    rotate: 0, 
+                    zIndex: 35, 
+                    y: -10,
+                    transition: { type: 'spring', stiffness: 350, damping: 22 }
+                  }}
+                  onClick={() => setActiveDesktopCard('einstein')}
+                  className={`absolute left-0 lg:left-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
+                    activeDesktopCard === 'einstein' 
+                      ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.25)] ring-2 ring-amber-400/30' 
+                      : 'border-[#dfdbcf] shadow-[0_16px_40px_rgba(28,28,28,0.12),0_2px_6px_rgba(0,0,0,0.04)]'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
                   style={{ transformOrigin: 'bottom center' }}
                 >
-                  <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] bg-slate-950 border border-white/10">
+                  <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/einstein">
                     <img
                       src="/einstein.png"
                       alt="Albert Einstein — Theoretical Physics"
-                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-500 group-hover/deck:scale-105"
-                      style={{ objectPosition: '70% 15%' }}
+                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-700 group-hover/einstein:scale-105"
+                      style={{ objectPosition: '55% 15%' }}
                     />
-                    {/* Vignette */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
 
                     {/* Top Outer Badge: Theoretical Rigor */}
-                    <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/30 text-amber-300 text-[8px] xs:text-[9px] sm:text-[10px] font-bold shadow-xs">
-                      <Sparkles className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-amber-400 fill-amber-400" />
+                    <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] font-bold shadow-xs">
+                      <Sparkles className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
                       <span>E = mc²</span>
                     </div>
 
-                    {/* Bottom Subsidiary Plaque */}
-                    <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-2 sm:right-2 p-1.5 sm:p-2 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 text-white">
-                      <p className="text-[9px] xs:text-[10px] sm:text-[11px] font-bold leading-tight truncate">Albert Einstein</p>
-                      <p className="text-[7.5px] xs:text-[8px] sm:text-[9px] text-amber-300/90 font-mono leading-none mt-0.5 truncate">Relativity &amp; Rigor</p>
+                    {/* Bottom Identity Plaque */}
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold leading-tight truncate">Albert Einstein</p>
+                        <span className="text-[9px] font-mono text-amber-300/90 font-semibold px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-400/25">Theory</span>
+                      </div>
+                      <p className="text-[10px] text-amber-200/80 font-mono mt-0.5 leading-none truncate">Relativity &amp; Rigor</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                {/* ─── CARD 3 (RIGHT SUBSIDIARY): RICHARD FEYNMAN (Quantum Physics Wing) ─── */}
-                <div 
-                  className="absolute right-0 xs:right-1 sm:right-0 lg:right-1 top-4 xs:top-5 sm:top-6 lg:top-7 z-10 w-[115px] xs:w-[130px] sm:w-[185px] lg:w-[195px] rotate-[6deg] xs:rotate-[7deg] sm:rotate-[7deg] lg:rotate-[8deg] translate-y-2 sm:translate-y-5 lg:translate-y-6 rounded-2xl sm:rounded-3xl border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-1 sm:p-2 shadow-[0_12px_32px_rgba(28,28,28,0.10),0_2px_6px_rgba(0,0,0,0.04)] transition-all duration-500 ease-out group-hover/deck:sm:translate-x-3 group-hover/deck:sm:rotate-[9deg] group-hover/deck:sm:translate-y-4 select-none hover:z-30 hover:scale-[1.03]"
+                {/* ─── CARD 3: RICHARD FEYNMAN (Quantum Physics) ─── */}
+                <motion.div
+                  initial={{ opacity: 0, x: 35, y: 30, rotate: 10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    x: 0, 
+                    y: [0, -6, 0], 
+                    rotate: activeDesktopCard === 'feynman' ? 0 : 6,
+                    scale: activeDesktopCard === 'feynman' ? 1.04 : 1,
+                    zIndex: activeDesktopCard === 'feynman' ? 30 : 10,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.6, ease: 'easeOut', delay: 0.15 },
+                    x: { duration: 0.6, ease: 'easeOut', delay: 0.15 },
+                    rotate: { duration: 0.4 },
+                    scale: { duration: 0.4 },
+                    y: { repeat: Infinity, duration: 4.6, ease: 'easeInOut', delay: 0.6 }
+                  }}
+                  whileHover={{ 
+                    scale: 1.06, 
+                    rotate: 0, 
+                    zIndex: 35, 
+                    y: -10,
+                    transition: { type: 'spring', stiffness: 350, damping: 22 }
+                  }}
+                  onClick={() => setActiveDesktopCard('feynman')}
+                  className={`absolute right-0 lg:right-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
+                    activeDesktopCard === 'feynman' 
+                      ? 'border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.25)] ring-2 ring-cyan-400/30' 
+                      : 'border-[#dfdbcf] shadow-[0_16px_40px_rgba(28,28,28,0.12),0_2px_6px_rgba(0,0,0,0.04)]'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
                   style={{ transformOrigin: 'bottom center' }}
                 >
-                  <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] bg-slate-950 border border-white/10">
+                  <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/feynman">
                     <img
                       src="/Richard.png"
                       alt="Richard Feynman — Quantum Physics"
-                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-500 group-hover/deck:scale-105"
+                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-700 group-hover/feynman:scale-105"
                       style={{ objectPosition: '35% 10%' }}
                     />
-                    {/* Vignette */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
 
                     {/* Top Outer Badge: Quantum Nobel */}
-                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/30 text-cyan-300 text-[8px] xs:text-[9px] sm:text-[10px] font-bold shadow-xs">
-                      <Zap className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-cyan-400 fill-cyan-400" />
+                    <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/40 text-cyan-300 text-[10px] font-bold shadow-xs">
+                      <Zap className="w-2.5 h-2.5 text-cyan-400 fill-cyan-400" />
                       <span>QED Nobel</span>
                     </div>
 
-                    {/* Bottom Subsidiary Plaque */}
-                    <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-2 sm:right-2 p-1.5 sm:p-2 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 text-white text-right">
-                      <p className="text-[9px] xs:text-[10px] sm:text-[11px] font-bold leading-tight truncate">Richard Feynman</p>
-                      <p className="text-[7.5px] xs:text-[8px] sm:text-[9px] text-cyan-300/90 font-mono leading-none mt-0.5 truncate">Quantum &amp; Intuition</p>
+                    {/* Bottom Identity Plaque */}
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold leading-tight truncate">Richard Feynman</p>
+                        <span className="text-[9px] font-mono text-cyan-300/90 font-semibold px-1.5 py-0.5 rounded bg-cyan-400/15 border border-cyan-400/25">Quantum</span>
+                      </div>
+                      <p className="text-[10px] text-cyan-200/80 font-mono mt-0.5 leading-none truncate">Intuition &amp; Inquiry</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                {/* ─── CARD 2 (CENTER / ON TOP): GRAVITON ACADEMY LOGO ─── */}
-                <div className="relative z-20 w-[185px] xs:w-[205px] sm:w-[270px] lg:w-[290px] rounded-2xl sm:rounded-3xl overflow-hidden border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-2 sm:p-3.5 shadow-[0_22px_55px_rgba(28,28,28,0.18),0_4px_16px_rgba(0,0,0,0.08)] ring-1 ring-amber-400/25 transition-all duration-500 ease-out group-hover/deck:scale-[1.02] select-none">
-                  
-                  {/* Hero Logo Canvas: mainlogo.jpg */}
-                  <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-[#000000] border border-white/10 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.2)] flex items-center justify-center group/logo">
+                {/* ─── CARD 2: GRAVITON ACADEMY EMBLEM (Center Anchor) ─── */}
+                <motion.div
+                  initial={{ opacity: 0, y: -25, scale: 0.95 }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: [0, -8, 0], 
+                    scale: activeDesktopCard === 'graviton' ? 1.04 : 1,
+                    zIndex: activeDesktopCard === 'graviton' ? 30 : 20,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.6, ease: 'easeOut', delay: 0.25 },
+                    scale: { duration: 0.4 },
+                    y: { repeat: Infinity, duration: 5.4, ease: 'easeInOut', delay: 0.3 }
+                  }}
+                  whileHover={{ 
+                    scale: 1.07, 
+                    zIndex: 35, 
+                    y: -12,
+                    transition: { type: 'spring', stiffness: 350, damping: 22 }
+                  }}
+                  onClick={() => setActiveDesktopCard('graviton')}
+                  className={`relative z-20 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
+                    activeDesktopCard === 'graviton'
+                      ? 'border-amber-400/80 shadow-[0_25px_60px_rgba(28,28,28,0.22),0_4px_16px_rgba(0,0,0,0.08)] ring-2 ring-amber-400/40'
+                      : 'border-[#dfdbcf] shadow-[0_20px_50px_rgba(28,28,28,0.16),0_4px_16px_rgba(0,0,0,0.08)] ring-1 ring-amber-400/20'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+                  style={{ transformOrigin: 'center center' }}
+                >
+                  <div className="relative rounded-2xl overflow-hidden w-full h-full bg-[#000000] border border-white/10 flex items-center justify-center group/logo">
                     
-                    {/* Subtle celestial radial glow & dot matrix behind logo */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.16)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
+                    {/* Celestial ambient glow */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.18)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
                     <div 
                       className="absolute inset-0 opacity-[0.06] pointer-events-none"
                       style={{
@@ -1086,61 +1277,208 @@ export default function Home() {
                     <img
                       src="/mainlogo.jpg"
                       alt={`${INSTITUTE_NAME} Logo`}
-                      className="w-full h-full object-contain p-2 sm:p-3 transition-transform duration-700 group-hover/logo:scale-[1.04]"
+                      className="w-full h-full object-contain p-2.5 transition-transform duration-700 group-hover/logo:scale-[1.04]"
                     />
                     
                     {/* Top Floating Badge: Mode & Accreditation */}
-                    <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9px] xs:text-[10px] sm:text-[11px] font-semibold shadow-xs">
+                    <div className="absolute top-2 left-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9.5px] font-semibold shadow-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       <span>Admissions Open</span>
                     </div>
 
                     {/* Top Floating Badge: Center of Excellence */}
-                    <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 inline-flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#fcfbf8]/95 backdrop-blur-md border border-[#dfdbcf] text-[#1c1c1c] text-[9px] xs:text-[10px] sm:text-[11px] font-bold shadow-xs">
-                      <Sparkles className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-amber-500 fill-amber-400" />
-                      <span className="hidden xs:inline">Premier</span> Academy
+                    <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#fcfbf8]/95 backdrop-blur-md border border-[#dfdbcf] text-[#1c1c1c] text-[9.5px] font-bold shadow-xs">
+                      <Sparkles className="w-2.5 h-2.5 text-amber-500 fill-amber-400" />
+                      <span>Premier</span>
                     </div>
 
                     {/* Bottom Floating Glass Card: Institute Identity Plaque */}
-                    <div className="absolute inset-x-2 bottom-2 sm:inset-x-2.5 sm:bottom-2.5 p-2 sm:p-3 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-white flex items-center justify-between shadow-lg">
-                      <div className="min-w-0 pr-1 sm:pr-2">
-                        <div className="flex items-center gap-1 sm:gap-1.5">
-                          <Award className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-amber-400 shrink-0" />
-                          <p className="text-[11px] xs:text-xs sm:text-sm font-bold text-white tracking-tight leading-tight truncate">{INSTITUTE_NAME}</p>
+                    <div className="absolute inset-x-2 bottom-2 p-2 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white flex items-center justify-between shadow-lg">
+                      <div className="min-w-0 pr-1.5">
+                        <div className="flex items-center gap-1">
+                          <Award className="w-3 h-3 text-amber-400 shrink-0" />
+                          <p className="text-[11px] font-bold text-white tracking-tight leading-tight truncate">{INSTITUTE_NAME}</p>
                         </div>
-                        <p className="text-[8.5px] xs:text-[9.5px] sm:text-[11px] text-white/70 leading-none mt-0.5 sm:mt-1 truncate">Class 9–12 • JEE &amp; NEET Foundation</p>
+                        <p className="text-[8.5px] text-white/70 leading-none mt-0.5 truncate">Class 9–12 • JEE &amp; NEET</p>
                       </div>
                       <Link
                         to="/batch-details"
-                        className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white hover:bg-[#f7f4ed] text-[#1c1c1c] border border-white/40 font-bold text-[9px] xs:text-[10px] sm:text-[11px] transition-all shrink-0 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.7),0_1px_2px_rgba(0,0,0,0.1)] active:scale-[0.98] group/btn"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white hover:bg-[#f7f4ed] text-[#1c1c1c] border border-white/40 font-bold text-[9px] transition-all shrink-0 shadow-xs active:scale-[0.98] group/btn"
                       >
                         <span>Batches</span>
-                        <ArrowRight className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-[#1c1c1c]/70 group-hover/btn:translate-x-0.5 transition-transform" />
+                        <ArrowRight className="w-2.5 h-2.5 text-[#1c1c1c]/70 group-hover/btn:translate-x-0.5 transition-transform" />
                       </Link>
                     </div>
                   </div>
-
-                </div>
+                </motion.div>
 
               </div>
-
-              {/* Mini Stat Ticker below the 3-Card Deck */}
-              <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-2 px-0.5 max-w-[320px] sm:max-w-[360px] mx-auto">
-                <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
-                  <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">500+</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Students</p>
-                </div>
-                <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
-                  <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">100%</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Concept Focus</p>
-                </div>
-                <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
-                  <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">24/7</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Doubt Desk</p>
-                </div>
-              </div>
-
             </div>
+
+            {/* ─── MOBILE PRESENTATION (block sm:hidden) ─── */}
+            <div className="block sm:hidden w-full max-w-[340px] xs:max-w-[370px] mx-auto select-none">
+              
+              {/* Interactive Segmented Pill Selector (Touch Dock) */}
+              <div className="flex items-center justify-between p-1 rounded-full bg-[#ede9de] border border-[#dfdbcf] shadow-inner mb-3.5 max-w-[325px] mx-auto">
+                <button
+                  type="button"
+                  onClick={() => setMobileHeroCard('einstein')}
+                  className={`flex-1 py-1 px-2 rounded-full text-[11px] font-bold transition-all text-center ${
+                    mobileHeroCard === 'einstein'
+                      ? 'bg-[#1c1c1c] text-white shadow-xs'
+                      : 'text-[#5f5f5d] hover:text-[#1c1c1c]'
+                  }`}
+                >
+                  ✦ Einstein
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileHeroCard('graviton')}
+                  className={`flex-1 py-1 px-2 rounded-full text-[11px] font-bold transition-all text-center ${
+                    mobileHeroCard === 'graviton'
+                      ? 'bg-[#1c1c1c] text-white shadow-xs'
+                      : 'text-[#5f5f5d] hover:text-[#1c1c1c]'
+                  }`}
+                >
+                  ⚛ Graviton
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileHeroCard('feynman')}
+                  className={`flex-1 py-1 px-2 rounded-full text-[11px] font-bold transition-all text-center ${
+                    mobileHeroCard === 'feynman'
+                      ? 'bg-[#1c1c1c] text-white shadow-xs'
+                      : 'text-[#5f5f5d] hover:text-[#1c1c1c]'
+                  }`}
+                >
+                  ⚡ Feynman
+                </button>
+              </div>
+
+              {/* Mobile 3D Triad Staging Area */}
+              <div className="relative h-[300px] xs:h-[320px] flex items-center justify-center">
+                
+                {/* Flanking Card: Einstein (Visible or Peeking) */}
+                <motion.div
+                  layout
+                  onClick={() => setMobileHeroCard('einstein')}
+                  className={`transition-all duration-300 rounded-2xl border ${
+                    mobileHeroCard === 'einstein'
+                      ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.22)] ring-1 ring-amber-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
+                      : 'absolute left-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] -rotate-[6deg] opacity-75 cursor-pointer'
+                  }`}
+                >
+                  <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
+                    <img
+                      src="/einstein.png"
+                      alt="Albert Einstein — Theoretical Physics"
+                      className="w-full h-full object-cover filter contrast-[1.03]"
+                      style={{ objectPosition: '55% 15%' }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
+                    <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[9px] font-bold">
+                      <Sparkles className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                      <span>E = mc²</span>
+                    </div>
+                    <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-white">
+                      <p className="text-[11px] font-bold leading-tight truncate">Albert Einstein</p>
+                      <p className="text-[9px] text-amber-300/90 font-mono mt-0.5 truncate">Relativity &amp; Rigor</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Central / Active Card: Graviton Logo */}
+                <motion.div
+                  layout
+                  onClick={() => setMobileHeroCard('graviton')}
+                  className={`transition-all duration-300 rounded-2xl border ${
+                    mobileHeroCard === 'graviton'
+                      ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-amber-400/80 shadow-[0_20px_50px_rgba(28,28,28,0.22)] ring-1 ring-amber-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
+                      : mobileHeroCard === 'einstein'
+                        ? 'absolute right-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] rotate-[6deg] opacity-75 cursor-pointer'
+                        : 'absolute left-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] -rotate-[6deg] opacity-75 cursor-pointer'
+                  }`}
+                >
+                  <div className="relative rounded-xl overflow-hidden w-full h-full bg-[#000000] border border-white/10 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.18)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
+                    <img
+                      src="/mainlogo.jpg"
+                      alt={`${INSTITUTE_NAME} Logo`}
+                      className="w-full h-full object-contain p-2"
+                    />
+                    <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Admissions Open</span>
+                    </div>
+                    <div className="absolute bottom-2 inset-x-2 p-2 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-white flex items-center justify-between">
+                      <div className="min-w-0 pr-1">
+                        <div className="flex items-center gap-1">
+                          <Award className="w-3 h-3 text-amber-400 shrink-0" />
+                          <p className="text-[11px] font-bold text-white truncate">{INSTITUTE_NAME}</p>
+                        </div>
+                        <p className="text-[8.5px] text-white/70 leading-none mt-0.5 truncate">Class 9–12 • JEE &amp; NEET</p>
+                      </div>
+                      <Link
+                        to="/batch-details"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-0.5 px-2 py-1 rounded bg-white text-[#1c1c1c] font-bold text-[9px] shrink-0"
+                      >
+                        <span>Batches</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Flanking Card: Richard Feynman */}
+                <motion.div
+                  layout
+                  onClick={() => setMobileHeroCard('feynman')}
+                  className={`transition-all duration-300 rounded-2xl border ${
+                    mobileHeroCard === 'feynman'
+                      ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.22)] ring-1 ring-cyan-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
+                      : 'absolute right-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] rotate-[6deg] opacity-75 cursor-pointer'
+                  }`}
+                >
+                  <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
+                    <img
+                      src="/Richard.png"
+                      alt="Richard Feynman — Quantum Physics"
+                      className="w-full h-full object-cover filter contrast-[1.03]"
+                      style={{ objectPosition: '35% 10%' }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
+                    <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/40 text-cyan-300 text-[9px] font-bold">
+                      <Zap className="w-2.5 h-2.5 text-cyan-400 fill-cyan-400" />
+                      <span>QED Nobel</span>
+                    </div>
+                    <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-white text-right">
+                      <p className="text-[11px] font-bold leading-tight truncate">Richard Feynman</p>
+                      <p className="text-[9px] text-cyan-300/90 font-mono mt-0.5 truncate">Quantum &amp; Intuition</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+              </div>
+            </div>
+
+            {/* Mini Stat Ticker below the Triad Deck */}
+            <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-2 px-0.5 w-full max-w-[320px] sm:max-w-[360px] mx-auto">
+              <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
+                <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">500+</p>
+                <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Students</p>
+              </div>
+              <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
+                <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">100%</p>
+                <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Concept Focus</p>
+              </div>
+              <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
+                <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">24/7</p>
+                <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Doubt Desk</p>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -1150,65 +1488,7 @@ export default function Home() {
       <BatchPostersSection batches={batchPosters} loading={postersLoading} />
 
       {/* ════════════ TRUST & METHODOLOGY STRIP (Color-Accented Cards) ════════════ */}
-      <section className="py-12 sm:py-16 border-b border-[#e7e4dc] bg-white">
-        <div className={CONTAINER}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Card 1: Live & Recorded (Sky Blue Tint) */}
-            <div className="p-5 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/80 to-white hover:border-sky-300 transition-all shadow-2xs hover:shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-3 shadow-xs">
-                  <Video className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-sm text-[#1c1c1c] mb-1">Live &amp; Recorded Classes</h3>
-                <p className="text-xs text-[#5f5f5d] leading-relaxed">
-                  Attend daily interactive lectures live or stream unlimited 1080p replays at your own pace.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 2: Doubt Mentorship (Indigo Tint) */}
-            <div className="p-5 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-white hover:border-indigo-300 transition-all shadow-2xs hover:shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center mb-3 shadow-xs">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-sm text-[#1c1c1c] mb-1">Personal Doubt Support</h3>
-                <p className="text-xs text-[#5f5f5d] leading-relaxed">
-                  Message your educator directly or ask doubts during video playback for prompt resolution.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 3: Notes & DPPs (Emerald Tint) */}
-            <div className="p-5 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white hover:border-emerald-300 transition-all shadow-2xs hover:shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 shadow-xs">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-sm text-[#1c1c1c] mb-1">Handwritten Notes &amp; DPPs</h3>
-                <p className="text-xs text-[#5f5f5d] leading-relaxed">
-                  Concise formula sheets, chapter notes, and daily practice problem cards for exam readiness.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 4: Consistency & Streak (Rose Tint) */}
-            <div className="p-5 rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50/80 to-white hover:border-rose-300 transition-all shadow-2xs hover:shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center mb-3 shadow-xs">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-sm text-[#1c1c1c] mb-1">Consistency &amp; Attendance</h3>
-                <p className="text-xs text-[#5f5f5d] leading-relaxed">
-                  Daily streak tracking, attendance gauges, and homework deadlines to foster peak consistency.
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
+      <TrustMethodologyStrip />
 
       {/* ════════════ LECTURES FEED + STICKY DESKTOP SIDEBAR ════════════ */}
       <div className={`${CONTAINER} py-10 sm:py-16`}>
