@@ -109,13 +109,14 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
                 </div>
               )}
 
-              {/* Ambient Blurred Backdrop: Fills any aspect ratio void with the poster's own vibrant tones */}
+              {/* Ambient Blurred Backdrop: Fills any aspect ratio void with hardware-accelerated ambient glow */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
                 <DriveImage
                   src={batch.poster_url.trim()}
                   alt=""
                   aria-hidden="true"
-                  className="w-full h-full object-cover blur-2xl scale-125 opacity-60 brightness-95 filter pointer-events-none"
+                  loading="lazy"
+                  className="w-full h-full object-cover blur-md transform-gpu will-change-transform opacity-50 brightness-95 filter pointer-events-none"
                 />
                 {/* Soft gradient wash */}
                 <div className="absolute inset-0 bg-black/20 pointer-events-none" />
@@ -206,13 +207,14 @@ function BatchPostersSection({ batches = [], loading = false }) {
     const el = scrollRef.current
     if (!el) return
     const { scrollLeft, scrollWidth, clientWidth } = el
-    setCanScrollLeft(scrollLeft > 10)
-    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
-
-    // Calculate approximate active index
+    const canLeft = scrollLeft > 10
+    const canRight = scrollLeft < scrollWidth - clientWidth - 10
     const cardStep = 240
-    const idx = Math.round(scrollLeft / cardStep)
-    setActiveIndex(Math.min(Math.max(idx, 0), (batches?.length || 1) - 1))
+    const newIdx = Math.min(Math.max(Math.round(scrollLeft / cardStep), 0), (batches?.length || 1) - 1)
+
+    setCanScrollLeft(prev => (prev !== canLeft ? canLeft : prev))
+    setCanScrollRight(prev => (prev !== canRight ? canRight : prev))
+    setActiveIndex(prev => (prev !== newIdx ? newIdx : prev))
   }
 
   useEffect(() => {
@@ -360,7 +362,7 @@ function BatchPostersSection({ batches = [], loading = false }) {
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseLeave}
-            className="flex gap-4 sm:gap-6 overflow-x-auto pt-3 pb-4 -mt-2 px-4 sm:px-6 -mx-4 sm:-mx-6 snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
+            className="flex gap-4 sm:gap-6 overflow-x-auto pt-3 pb-4 -mt-2 px-4 sm:px-6 -mx-4 sm:-mx-6 snap-x snap-mandatory touch-manipulation overscroll-x-auto cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]"
           >
             {loading ? (
               <>
@@ -576,7 +578,7 @@ function TrustMethodologyStrip() {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x -mx-4 px-4 sm:mx-0 sm:px-0 py-1 sm:py-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
+          className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory touch-manipulation overscroll-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 py-1 sm:py-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]"
         >
           {TRUST_CARDS.map((card) => {
             const Icon = card.icon
@@ -890,6 +892,9 @@ export default function Home() {
     if (typeof window === 'undefined') return
 
     const updateReviewsHeight = () => {
+      // Desktop sticky sidebar is hidden on mobile (< 1024px).
+      // Skip height calculation on mobile to preserve 60/120fps scrolling.
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) return
       if (!allLecturesRef.current) return
 
       const allLecturesEl = allLecturesRef.current
@@ -1631,7 +1636,7 @@ export default function Home() {
 
                 <div
                   ref={featRef}
-                  className="relative z-10 overflow-x-auto pt-3.5 pb-3 -mt-2 -mx-1 px-1 sm:-mx-2 sm:px-2 snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
+                  className="relative z-10 overflow-x-auto pt-3.5 pb-3 -mt-2 -mx-1 px-1 sm:-mx-2 sm:px-2 snap-x snap-mandatory touch-manipulation overscroll-x-auto cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]"
                 >
                   <div className="flex gap-3.5 sm:gap-5 py-1" style={{ width: 'max-content' }}>
                     {featured.map(c => (

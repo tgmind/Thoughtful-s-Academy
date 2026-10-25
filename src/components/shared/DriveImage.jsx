@@ -41,6 +41,7 @@ export default function DriveImage({
       alt={alt}
       className={className}
       loading={loading}
+      decoding="async"
       referrerPolicy="no-referrer"
       onError={handleError}
       onLoad={onLoad}

@@ -104,7 +104,7 @@ export default function StudentReviewsMobile() {
         onTouchEnd={() => {
           setTimeout(() => setIsPaused(false), 4000)
         }}
-        className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-3 pt-1 px-1 [-ms-overflow-style:'none'] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-3 overflow-x-auto snap-x snap-mandatory touch-manipulation pb-3 pt-1 px-1 [-ms-overflow-style:'none'] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
       >
         {STUDENT_REVIEWS.map((review, idx) => (
           <div
