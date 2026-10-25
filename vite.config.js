@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -79,10 +79,21 @@ function generateVersionJsonPlugin() {
   }
 }
 
-export default defineConfig({
-  define: {
-    __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
-  },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  // Normalize brand name and reject stale legacy name from deployment environment variables
+  const instituteName = (env.VITE_INSTITUTE_NAME && !env.VITE_INSTITUTE_NAME.includes("Thoughtful"))
+    ? env.VITE_INSTITUTE_NAME
+    : 'Graviton Academy'
+
+  // Ensure HTML template interpolation (%VITE_INSTITUTE_NAME%) always uses Graviton Academy
+  process.env.VITE_INSTITUTE_NAME = instituteName
+
+  return {
+    define: {
+      __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
+      'import.meta.env.VITE_INSTITUTE_NAME': JSON.stringify(instituteName),
+    },
   plugins: [
     react(),
     youtubePlaylistDevPlugin(),
@@ -179,4 +190,5 @@ export default defineConfig({
     testTimeout: 15000,
     hookTimeout: 15000,
   },
+}
 })

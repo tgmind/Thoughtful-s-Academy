@@ -15,6 +15,20 @@
 [build.environment]
   NODE_VERSION = "20"
   SECRETS_SCAN_OMIT_PATHS = "documentation/**,.env.example"
+  VITE_INSTITUTE_NAME = "Graviton Academy"
+  VITE_INSTITUTE_TAGLINE = "Learn. Grow. Succeed."
+
+[context.production.environment]
+  VITE_INSTITUTE_NAME = "Graviton Academy"
+  VITE_INSTITUTE_TAGLINE = "Learn. Grow. Succeed."
+
+[context.deploy-preview.environment]
+  VITE_INSTITUTE_NAME = "Graviton Academy"
+  VITE_INSTITUTE_TAGLINE = "Learn. Grow. Succeed."
+
+[context.branch-deploy.environment]
+  VITE_INSTITUTE_NAME = "Graviton Academy"
+  VITE_INSTITUTE_TAGLINE = "Learn. Grow. Succeed."
 
 [[headers]]
   for = "/*"
