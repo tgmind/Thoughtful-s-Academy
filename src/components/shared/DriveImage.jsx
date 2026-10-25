@@ -8,6 +8,7 @@ export default function DriveImage({
   loading = 'lazy',
   fallback = null,
   onError = null,
+  onLoad = null,
   ...props
 }) {
   const [candidates, setCandidates] = useState([])
@@ -42,6 +43,7 @@ export default function DriveImage({
       loading={loading}
       referrerPolicy="no-referrer"
       onError={handleError}
+      onLoad={onLoad}
       {...props}
     />
   )

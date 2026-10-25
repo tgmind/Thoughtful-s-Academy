@@ -143,7 +143,7 @@ describe('Public Landing Page & Batch Details Redesign (Mobbin & Vercel Aestheti
     )
 
     // Institute name should be present
-    expect(screen.getAllByText(/Thoughtful's/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Graviton/i).length).toBeGreaterThan(0)
 
     // The hero emblem should render Academy brand text
     expect(screen.getByText(/Center for Science & Mathematics/i)).toBeInTheDocument()
@@ -152,10 +152,8 @@ describe('Public Landing Page & Batch Details Redesign (Mobbin & Vercel Aestheti
     expect(screen.queryByAltText(/Founder/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Subodh Verma/i)).not.toBeInTheDocument()
 
-    // Running Batches section must be present
-    await waitFor(() => {
-      expect(screen.getByText(/Running Batches/i)).toBeInTheDocument()
-    })
+    // Running Batches section must be present immediately on initial mount
+    expect(screen.getByText(/Running Batches/i)).toBeInTheDocument()
 
     // "What's on" notification card must be present
     expect(screen.getAllByText(/What's on/i).length).toBeGreaterThan(0)
@@ -166,6 +164,21 @@ describe('Public Landing Page & Batch Details Redesign (Mobbin & Vercel Aestheti
 
     // All lectures section should be rendered
     expect(screen.getByText(/All lectures/i)).toBeInTheDocument()
+  })
+
+  it('renders all sections together smoothly on initial load without layout pop-in', () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    )
+
+    // All core landing page sections must be present in the initial DOM tree together
+    expect(screen.getByRole('banner')).toBeInTheDocument() // Header
+    expect(screen.getByText(/Empowering Concepts/i)).toBeInTheDocument() // Hero
+    expect(screen.getByText(/Running Batches/i)).toBeInTheDocument() // Running Batches
+    expect(screen.getByText(/Live & Recorded Classes/i)).toBeInTheDocument() // Trust Strip
+    expect(screen.getByText(/All lectures/i)).toBeInTheDocument() // All Lectures
   })
 
   it('renders BatchDetails page with modern Vercel/Mobbin layout, batch selector, and free trial CTA', async () => {

@@ -5,7 +5,7 @@ import {
   GraduationCap, PlayCircle, ExternalLink, BookOpen, Bell,
   ChevronLeft, ChevronRight, Mail, Youtube, ArrowRight,
   Video, MessageSquare, CheckCircle2, Sparkles, Clock,
-  Flame, ShieldCheck, Check, Compass, LogIn
+  Flame, ShieldCheck, Check, Compass, LogIn, Award, Zap
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -69,6 +69,7 @@ function SkeletonCard() {
 // ─── BATCH POSTER CARD (Lovable Style) ────────────────────────────────────────
 
 function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
+  const [imageLoaded, setImageLoaded] = useState(false)
   const PALETTES = [
     'from-[#1c1c1c] via-[#2d2d2d] to-[#1c1c1c]',
     'from-[#1e293b] via-[#334155] to-[#0f172a]',
@@ -96,20 +97,31 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
         {/* Poster Media Box (10% larger aspect-3/4 frame) */}
         <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-[#0c0c0e] flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors">
           {batch.poster_url?.trim() ? (
-            <DriveImage
-              src={batch.poster_url.trim()}
-              alt={batch.name}
-              loading="lazy"
-              className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.03] pointer-events-none"
-              fallback={
-                <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-gradient-to-br ${palette}`}>
-                  <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xs flex items-center justify-center border border-white/20">
-                    <span className="text-xl font-bold text-white">{batch.name?.charAt(0)?.toUpperCase()}</span>
-                  </div>
-                  <span className="text-white font-semibold text-xs leading-tight px-2">{batch.name}</span>
+            <>
+              {!imageLoaded && (
+                <div className="absolute inset-0 bg-[#0c0c0e] animate-pulse flex flex-col items-center justify-center gap-2.5 z-10">
+                  <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-indigo-400 animate-spin" />
+                  <span className="text-[10px] font-medium text-white/50 tracking-wider uppercase">Loading Poster...</span>
                 </div>
-              }
-            />
+              )}
+              <DriveImage
+                src={batch.poster_url.trim()}
+                alt={batch.name}
+                loading="lazy"
+                onLoad={() => setImageLoaded(true)}
+                className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-[1.03] pointer-events-none ${
+                  imageLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                fallback={
+                  <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-gradient-to-br ${palette}`}>
+                    <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xs flex items-center justify-center border border-white/20">
+                      <span className="text-xl font-bold text-white">{batch.name?.charAt(0)?.toUpperCase()}</span>
+                    </div>
+                    <span className="text-white font-semibold text-xs leading-tight px-2">{batch.name}</span>
+                  </div>
+                }
+              />
+            </>
           ) : (
             <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-gradient-to-br ${palette}`}>
               <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xs flex items-center justify-center border border-white/20">
@@ -150,10 +162,49 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
   )
 }
 
+// ─── BATCH POSTER SKELETON CARD ──────────────────────────────────────────────
+
+function BatchPosterSkeletonCard() {
+  return (
+    <div className="flex-shrink-0 w-[214px] sm:w-[235px] lg:w-[255px] max-w-[265px] snap-start select-none">
+      <div className="rounded-2xl p-2.5 bg-gradient-to-b from-[#18181d] via-[#131317] to-[#0d0d10] border border-white/20 ring-1 ring-white/10 shadow-[0_12px_28px_rgba(0,0,0,0.6)]">
+        {/* Poster Skeleton Frame */}
+        <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-[#0c0c0e] border border-white/10 flex flex-col items-center justify-center p-4">
+          {/* Skeleton LIVE pill */}
+          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse" />
+            <div className="w-8 h-2 bg-white/20 rounded-xs animate-pulse" />
+          </div>
+
+          <div className="w-12 h-12 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center mb-3 animate-pulse">
+            <GraduationCap className="w-6 h-6 text-white/20" />
+          </div>
+          <div className="h-3 w-28 bg-white/10 rounded-md mb-2 animate-pulse" />
+          <div className="h-2 w-16 bg-white/5 rounded-md animate-pulse" />
+
+          {/* Shimmer overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
+        </div>
+
+        {/* Bottom Grouped Button Skeleton */}
+        <div className="mt-2.5 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40 animate-pulse shrink-0" />
+            <div className="h-3.5 w-24 bg-white/10 rounded animate-pulse" />
+          </div>
+          <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+            <ArrowRight className="w-3 h-3 text-white/30" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── RUNNING BATCHES SECTION (Gradient Black Aesthetic & Swipe Carousel) ──
 
-function BatchPostersSection({ batches }) {
-  if (!batches.length) return null
+function BatchPostersSection({ batches = [], loading = false }) {
+  const isEmpty = !loading && (!batches || batches.length === 0)
 
   const scrollRef = useRef(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -174,7 +225,7 @@ function BatchPostersSection({ batches }) {
     // Calculate approximate active index
     const cardStep = 240
     const idx = Math.round(scrollLeft / cardStep)
-    setActiveIndex(Math.min(Math.max(idx, 0), batches.length - 1))
+    setActiveIndex(Math.min(Math.max(idx, 0), (batches?.length || 1) - 1))
   }
 
   useEffect(() => {
@@ -188,7 +239,7 @@ function BatchPostersSection({ batches }) {
       el.removeEventListener('scroll', updateScrollState)
       window.removeEventListener('resize', updateScrollState)
     }
-  }, [batches])
+  }, [batches, loading])
 
   const scroll = (direction) => {
     if (!scrollRef.current) return
@@ -263,7 +314,7 @@ function BatchPostersSection({ batches }) {
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-white/10 border border-white/15 text-white shadow-2xs backdrop-blur-md">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                  Active Cohorts ({batches.length})
+                  {loading ? 'Active Cohorts' : `Active Cohorts (${batches.length})`}
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 shadow-2xs backdrop-blur-md">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -281,7 +332,7 @@ function BatchPostersSection({ batches }) {
 
           <div className="flex items-center gap-2.5 self-end sm:self-auto">
             {/* Horizontal Swipe Controls for Multiple Posters */}
-            {batches.length > 1 && (
+            {!loading && batches.length > 1 && (
               <div className="flex items-center gap-1 bg-white/[0.06] p-1 rounded-xl border border-white/15 backdrop-blur-md">
                 <button
                   type="button"
@@ -324,19 +375,42 @@ function BatchPostersSection({ batches }) {
             onMouseLeave={onMouseLeave}
             className="flex gap-4 sm:gap-6 overflow-x-auto pt-3 pb-4 -mt-2 px-4 sm:px-6 -mx-4 sm:-mx-6 snap-x snap-mandatory scroll-smooth overscroll-x-contain touch-pan-x cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]"
           >
-            {batches.map((b, i) => (
-              <BatchPosterCard
-                key={b.id}
-                batch={b}
-                index={i}
-                isDraggingRef={isDraggingRef}
-              />
-            ))}
+            {loading ? (
+              <>
+                <BatchPosterSkeletonCard />
+                <BatchPosterSkeletonCard />
+                <BatchPosterSkeletonCard />
+              </>
+            ) : isEmpty ? (
+              <div className="w-full py-10 px-6 rounded-2xl bg-white/[0.03] border border-white/10 text-center flex flex-col items-center justify-center">
+                <GraduationCap className="w-10 h-10 text-indigo-400/60 mb-2" />
+                <h3 className="text-base font-bold text-white mb-1">New Batches Announcing Soon</h3>
+                <p className="text-xs text-white/60 max-w-md mb-4">
+                  Upcoming cohorts for the academic session are being finalized. Explore all course curriculums or contact the admissions desk.
+                </p>
+                <Link
+                  to="/batch-details"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-[#1c1c1c] text-xs font-semibold hover:bg-white/90 transition-all shadow-sm"
+                >
+                  <span>View All Batches</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            ) : (
+              batches.map((b, i) => (
+                <BatchPosterCard
+                  key={b.id}
+                  batch={b}
+                  index={i}
+                  isDraggingRef={isDraggingRef}
+                />
+              ))
+            )}
           </div>
         </div>
 
         {/* Swipe Indicators / Dots for other posters */}
-        {batches.length > 1 && (
+        {!loading && batches.length > 1 && (
           <div className="flex items-center justify-center gap-1.5 mt-3">
             {batches.map((_, idx) => (
               <button
@@ -587,6 +661,7 @@ export default function Home() {
   const [cards,         setCards]         = useState([])
   const [batches,       setBatches]       = useState([])
   const [batchPosters,  setBatchPosters]  = useState([])
+  const [postersLoading, setPostersLoading] = useState(true)
   const [activeBatch,   setActiveBatch]   = useState('all')
   const [page,          setPage]          = useState(1)
   const [totalCards,    setTotalCards]    = useState(0)
@@ -652,29 +727,25 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false
-    supabase.from('batches')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name')
-      .then(({ data }) => {
-        if (cancelled) return
-        setBatches(data ?? [])
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [])
+    setPostersLoading(true)
 
-  useEffect(() => {
-    let cancelled = false
     supabase.from('batches')
       .select('id, name, poster_url')
       .eq('is_active', true)
-      .not('poster_url', 'is', null)
       .order('name')
       .then(({ data, error }) => {
         if (cancelled) return
-        if (error) return
-        setBatchPosters((data ?? []).filter(b => b.poster_url?.trim()))
+        if (error) {
+          setPostersLoading(false)
+          return
+        }
+        const activeBatches = data ?? []
+        setBatches(activeBatches)
+        setBatchPosters(activeBatches.filter(b => b.poster_url?.trim()))
+        setPostersLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) setPostersLoading(false)
       })
     return () => { cancelled = true }
   }, [])
@@ -884,9 +955,9 @@ export default function Home() {
 
               <Link
                 to="/register"
-                className="w-full h-11 sm:h-12 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 text-indigo-950 font-semibold text-xs sm:text-sm whitespace-nowrap border border-indigo-200/80 hover:border-indigo-300 transition-all duration-150 shadow-2xs active:scale-[0.98] group"
+                className="w-full h-11 sm:h-12 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-emerald-50 hover:from-emerald-100/90 hover:to-teal-100/80 text-emerald-950 font-semibold text-xs sm:text-sm whitespace-nowrap border border-emerald-200/90 hover:border-emerald-300 transition-all duration-150 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.75),0_1px_2px_rgba(16,185,129,0.06)] active:scale-[0.98] group"
               >
-                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 group-hover:scale-110 transition-transform" />
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-all duration-200" />
                 <span>Register Free</span>
               </Link>
             </div>
@@ -925,71 +996,146 @@ export default function Home() {
             </div>
           </div>
 
-          {/* RIGHT: High-Craft Showcase Frame (subodh.jpg) */}
+          {/* RIGHT: High-Craft 3-Card Physics Deck (Einstein, Graviton Academy, Feynman) */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
-            <div className="relative w-full max-w-[310px] sm:max-w-[360px]">
+            <div className="relative w-full max-w-[340px] xs:max-w-[380px] sm:max-w-[490px] lg:max-w-[530px] mx-auto group/deck">
               
-              {/* Ambient soft glow aura behind card */}
-              <div className="absolute -inset-2 bg-gradient-to-tr from-indigo-500/15 via-sky-400/10 to-indigo-300/10 rounded-3xl blur-xl opacity-75 pointer-events-none" />
+              {/* Ambient soft glow aura behind the deck */}
+              <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500/15 via-sky-400/10 to-amber-300/10 rounded-3xl blur-2xl opacity-70 pointer-events-none" />
 
-              {/* Outer frame with subtle warm halo & double border */}
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 sm:p-3.5 shadow-[0_20px_50px_rgba(28,28,28,0.08),0_2px_8px_rgba(0,0,0,0.04)]">
+              {/* 3-Card Fanned Staging Area */}
+              <div className="relative flex items-center justify-center pt-2 sm:pt-4 pb-2">
                 
-                {/* Hero Image Container: subodh.jpg */}
-                <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-[#1c1c1c] shadow-xs group">
-                  <img
-                    src="/subodh.jpg"
-                    alt="Institute Showcase"
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.03]"
-                  />
-                  
-                  {/* Soft bottom vignette overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent pointer-events-none" />
+                {/* ─── CARD 1 (LEFT SUBSIDIARY): ALBERT EINSTEIN (Theoretical Physics Wing) ─── */}
+                <div 
+                  className="absolute left-0 xs:left-1 sm:left-0 lg:left-1 top-4 xs:top-5 sm:top-6 lg:top-7 z-10 w-[115px] xs:w-[130px] sm:w-[185px] lg:w-[195px] -rotate-[6deg] xs:-rotate-[7deg] sm:-rotate-[7deg] lg:-rotate-[8deg] translate-y-2 sm:translate-y-5 lg:translate-y-6 rounded-2xl sm:rounded-3xl border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-1 sm:p-2 shadow-[0_12px_32px_rgba(28,28,28,0.10),0_2px_6px_rgba(0,0,0,0.04)] transition-all duration-500 ease-out group-hover/deck:sm:-translate-x-3 group-hover/deck:sm:-rotate-[9deg] group-hover/deck:sm:translate-y-4 select-none hover:z-30 hover:scale-[1.03]"
+                  style={{ transformOrigin: 'bottom center' }}
+                >
+                  <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] bg-slate-950 border border-white/10">
+                    <img
+                      src="/einstein.png"
+                      alt="Albert Einstein — Theoretical Physics"
+                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-500 group-hover/deck:scale-105"
+                      style={{ objectPosition: '70% 15%' }}
+                    />
+                    {/* Vignette */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
 
-                  {/* Top Floating Badge: Mode */}
-                  <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[10px] sm:text-[11px] font-semibold shadow-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Offline + Online</span>
-                  </div>
-
-                  {/* Top Floating Badge: Academic Excellence */}
-                  <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/95 backdrop-blur-md border border-[#e2ddd1] text-[#1c1c1c] text-[10px] sm:text-[11px] font-bold shadow-md">
-                    <Sparkles className="w-3 h-3 text-indigo-600 fill-indigo-500" />
-                    <span>Top Mentors</span>
-                  </div>
-
-                  {/* Bottom Floating Glass Card */}
-                  <div className="absolute inset-x-2.5 bottom-2.5 p-2.5 sm:p-3 rounded-xl bg-black/65 backdrop-blur-md border border-white/20 text-white flex items-center justify-between shadow-lg">
-                    <div>
-                      <p className="text-xs font-bold leading-tight">Senior Faculty &amp; Mentors</p>
-                      <p className="text-[10px] text-white/80 leading-none mt-0.5">Classes 9th, 10th, 11th &amp; 12th</p>
+                    {/* Top Outer Badge: Theoretical Rigor */}
+                    <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/30 text-amber-300 text-[8px] xs:text-[9px] sm:text-[10px] font-bold shadow-xs">
+                      <Sparkles className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-amber-400 fill-amber-400" />
+                      <span>E = mc²</span>
                     </div>
-                    <Link
-                      to="/batch-details"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-[#f7f4ed] text-[#1c1c1c] border border-white/40 font-bold text-[10px] sm:text-[11px] transition-colors shrink-0 shadow-xs"
-                    >
-                      <span>Batches</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
+
+                    {/* Bottom Subsidiary Plaque */}
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-2 sm:right-2 p-1.5 sm:p-2 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 text-white">
+                      <p className="text-[9px] xs:text-[10px] sm:text-[11px] font-bold leading-tight truncate">Albert Einstein</p>
+                      <p className="text-[7.5px] xs:text-[8px] sm:text-[9px] text-amber-300/90 font-mono leading-none mt-0.5 truncate">Relativity &amp; Rigor</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Mini Stat Ticker below frame */}
-                <div className="mt-2.5 sm:mt-3 grid grid-cols-3 gap-1.5 sm:gap-2 px-0.5">
-                  <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#e2ddd1] shadow-2xs">
-                    <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">500+</p>
-                    <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Students</p>
-                  </div>
-                  <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#e2ddd1] shadow-2xs">
-                    <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">100%</p>
-                    <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Concept Focus</p>
-                  </div>
-                  <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#e2ddd1] shadow-2xs">
-                    <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">24/7</p>
-                    <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Doubt Desk</p>
+                {/* ─── CARD 3 (RIGHT SUBSIDIARY): RICHARD FEYNMAN (Quantum Physics Wing) ─── */}
+                <div 
+                  className="absolute right-0 xs:right-1 sm:right-0 lg:right-1 top-4 xs:top-5 sm:top-6 lg:top-7 z-10 w-[115px] xs:w-[130px] sm:w-[185px] lg:w-[195px] rotate-[6deg] xs:rotate-[7deg] sm:rotate-[7deg] lg:rotate-[8deg] translate-y-2 sm:translate-y-5 lg:translate-y-6 rounded-2xl sm:rounded-3xl border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-1 sm:p-2 shadow-[0_12px_32px_rgba(28,28,28,0.10),0_2px_6px_rgba(0,0,0,0.04)] transition-all duration-500 ease-out group-hover/deck:sm:translate-x-3 group-hover/deck:sm:rotate-[9deg] group-hover/deck:sm:translate-y-4 select-none hover:z-30 hover:scale-[1.03]"
+                  style={{ transformOrigin: 'bottom center' }}
+                >
+                  <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] bg-slate-950 border border-white/10">
+                    <img
+                      src="/Richard.png"
+                      alt="Richard Feynman — Quantum Physics"
+                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-500 group-hover/deck:scale-105"
+                      style={{ objectPosition: '35% 10%' }}
+                    />
+                    {/* Vignette */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+                    {/* Top Outer Badge: Quantum Nobel */}
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/30 text-cyan-300 text-[8px] xs:text-[9px] sm:text-[10px] font-bold shadow-xs">
+                      <Zap className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-cyan-400 fill-cyan-400" />
+                      <span>QED Nobel</span>
+                    </div>
+
+                    {/* Bottom Subsidiary Plaque */}
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:bottom-2 sm:left-2 sm:right-2 p-1.5 sm:p-2 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 text-white text-right">
+                      <p className="text-[9px] xs:text-[10px] sm:text-[11px] font-bold leading-tight truncate">Richard Feynman</p>
+                      <p className="text-[7.5px] xs:text-[8px] sm:text-[9px] text-cyan-300/90 font-mono leading-none mt-0.5 truncate">Quantum &amp; Intuition</p>
+                    </div>
                   </div>
                 </div>
 
+                {/* ─── CARD 2 (CENTER / ON TOP): GRAVITON ACADEMY LOGO ─── */}
+                <div className="relative z-20 w-[185px] xs:w-[205px] sm:w-[270px] lg:w-[290px] rounded-2xl sm:rounded-3xl overflow-hidden border border-[#dfdbcf] bg-gradient-to-b from-white via-[#faf8f3] to-white p-2 sm:p-3.5 shadow-[0_22px_55px_rgba(28,28,28,0.18),0_4px_16px_rgba(0,0,0,0.08)] ring-1 ring-amber-400/25 transition-all duration-500 ease-out group-hover/deck:scale-[1.02] select-none">
+                  
+                  {/* Hero Logo Canvas: mainlogo.jpg */}
+                  <div className="relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-[#000000] border border-white/10 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.2)] flex items-center justify-center group/logo">
+                    
+                    {/* Subtle celestial radial glow & dot matrix behind logo */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.16)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
+                    <div 
+                      className="absolute inset-0 opacity-[0.06] pointer-events-none"
+                      style={{
+                        backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
+                        backgroundSize: '20px 20px',
+                      }}
+                    />
+
+                    {/* Logo Image */}
+                    <img
+                      src="/mainlogo.jpg"
+                      alt={`${INSTITUTE_NAME} Logo`}
+                      className="w-full h-full object-contain p-2 sm:p-3 transition-transform duration-700 group-hover/logo:scale-[1.04]"
+                    />
+                    
+                    {/* Top Floating Badge: Mode & Accreditation */}
+                    <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9px] xs:text-[10px] sm:text-[11px] font-semibold shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Admissions Open</span>
+                    </div>
+
+                    {/* Top Floating Badge: Center of Excellence */}
+                    <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 inline-flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#fcfbf8]/95 backdrop-blur-md border border-[#dfdbcf] text-[#1c1c1c] text-[9px] xs:text-[10px] sm:text-[11px] font-bold shadow-xs">
+                      <Sparkles className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-amber-500 fill-amber-400" />
+                      <span className="hidden xs:inline">Premier</span> Academy
+                    </div>
+
+                    {/* Bottom Floating Glass Card: Institute Identity Plaque */}
+                    <div className="absolute inset-x-2 bottom-2 sm:inset-x-2.5 sm:bottom-2.5 p-2 sm:p-3 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-white flex items-center justify-between shadow-lg">
+                      <div className="min-w-0 pr-1 sm:pr-2">
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                          <Award className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-amber-400 shrink-0" />
+                          <p className="text-[11px] xs:text-xs sm:text-sm font-bold text-white tracking-tight leading-tight truncate">{INSTITUTE_NAME}</p>
+                        </div>
+                        <p className="text-[8.5px] xs:text-[9.5px] sm:text-[11px] text-white/70 leading-none mt-0.5 sm:mt-1 truncate">Class 9–12 • JEE &amp; NEET Foundation</p>
+                      </div>
+                      <Link
+                        to="/batch-details"
+                        className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white hover:bg-[#f7f4ed] text-[#1c1c1c] border border-white/40 font-bold text-[9px] xs:text-[10px] sm:text-[11px] transition-all shrink-0 shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.7),0_1px_2px_rgba(0,0,0,0.1)] active:scale-[0.98] group/btn"
+                      >
+                        <span>Batches</span>
+                        <ArrowRight className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-[#1c1c1c]/70 group-hover/btn:translate-x-0.5 transition-transform" />
+                      </Link>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Mini Stat Ticker below the 3-Card Deck */}
+              <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-2 px-0.5 max-w-[320px] sm:max-w-[360px] mx-auto">
+                <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
+                  <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">500+</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Students</p>
+                </div>
+                <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
+                  <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">100%</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Concept Focus</p>
+                </div>
+                <div className="text-center p-2 rounded-xl bg-[#f7f4ed] border border-[#dfdbcf] shadow-2xs">
+                  <p className="text-xs sm:text-sm font-extrabold text-[#1c1c1c] leading-none">24/7</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#5f5f5d] mt-1 font-medium leading-tight">Doubt Desk</p>
+                </div>
               </div>
 
             </div>
@@ -999,7 +1145,7 @@ export default function Home() {
       </section>
 
       {/* ════════════ RUNNING BATCHES SECTION ════════════ */}
-      <BatchPostersSection batches={batchPosters} />
+      <BatchPostersSection batches={batchPosters} loading={postersLoading} />
 
       {/* ════════════ TRUST & METHODOLOGY STRIP (Color-Accented Cards) ════════════ */}
       <section className="py-12 sm:py-16 border-b border-[#e7e4dc] bg-white">
