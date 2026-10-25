@@ -53,40 +53,43 @@ export default function AllLecturesMobile({
     <div className="lg:hidden relative z-10 space-y-6">
       {/* Symmetrical Mini Header Pager for Mobile when multiple pages exist */}
       {totalMobilePages > 1 && (
-        <div className="flex items-center justify-between px-1 py-1">
-          <div className="flex items-center gap-1.5 text-xs text-[#71717a] font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>
+        <div className="flex items-center justify-between gap-3 px-1 py-1">
+          <div className="flex items-center gap-2 text-xs text-[#71717a] font-medium min-w-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="truncate">
               Showing {(mobilePage - 1) * MOBILE_PAGE_SIZE + 1}–
               {Math.min(mobilePage * MOBILE_PAGE_SIZE, cards.length)} of {cards.length} lectures
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-[#e2ddd1] shadow-2xs">
+          {/* Luxury Floating Pill Pager (prevents text wrapping and delivers tactile micro-interactions) */}
+          <div className="inline-flex items-center gap-1 bg-white/95 backdrop-blur-md p-1 rounded-full border border-[#ded8cb] shadow-[0_2px_8px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)] shrink-0">
             <motion.button
               type="button"
+              whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
               onClick={() => handlePageChange(mobilePage - 1)}
               disabled={mobilePage === 1}
-              className="w-7 h-7 rounded-lg text-[#1c1c1c] hover:bg-[#f7f4ed] disabled:opacity-30 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-full text-[#1c1c1c] hover:bg-[#f4efe4] disabled:opacity-20 disabled:hover:bg-transparent flex items-center justify-center transition-colors cursor-pointer"
               title="Previous"
               aria-label="Previous page"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3.5 w-3.5 stroke-[2.25]" />
             </motion.button>
-            <span className="text-xs font-bold text-[#1c1c1c] px-2 tabular-nums">
+            <span className="text-xs font-bold text-[#1c1c1c] px-2.5 py-0.5 rounded-full bg-[#f6f2e9] border border-[#e5dfd2] tabular-nums whitespace-nowrap shadow-2xs select-none">
               {mobilePage} / {totalMobilePages}
             </span>
             <motion.button
               type="button"
+              whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
               onClick={() => handlePageChange(mobilePage + 1)}
               disabled={mobilePage === totalMobilePages}
-              className="w-7 h-7 rounded-lg text-[#1c1c1c] hover:bg-[#f7f4ed] disabled:opacity-30 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-full text-[#1c1c1c] hover:bg-[#f4efe4] disabled:opacity-20 disabled:hover:bg-transparent flex items-center justify-center transition-colors cursor-pointer"
               title="Next"
               aria-label="Next page"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5 stroke-[2.25]" />
             </motion.button>
           </div>
         </div>
@@ -119,50 +122,54 @@ export default function AllLecturesMobile({
         </AnimatePresence>
       </motion.div>
 
-      {/* Symmetrical Bottom Numbered Pagination (matching Desktop aesthetics) */}
+      {/* Symmetrical Bottom Numbered Pagination (matching Luxury Pill aesthetics) */}
       {totalMobilePages > 1 && (
-        <div className="flex items-center justify-center gap-1.5 mt-8 pt-4 border-t border-[#e8e2d5]/60 relative z-10">
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.92 }}
-            onClick={() => handlePageChange(mobilePage - 1)}
-            disabled={mobilePage === 1}
-            className="p-2 rounded-xl border border-[#e2ddd1] bg-white hover:border-[#1c1c1c] text-[#1c1c1c] disabled:opacity-30 transition-colors cursor-pointer shadow-2xs"
-            title="Previous page"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </motion.button>
-
-          {[...Array(totalMobilePages)].map((_, i) => (
+        <div className="flex items-center justify-center mt-8 pt-4 border-t border-[#e8e2d5]/60 relative z-10">
+          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full bg-white/95 backdrop-blur-md border border-[#ded8cb] shadow-[0_2px_8px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)]">
             <motion.button
-              key={i}
               type="button"
+              whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
-              onClick={() => handlePageChange(i + 1)}
-              className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                mobilePage === i + 1
-                  ? 'bg-[#1c1c1c] text-[#fcfbf8] shadow-xs'
-                  : 'bg-white border border-[#e2ddd1] text-[#1c1c1c] hover:border-[#1c1c1c]'
-              }`}
-              aria-label={`Go to page ${i + 1}`}
-              aria-current={mobilePage === i + 1 ? 'page' : undefined}
+              onClick={() => handlePageChange(mobilePage - 1)}
+              disabled={mobilePage === 1}
+              className="w-8 h-8 rounded-full text-[#1c1c1c] hover:bg-[#f4efe4] disabled:opacity-20 disabled:hover:bg-transparent flex items-center justify-center transition-colors cursor-pointer"
+              title="Previous page"
+              aria-label="Previous page"
             >
-              {i + 1}
+              <ChevronLeft className="h-4 w-4" />
             </motion.button>
-          ))}
 
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.92 }}
-            onClick={() => handlePageChange(mobilePage + 1)}
-            disabled={mobilePage === totalMobilePages}
-            className="p-2 rounded-xl border border-[#e2ddd1] bg-white hover:border-[#1c1c1c] text-[#1c1c1c] disabled:opacity-30 transition-colors cursor-pointer shadow-2xs"
-            title="Next page"
-            aria-label="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </motion.button>
+            {[...Array(totalMobilePages)].map((_, i) => (
+              <motion.button
+                key={i}
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={() => handlePageChange(i + 1)}
+                className={`w-8 h-8 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                  mobilePage === i + 1
+                    ? 'bg-[#1c1c1c] text-[#fcfbf8] shadow-xs'
+                    : 'text-[#1c1c1c] hover:bg-[#f4efe4]'
+                }`}
+                aria-label={`Go to page ${i + 1}`}
+                aria-current={mobilePage === i + 1 ? 'page' : undefined}
+              >
+                {i + 1}
+              </motion.button>
+            ))}
+
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={() => handlePageChange(mobilePage + 1)}
+              disabled={mobilePage === totalMobilePages}
+              className="w-8 h-8 rounded-full text-[#1c1c1c] hover:bg-[#f4efe4] disabled:opacity-20 disabled:hover:bg-transparent flex items-center justify-center transition-colors cursor-pointer"
+              title="Next page"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          </div>
         </div>
       )}
     </div>

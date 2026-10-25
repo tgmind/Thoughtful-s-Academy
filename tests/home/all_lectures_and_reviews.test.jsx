@@ -52,7 +52,15 @@ describe('All Lectures & Desktop Reviews Suite', () => {
 
       // Mobile symmetrical pagination controls are present
       expect(screen.getByText(/Showing 1–4 of 6 lectures/i)).toBeInTheDocument()
-      expect(screen.getByText('1 / 2')).toBeInTheDocument()
+      const pagePill = screen.getByText('1 / 2')
+      expect(pagePill).toBeInTheDocument()
+      expect(pagePill.className).toContain('whitespace-nowrap')
+      expect(pagePill.className).toContain('rounded-full')
+
+      // Ensure the outer wrapper is a rounded-full pill container
+      const pillContainer = pagePill.closest('.rounded-full')
+      expect(pillContainer).toBeInTheDocument()
+
       expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Go to page 2' })).toBeInTheDocument()
     })

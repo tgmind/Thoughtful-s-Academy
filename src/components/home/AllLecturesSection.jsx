@@ -64,29 +64,35 @@ export default function AllLecturesSection({
             </p>
           </div>
 
-          {/* Desktop compact header pager (kept 100% intact for desktop view) */}
+          {/* Desktop compact header pager (Luxury Pill Design) */}
           {totalPages > 1 && (
-            <div className="hidden lg:flex items-center gap-1.5 self-end sm:self-auto bg-white p-1 rounded-xl border border-[#e2ddd1] shadow-2xs">
+            <div className="hidden lg:inline-flex items-center gap-1 self-end sm:self-auto bg-white/95 backdrop-blur-md p-1 rounded-full border border-[#ded8cb] shadow-[0_2px_8px_rgba(28,28,28,0.06),0_1px_2px_rgba(28,28,28,0.04)] shrink-0">
               <motion.button
+                type="button"
+                whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.92 }}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="w-7 h-7 rounded-lg text-[#1c1c1c] hover:bg-[#f7f4ed] disabled:opacity-30 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-full text-[#1c1c1c] hover:bg-[#f4efe4] disabled:opacity-20 disabled:hover:bg-transparent flex items-center justify-center transition-colors cursor-pointer"
                 title="Previous"
+                aria-label="Previous page"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3.5 w-3.5 stroke-[2.25]" />
               </motion.button>
-              <span className="text-xs font-bold text-[#1c1c1c] px-2 tabular-nums">
-                {page} <span className="text-[#5f5f5d] font-normal">/</span> {totalPages}
+              <span className="text-xs font-bold text-[#1c1c1c] px-2.5 py-0.5 rounded-full bg-[#f6f2e9] border border-[#e5dfd2] tabular-nums whitespace-nowrap shadow-2xs select-none">
+                {page} / {totalPages}
               </span>
               <motion.button
+                type="button"
+                whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.92 }}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="w-7 h-7 rounded-lg text-[#1c1c1c] hover:bg-[#f7f4ed] disabled:opacity-30 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-full text-[#1c1c1c] hover:bg-[#f4efe4] disabled:opacity-20 disabled:hover:bg-transparent flex items-center justify-center transition-colors cursor-pointer"
                 title="Next"
+                aria-label="Next page"
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5 stroke-[2.25]" />
               </motion.button>
             </div>
           )}
