@@ -113,6 +113,14 @@ describe('All Lectures & Desktop Reviews Suite', () => {
       expect(rootDiv).toHaveStyle({ height: '640px', maxHeight: '640px' })
     })
 
+    it('enforces a strict maximum of 6 cards (1000px ceiling) even if taller targetHeight is passed', () => {
+      // If a tall All Lectures section or oversized height is passed (e.g. 1450px)
+      const { container } = render(<StudentReviewsDesktop targetHeight={1450} />)
+      const rootDiv = container.firstChild
+      // Must clamp strictly to 1000px
+      expect(rootDiv).toHaveStyle({ height: '1000px', maxHeight: '1000px' })
+    })
+
     it('adapts cleanly to shorter All Lectures heights without overflowing or exceeding', () => {
       // For a 1-row All Lectures section, targetHeight is around 260px
       const { container } = render(<StudentReviewsDesktop targetHeight={260} />)

@@ -31,9 +31,13 @@ export default function StudentReviewsDesktop({ targetHeight }) {
     }
   }, [isPaused, totalReviews])
 
-  const containerStyle = targetHeight
-    ? { height: `${targetHeight}px`, maxHeight: `${targetHeight}px` }
-    : { minHeight: '260px' }
+  // Hard ceiling for maximum 6 review cards: 6 * 152px + 5 * 12px + 132px (header/footer/padding) = 1000px
+  const MAX_REVIEWS_HEIGHT = 1000
+  const effectiveHeight = targetHeight ? Math.min(MAX_REVIEWS_HEIGHT, targetHeight) : null
+
+  const containerStyle = effectiveHeight
+    ? { height: `${effectiveHeight}px`, maxHeight: `${effectiveHeight}px` }
+    : { minHeight: '260px', maxHeight: `${MAX_REVIEWS_HEIGHT}px` }
 
   return (
     <div

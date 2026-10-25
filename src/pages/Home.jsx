@@ -890,38 +890,33 @@ export default function Home() {
     if (typeof window === 'undefined') return
 
     const updateReviewsHeight = () => {
-      if (!allLecturesRef.current || !feedContainerRef.current) return
+      if (!allLecturesRef.current) return
 
-      const containerEl = feedContainerRef.current
       const allLecturesEl = allLecturesRef.current
-
-      // Calculate vertical positions relative to the common feed container
-      const containerRect = containerEl.getBoundingClientRect()
-      const allLecturesRect = allLecturesEl.getBoundingClientRect()
-
-      // Top of container in page coordinate (scroll-independent)
-      const containerTopPage = containerRect.top + window.scrollY
-      // Bottom of AllLecturesSection in page coordinate (scroll-independent)
-      const allLecturesBottomPage = allLecturesRect.bottom + window.scrollY
-
-      // Distance from container top down to the bottom edge of AllLecturesSection
-      const allLecturesBottomRelative = allLecturesBottomPage - containerTopPage
-
-      // In the desktop sidebar, WhatsOnCard sits at the top of the sidebar.
-      // Get its actual rendered height (or fallback 260) + gap (20)
+      const allLecturesH = allLecturesEl.offsetHeight || 0
       const whatsOnH = whatsOnRef.current?.offsetHeight || 260
       const gap = 20 // space-y-5
 
-      // reviewsTopRelative is where StudentReviewsDesktop starts in the sidebar
-      const reviewsTopRelative = whatsOnH + gap
+      if (allLecturesH > 0) {
+        // Space available in the sidebar alongside AllLecturesSection
+        // so total sidebar height (WhatsOnCard + gap + reviews) matches AllLecturesSection
+        const availableInSidebar = allLecturesH - whatsOnH - gap
 
-      // The exact height StudentReviewsDesktop needs so its bottom matches AllLecturesSection bottom:
-      const calculatedHeight = allLecturesBottomRelative - reviewsTopRelative
+        // Maximum of 6 cards height: 6 * 152px + 5 * 12px + 132px (header/footer/padding) = 1000px
+        const MAX_6_CARDS_HEIGHT = 1000
+        // Minimum height for 1 card + header + footer
+        const MIN_REVIEWS_HEIGHT = 260
 
-      // The desktop reviews section must NEVER exceed the All Lectures section height.
-      // Match the available height down to the bottom of AllLecturesSection.
-      if (calculatedHeight > 0) {
-        const target = Math.max(120, Math.floor(calculatedHeight))
+        // Strict clamping:
+        // 1. NEVER taller than AllLecturesSection (availableInSidebar < allLecturesH)
+        // 2. Maximum of 6 cards displayed (capped at 1000px)
+        // 3. Minimum 1 card displayed (260px)
+        // 4. Adjusts dynamically as AllLecturesSection height changes
+        const target = Math.min(
+          MAX_6_CARDS_HEIGHT,
+          Math.max(MIN_REVIEWS_HEIGHT, Math.floor(availableInSidebar))
+        )
+
         setReviewsHeight(prev => (prev !== target && Math.abs((prev || 0) - target) > 1 ? target : prev))
       }
     }
@@ -1673,7 +1668,7 @@ export default function Home() {
           </div>
 
           {/* RIGHT: DESKTOP STICKY SIDEBAR ("WHAT'S ON" CARD + DYNAMIC STUDENT REVIEWS) */}
-          <aside className="hidden lg:block w-80 xl:w-88 flex-shrink-0">
+          <aside className="hidden lg:block w-80 xl:w-88 flex-shrink-0 self-stretch">
             <div className="sticky top-24 space-y-5">
               <div ref={whatsOnRef}>
                 <WhatsOnCard
