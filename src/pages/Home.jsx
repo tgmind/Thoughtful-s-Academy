@@ -628,7 +628,7 @@ const HERO_DECK_ITEMS = [
   { id: 'feynman',  index: 2, isInitial: false },
 ]
 const INITIAL_HERO_CARD = 'graviton'
-const INACTIVITY_DELAY_MS = 4500
+const INACTIVITY_DELAY_MS = 2800
 
 // Dynamic symmetrical card sizing helper for balanced grid distribution
 function getCardWidthClass(count) {
@@ -669,12 +669,23 @@ export default function Home() {
     }
   }
 
+  const resetToInitialDeck = () => {
+    clearInactivityTimer()
+    setHeroActiveCard(INITIAL_HERO_CARD)
+  }
+
   const handleSelectHeroCard = (cardId) => {
+    // If clicking the active non-initial card, toggle it back immediately
+    if (cardId === heroActiveCard && cardId !== INITIAL_HERO_CARD) {
+      resetToInitialDeck()
+      return
+    }
+
     setHeroActiveCard(cardId)
     clearInactivityTimer()
 
     if (cardId !== INITIAL_HERO_CARD) {
-      lastScrollYRef.current = typeof window !== 'undefined' ? window.scrollY : 0
+      lastScrollYRef.current = typeof window !== 'undefined' ? (window.scrollY || document.documentElement.scrollTop || 0) : 0
       inactivityTimerRef.current = setTimeout(() => {
         setHeroActiveCard(INITIAL_HERO_CARD)
       }, INACTIVITY_DELAY_MS)
@@ -690,22 +701,53 @@ export default function Home() {
     }
   }
 
-  // Automatic reset to initial state on page scroll
+  const handleDeckMouseLeave = () => {
+    if (heroActiveCard !== INITIAL_HERO_CARD) {
+      clearInactivityTimer()
+      // Responsive, elegant return upon cursor exiting the deck stage
+      inactivityTimerRef.current = setTimeout(() => {
+        setHeroActiveCard(INITIAL_HERO_CARD)
+      }, 1200)
+    }
+  }
+
+  // Automatic reset to initial state on page scroll, touch swipe, or wheel movement
   useEffect(() => {
     if (heroActiveCard === INITIAL_HERO_CARD) return
 
+    const triggerReset = () => {
+      clearInactivityTimer()
+      setHeroActiveCard(INITIAL_HERO_CARD)
+    }
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      // Reset if user scrolls more than 15px
-      if (Math.abs(currentScrollY - lastScrollYRef.current) > 15) {
-        clearInactivityTimer()
-        setHeroActiveCard(INITIAL_HERO_CARD)
+      const currentScrollY = window.scrollY || document.documentElement.scrollTop || 0
+      // Any genuine scroll movement (> 3px) restores the original tilted fanned deck
+      if (Math.abs(currentScrollY - lastScrollYRef.current) >= 3) {
+        triggerReset()
       }
     }
 
+    const handleWheel = (e) => {
+      if (Math.abs(e.deltaY) > 2 || Math.abs(e.deltaX) > 2) {
+        triggerReset()
+      }
+    }
+
+    const handleTouchMove = () => {
+      triggerReset()
+    }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
+    document.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('wheel', handleWheel, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+
     return () => {
       window.removeEventListener('scroll', handleScroll)
+      document.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('touchmove', handleTouchMove)
     }
   }, [heroActiveCard])
 
@@ -1168,7 +1210,10 @@ export default function Home() {
               </div>
 
               {/* 3-Card Symmetrical Fanned Gallery Stage */}
-              <div className="relative h-[340px] lg:h-[360px] flex items-center justify-center select-none pt-2">
+              <div 
+                onMouseLeave={handleDeckMouseLeave}
+                className="relative h-[340px] lg:h-[360px] flex items-center justify-center select-none pt-2"
+              >
                 
                 {/* ─── CARD 1: ALBERT EINSTEIN (Theoretical Physics) ─── */}
                 <motion.div
@@ -1184,8 +1229,8 @@ export default function Home() {
                   transition={{ 
                     opacity: { duration: 0.6, ease: 'easeOut' },
                     x: { duration: 0.6, ease: 'easeOut' },
-                    rotate: { duration: 0.4 },
-                    scale: { duration: 0.4 },
+                    rotate: { type: 'spring', stiffness: 350, damping: 25 },
+                    scale: { type: 'spring', stiffness: 350, damping: 25 },
                     y: { repeat: Infinity, duration: 4.8, ease: 'easeInOut' }
                   }}
                   whileHover={{ 
@@ -1243,8 +1288,8 @@ export default function Home() {
                   transition={{ 
                     opacity: { duration: 0.6, ease: 'easeOut', delay: 0.15 },
                     x: { duration: 0.6, ease: 'easeOut', delay: 0.15 },
-                    rotate: { duration: 0.4 },
-                    scale: { duration: 0.4 },
+                    rotate: { type: 'spring', stiffness: 350, damping: 25 },
+                    scale: { type: 'spring', stiffness: 350, damping: 25 },
                     y: { repeat: Infinity, duration: 4.6, ease: 'easeInOut', delay: 0.6 }
                   }}
                   whileHover={{ 
@@ -1294,12 +1339,14 @@ export default function Home() {
                   animate={{ 
                     opacity: 1, 
                     y: [0, -8, 0], 
+                    rotate: 0,
                     scale: activeDesktopCard === 'graviton' ? 1.04 : 1,
                     zIndex: activeDesktopCard === 'graviton' ? 30 : 20,
                   }}
                   transition={{ 
                     opacity: { duration: 0.6, ease: 'easeOut', delay: 0.25 },
-                    scale: { duration: 0.4 },
+                    scale: { type: 'spring', stiffness: 350, damping: 25 },
+                    rotate: { type: 'spring', stiffness: 350, damping: 25 },
                     y: { repeat: Infinity, duration: 5.4, ease: 'easeInOut', delay: 0.3 }
                   }}
                   whileHover={{ 
@@ -1423,18 +1470,33 @@ export default function Home() {
               </div>
 
               {/* Mobile 3D Triad Staging Area */}
-              <div className="relative h-[300px] xs:h-[320px] flex items-center justify-center">
+              <div className="relative h-[300px] xs:h-[320px] flex items-center justify-center select-none pt-2">
                 
-                {/* Flanking Card: Einstein (Visible or Peeking) */}
+                {/* ─── Flanking Card: Einstein (Visible or Peeking) ─── */}
                 <motion.div
-                  layout
-                  transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                  animate={{
+                    rotate: mobileHeroCard === 'einstein' ? 0 : -6,
+                    scale: mobileHeroCard === 'einstein' ? 1.04 : 0.9,
+                    x: mobileHeroCard === 'einstein' ? 24 : 0,
+                    y: [0, -5, 0],
+                    zIndex: mobileHeroCard === 'einstein' ? 30 : 10,
+                    opacity: mobileHeroCard === 'feynman' ? 0.6 : 1,
+                  }}
+                  transition={{
+                    rotate: { type: 'spring', stiffness: 320, damping: 25 },
+                    scale: { type: 'spring', stiffness: 320, damping: 25 },
+                    x: { type: 'spring', stiffness: 320, damping: 25 },
+                    opacity: { duration: 0.25 },
+                    zIndex: { duration: 0.1 },
+                    y: { repeat: Infinity, duration: 4.8, ease: 'easeInOut' }
+                  }}
                   onClick={() => handleSelectHeroCard('einstein')}
-                  className={`transition-all duration-300 rounded-2xl border ${
+                  style={{ transformOrigin: 'bottom center' }}
+                  className={`absolute left-0 xs:left-1 top-3.5 w-[185px] xs:w-[200px] aspect-[4/5] rounded-2xl border ${
                     mobileHeroCard === 'einstein'
-                      ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.22)] ring-1 ring-amber-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
-                      : 'absolute left-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] -rotate-[6deg] opacity-75 cursor-pointer'
-                  }`}
+                      ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/30 p-2'
+                      : 'border-[#dfdbcf] shadow-md p-1.5'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white cursor-pointer transition-colors duration-200`}
                 >
                   <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
                     <img
@@ -1455,18 +1517,30 @@ export default function Home() {
                   </div>
                 </motion.div>
 
-                {/* Central / Active Card: Graviton Logo */}
+                {/* ─── Central / Active Card: Graviton Logo ─── */}
                 <motion.div
-                  layout
-                  transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                  animate={{
+                    rotate: mobileHeroCard === 'graviton' ? 0 : (mobileHeroCard === 'einstein' ? 5 : -5),
+                    scale: mobileHeroCard === 'graviton' ? 1.02 : 0.92,
+                    x: 0,
+                    y: [0, -7, 0],
+                    zIndex: mobileHeroCard === 'graviton' ? 25 : 15,
+                    opacity: mobileHeroCard === 'graviton' ? 1 : 0.75,
+                  }}
+                  transition={{
+                    rotate: { type: 'spring', stiffness: 320, damping: 25 },
+                    scale: { type: 'spring', stiffness: 320, damping: 25 },
+                    opacity: { duration: 0.25 },
+                    zIndex: { duration: 0.1 },
+                    y: { repeat: Infinity, duration: 5.2, ease: 'easeInOut', delay: 0.3 }
+                  }}
                   onClick={() => handleSelectHeroCard('graviton')}
-                  className={`transition-all duration-300 rounded-2xl border ${
+                  style={{ transformOrigin: 'center center' }}
+                  className={`relative z-20 w-[195px] xs:w-[215px] aspect-[4/5] rounded-2xl border ${
                     mobileHeroCard === 'graviton'
-                      ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-amber-400/80 shadow-[0_20px_50px_rgba(28,28,28,0.22)] ring-1 ring-amber-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
-                      : mobileHeroCard === 'einstein'
-                        ? 'absolute right-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] rotate-[6deg] opacity-75 cursor-pointer'
-                        : 'absolute left-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] -rotate-[6deg] opacity-75 cursor-pointer'
-                  }`}
+                      ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(28,28,28,0.22)] ring-1 ring-amber-400/30 p-2'
+                      : 'border-[#dfdbcf] shadow-md p-1.5'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white cursor-pointer transition-colors duration-200`}
                 >
                   <div className="relative rounded-xl overflow-hidden w-full h-full bg-[#000000] border border-white/10 flex items-center justify-center">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.18)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
@@ -1499,16 +1573,31 @@ export default function Home() {
                   </div>
                 </motion.div>
 
-                {/* Flanking Card: Richard Feynman */}
+                {/* ─── Flanking Card: Richard Feynman ─── */}
                 <motion.div
-                  layout
-                  transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                  animate={{
+                    rotate: mobileHeroCard === 'feynman' ? 0 : 6,
+                    scale: mobileHeroCard === 'feynman' ? 1.04 : 0.9,
+                    x: mobileHeroCard === 'feynman' ? -24 : 0,
+                    y: [0, -5, 0],
+                    zIndex: mobileHeroCard === 'feynman' ? 30 : 10,
+                    opacity: mobileHeroCard === 'einstein' ? 0.6 : 1,
+                  }}
+                  transition={{
+                    rotate: { type: 'spring', stiffness: 320, damping: 25 },
+                    scale: { type: 'spring', stiffness: 320, damping: 25 },
+                    x: { type: 'spring', stiffness: 320, damping: 25 },
+                    opacity: { duration: 0.25 },
+                    zIndex: { duration: 0.1 },
+                    y: { repeat: Infinity, duration: 4.6, ease: 'easeInOut', delay: 0.6 }
+                  }}
                   onClick={() => handleSelectHeroCard('feynman')}
-                  className={`transition-all duration-300 rounded-2xl border ${
+                  style={{ transformOrigin: 'bottom center' }}
+                  className={`absolute right-0 xs:right-1 top-3.5 w-[185px] xs:w-[200px] aspect-[4/5] rounded-2xl border ${
                     mobileHeroCard === 'feynman'
-                      ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.22)] ring-1 ring-cyan-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
-                      : 'absolute right-0 top-3 z-10 w-[185px] xs:w-[200px] aspect-[4/5] border-[#dfdbcf] shadow-md p-1.5 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-[0.88] rotate-[6deg] opacity-75 cursor-pointer'
-                  }`}
+                      ? 'border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400/30 p-2'
+                      : 'border-[#dfdbcf] shadow-md p-1.5'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white cursor-pointer transition-colors duration-200`}
                 >
                   <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
                     <img
