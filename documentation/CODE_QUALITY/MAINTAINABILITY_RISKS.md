@@ -1,6 +1,6 @@
 # Long-Term Maintainability & Engineering Fragility Risks
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Software Architect  
 **Maintainability Index Score:** 62 / 100 (High Risk of Engineering Slowdown as Team Grows)  
 

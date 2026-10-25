@@ -1,13 +1,13 @@
 # Frontend Architecture & State Management
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy
+Platform: Graviton Academy
 
 ---
 
 ## 1. Architectural Style & Rendering Mode
 
-Thoughtful's Academy is structured as a **Pure Client-Side Rendered (CSR)** React Single Page Application (SPA).
+Graviton Academy is structured as a **Pure Client-Side Rendered (CSR)** React Single Page Application (SPA).
 - **Hosting Strategy:** Hosted statically on Netlify CDN edge nodes.
 - **Initial Load:** Returns minimal `index.html` followed by critical bundles (`vendor-react.js`, `vendor-ui.js`, `vendor-supabase.js`, `index.css`).
 - **Subsequent Routing:** Navigated purely in the browser history state via `react-router-dom` v6 with zero server round-trips for HTML.

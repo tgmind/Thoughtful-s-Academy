@@ -1,6 +1,6 @@
 # Forensic Validation of Database Migration 027
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Target Migration:** `supabase/migrations/027_capacity_and_realtime_optimizations.sql`  
 **Phase:** Phase 4 — Staging Validation & Index Optimization  
 **Date:** 2026-10-13  

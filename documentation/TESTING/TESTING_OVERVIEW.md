@@ -1,6 +1,6 @@
 # Platform Testing Strategy & Quality Assurance Overview
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead QA Architect:** Principal QA Automation Engineer & Reliability Specialist  
 **Automated Test Coverage:** 0.00% (No Unit, Integration, or E2E Test Files in Codebase)  
 **Static Verification Status:** Clean (ESLint 0 errors, Vite Rollup build 100% successful)  

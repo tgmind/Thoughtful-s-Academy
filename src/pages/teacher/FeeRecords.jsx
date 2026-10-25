@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Search, Download, Lock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -13,10 +14,11 @@ const STATUS_COLORS = {
 
 export default function FeeRecords() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [perms,    setPerms]    = useState(null)
   const [records,  setRecords]  = useState([])
   const [search,   setSearch]   = useState('')
-  const [statusF,  setStatusF]  = useState('')
+  const [statusF,  setStatusF]  = useState(() => searchParams.get('status') || '')
   const [loading,  setLoading]  = useState(true)
 
   useEffect(() => {

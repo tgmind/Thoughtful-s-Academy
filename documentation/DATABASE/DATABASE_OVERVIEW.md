@@ -1,6 +1,6 @@
 # Database Architecture & Relational Overview
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6 (Managed via Supabase Cloud)  
 **Primary Region:** AWS Mumbai (`ap-south-1`)  
 **Access Layer:** PostgREST 12+ RESTful Data Gateway & Elixir Realtime Engine  
@@ -12,7 +12,7 @@
 
 ## 1. Architectural Philosophy & Design Principles
 
-The database layer serves as the single source of truth and the ultimate security boundary for Thoughtful's Academy. Rather than routing queries through an intermediate application server running an ORM (like Prisma or TypeORM), client web applications communicate directly with PostgreSQL tables via PostgREST.
+The database layer serves as the single source of truth and the ultimate security boundary for Graviton Academy. Rather than routing queries through an intermediate application server running an ORM (like Prisma or TypeORM), client web applications communicate directly with PostgreSQL tables via PostgREST.
 
 Key architectural characteristics include:
 1. **Strict Relational Normalization:** User identities reside in `profiles` (keyed to `auth.users(id)`), while role-specific metadata is cleanly partitioned into `student_profiles` and `teacher_profiles` via 1-to-1 foreign keys.

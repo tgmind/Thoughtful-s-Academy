@@ -1,6 +1,6 @@
 # Backend Business Logic & Domain Rule Specifications
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Domain Scope:** Academic Enrollment, Automated Roll Numbers, Fee Reconciliation, Payroll Disbursement, Curriculum Progression, and Granular Faculty Delegation  
 
 ---

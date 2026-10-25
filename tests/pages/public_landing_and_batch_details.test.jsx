@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Home from '../../src/pages/Home'
 import BatchDetails from '../../src/pages/BatchDetails'
@@ -218,5 +218,91 @@ describe('Public Landing Page & Batch Details Redesign (Mobbin & Vercel Aestheti
       expect(screen.queryByRole('heading', { name: 'Class 10 Deactivated' })).not.toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Class 9 Marathon' })).toBeInTheDocument()
     })
+  })
+
+  it('renders hero dot indicators without hardcoded image text and auto-resets disturbed state on scroll', async () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    )
+
+    // The selection dock must have tab role indicators (dots) and NO bulky button labels like '✦ Einstein'
+    const dotDocks = screen.getAllByRole('tablist', { name: /Hero showcase cards/i })
+    expect(dotDocks.length).toBeGreaterThan(0)
+
+    // Verify that the old text buttons are NOT in the selection bar
+    expect(screen.queryByText('✦ Einstein')).not.toBeInTheDocument()
+    expect(screen.queryByText('⚛ Graviton')).not.toBeInTheDocument()
+    expect(screen.queryByText('⚡ Feynman')).not.toBeInTheDocument()
+
+    // Query dot buttons
+    const dotButtons = screen.getAllByRole('tab')
+    expect(dotButtons.length).toBeGreaterThanOrEqual(3)
+
+    // Initially, the middle dot (index 1 / Graviton Institute) is selected
+    const initialActive = dotButtons.filter(b => b.getAttribute('aria-selected') === 'true')
+    expect(initialActive.length).toBeGreaterThan(0)
+    expect(initialActive[0].getAttribute('aria-label')).toMatch(/Graviton Institute/i)
+
+    // User disturbs state by clicking card 1 (dot 0)
+    fireEvent.click(dotButtons[0])
+    expect(dotButtons[0].getAttribute('aria-selected')).toBe('true')
+
+    // Simulate page scroll
+    window.scrollY = 100
+    fireEvent.scroll(window)
+
+    // Should automatically reset back to initial state (Graviton Institute)
+    await waitFor(() => {
+      const resetActive = screen.getAllByRole('tab').filter(b => b.getAttribute('aria-selected') === 'true')
+      expect(resetActive[0].getAttribute('aria-label')).toMatch(/Graviton Institute/i)
+    })
+  })
+
+  it('automatically resets disturbed hero cards back to initial state after inactivity', async () => {
+    vi.useFakeTimers()
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    )
+
+    const dotButtons = screen.getAllByRole('tab')
+    // Click dot 2 (Card 3)
+    fireEvent.click(dotButtons[2])
+    expect(dotButtons[2].getAttribute('aria-selected')).toBe('true')
+
+    // Advance time past the 4.5s inactivity threshold inside act
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    // Should automatically reset back to Graviton Institute
+    const activeDots = screen.getAllByRole('tab').filter(b => b.getAttribute('aria-selected') === 'true')
+    expect(activeDots[0].getAttribute('aria-label')).toMatch(/Graviton Institute/i)
+
+    vi.useRealTimers()
+  })
+
+  it('renders All lectures section with landmark academic wrapper, grand header, and auto-balancing symmetrical layout', async () => {
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    )
+
+    // Academic vault badge and grand header
+    expect(screen.getByText(/Academic Curriculum & Lectures/i)).toBeInTheDocument()
+    expect(screen.getByText(/All lectures/i)).toBeInTheDocument()
+    expect(screen.getByText(/Curated Lessons/i)).toBeInTheDocument()
+
+    // Symmetrical flex container with justify-center exists
+    const allLecturesHeading = screen.getByText(/All lectures/i)
+    const section = allLecturesHeading.closest('section')
+    expect(section).toBeInTheDocument()
+    // Verify auto-balancing flex container with centered justification
+    const flexGrid = section.querySelector('.flex.flex-wrap.justify-center')
+    expect(flexGrid).toBeInTheDocument()
   })
 })

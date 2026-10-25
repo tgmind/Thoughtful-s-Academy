@@ -1,6 +1,6 @@
 -- ============================================================
 -- 027_capacity_and_realtime_optimizations.sql
--- Thoughtful's Academy High-Capacity & Realtime Index Optimization
+-- Graviton Academy High-Capacity & Realtime Index Optimization
 --
 -- Performance & Capacity Objectives:
 -- 1. Index high-frequency Realtime & Dashboard filter paths

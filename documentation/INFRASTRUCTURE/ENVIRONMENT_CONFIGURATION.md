@@ -1,6 +1,6 @@
 # Environment Variables & Configuration Registry
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Configuration Scopes:** Vite Frontend Build, Netlify Hosting Environment, and Supabase Edge Secrets  
 
 ---

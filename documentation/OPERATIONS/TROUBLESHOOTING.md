@@ -1,6 +1,6 @@
 # Operational Troubleshooting & Diagnostics Guide
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Target Audience:** DevOps Engineers, Support Staff & Developers  
 
 ---

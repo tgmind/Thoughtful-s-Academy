@@ -3,7 +3,7 @@
 Audit Date: October 13, 2026  
 Repository Revision: `b6b2d2803d976e3470d903555394b198731660b2` (`origin/main`)  
 Working Tree State: Modified working tree (3,147 insertions, 1,664 deletions unstaged)  
-Platform Name: Thoughtful's Academy (Coaching Institute Portal)
+Platform Name: Graviton Academy (Coaching Institute Portal)
 
 ---
 

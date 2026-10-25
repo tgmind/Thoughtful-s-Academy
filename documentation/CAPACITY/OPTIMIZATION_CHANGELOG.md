@@ -1,6 +1,6 @@
 # Engineering Optimization Changelog
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Phase:** High-Capacity & Realtime-Preserving Optimization  
 **Date:** 2026-10-13  
 **Status:** Implemented, Tested, and Bundled  

@@ -1,6 +1,6 @@
 # Background Processing, Realtime Events & Push Pipeline
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Architecture:** PostgreSQL Write-Ahead Log (WAL) Replication + Deno Edge Webhooks + Web Push RFC 8292  
 **Realtime Technology:** Supabase Realtime (Phoenix Channels / WebSockets)  
 **Push Relay Engine:** `web-push@3.6.7` on Deno Edge  

@@ -1406,11 +1406,11 @@ export default function ProtectedVideoPlayer({
           onAuxClick={(e) => e.preventDefault()}
         />
 
-        {/* ─── SUBTLE BOTTOM-RIGHT THOUGHTFUL'S ACADEMY BRAND EMBLEM (z-22) ────── */}
+        {/* ─── SUBTLE BOTTOM-RIGHT GRAVITON ACADEMY BRAND EMBLEM (z-22) ────── */}
         {/* Unobtrusive, delicate TV-network watermark bug at bottom right corner  */}
         <div className={`absolute bottom-2.5 right-3.5 z-22 pointer-events-none select-none flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-xs border border-white/10 transition-opacity duration-200 ${controlsVisible ? 'opacity-0' : 'opacity-70'}`}>
           <Award className="h-2.5 w-2.5 text-amber-300" />
-          <span className="text-[8.5px] font-black text-white tracking-tight">Thoughtful&apos;s</span>
+          <span className="text-[8.5px] font-black text-white tracking-tight">Graviton</span>
           <span className="text-[7.5px] font-bold text-indigo-400 uppercase">Academy</span>
         </div>
 

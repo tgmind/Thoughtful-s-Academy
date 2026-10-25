@@ -1,6 +1,6 @@
-# Thoughtful's Academy — Platform Audit & Technical Knowledge Base
+# Graviton Academy — Platform Audit & Technical Knowledge Base
 
-Welcome to the definitive forensic technical documentation repository for **Thoughtful's Academy** (formerly Coaching Institute Platform). This knowledge base was authored during a comprehensive, evidence-backed platform audit on **October 13, 2026**.
+Welcome to the definitive forensic technical documentation repository for **Graviton Academy** (formerly Coaching Institute Platform). This knowledge base was authored during a comprehensive, evidence-backed platform audit on **October 13, 2026**.
 
 ---
 
@@ -56,7 +56,7 @@ documentation/
 
 | Attribute | Observed / Verified Value |
 |---|---|
-| **Platform Name** | Thoughtful's Academy (`INSTITUTE_NAME`) |
+| **Platform Name** | Graviton Academy (`INSTITUTE_NAME`) |
 | **Domain Type** | EdTech Hybrid Coaching Institute Management System |
 | **Frontend Stack** | React 18.3.1, Vite 5.4.10, Tailwind CSS 3.4.14, Lucide React, Framer Motion |
 | **Backend / DB** | Supabase Cloud (PostgreSQL 15, PostgREST 12, Supabase Auth, WebSockets) |

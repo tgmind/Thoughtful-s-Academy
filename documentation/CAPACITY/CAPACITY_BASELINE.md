@@ -1,6 +1,6 @@
 # Platform Capacity Baseline & Bottleneck Forensics
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Commit Baseline:** `b6b2d2803d976e3470d903555394b198731660b2` (Branch `main`)  
 **Audit Date:** 2026-10-13  
 **Target Environment:** Supabase Free Tier + Netlify Starter / Free Tier  
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary: Capacity Objectives & Constraints
 
-Thoughtful's Academy is an EdTech single-page application built on React 18, Vite, Supabase (PostgreSQL 15 + PostgREST + GoTrue + Realtime), and Netlify CDN with edge serverless functions.
+Graviton Academy is an EdTech single-page application built on React 18, Vite, Supabase (PostgreSQL 15 + PostgREST + GoTrue + Realtime), and Netlify CDN with edge serverless functions.
 
 ### The Engineering Challenge
 The platform operates under free-tier operational quotas:

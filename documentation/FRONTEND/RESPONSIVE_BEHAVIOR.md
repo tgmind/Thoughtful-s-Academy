@@ -1,6 +1,6 @@
 # Responsive Behavior & Mobile Optimization Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Viewport Target Matrix:** Mobile (360px - 767px), Tablet (768px - 1023px), Desktop (1024px - 1920px+)  
 **CSS Framework:** Tailwind CSS 3.4.14 Breakpoints  
 **PWA Support:** Full manifest, service worker precaching, and install prompts enabled  

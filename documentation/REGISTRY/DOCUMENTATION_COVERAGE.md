@@ -1,6 +1,6 @@
 # Audit Documentation Coverage & Verification Statement
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Software Architect & Head of Audit Operations  
 **Audit Completion Date:** October 2026  
 **Total Authored Documentation Artifacts:** 116 Markdown Documents  
@@ -34,6 +34,6 @@
 
 ## 2. Auditor Attestation & Certification
 
-I hereby attest that the audit documentation contained in this repository represents a complete, forensic, evidence-backed evaluation of the Thoughtful's Academy codebase at commit `b6b2d28`.
+I hereby attest that the audit documentation contained in this repository represents a complete, forensic, evidence-backed evaluation of the Graviton Academy codebase at commit `b6b2d28`.
 
 Every finding is cross-referenced with exact source code lines and raw execution logs. No superficial summaries or omissions were permitted. This knowledge base serves as the authoritative technical baseline for all future platform upgrades, security remediations, and engineering team onboarding.

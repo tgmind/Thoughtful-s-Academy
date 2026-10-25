@@ -1,6 +1,6 @@
 # Row Level Security (RLS) & Authorization Matrix Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Auditor:** Cybersecurity & Database Authorization Specialist  
 **Authorization Scope:** Complete audit of all Row Level Security policies across 18 public database tables.  

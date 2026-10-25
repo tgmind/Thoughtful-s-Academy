@@ -1,6 +1,6 @@
 # Forensic Test Execution Records & Verification Evidence
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Audit Execution Timestamp:** October 2026  
 **Auditor:** Principal QA Automation Engineer & Platform Forensic Specialist  
 **Execution Environment:** Linux x86_64, Node.js 18+, Vite 5.4.9, Supabase PostgREST 12+  

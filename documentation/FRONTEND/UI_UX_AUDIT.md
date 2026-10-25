@@ -1,6 +1,6 @@
 # UI / UX Comprehensive Usability & Heuristics Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Evaluation Standard:** Jakob Nielsen's 10 Usability Heuristics for User Interface Design & ISO 9241-11 Usability Metrics  
 **Auditor:** Principal UX Architect & Full-Stack Systems Auditor  
 **Date of Audit:** October 2026  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Usability Summary
 
-Thoughtful's Academy demonstrates a thoughtfully tailored domain UX suited for Indian coaching institutes, featuring distinct student, faculty, and administrative portals. The visual design is polished, featuring harmonious color palettes, fluid Framer Motion transitions, and dedicated mobile drawer navigations.
+Graviton Academy demonstrates a thoughtfully tailored domain UX suited for Indian coaching institutes, featuring distinct student, faculty, and administrative portals. The visual design is polished, featuring harmonious color palettes, fluid Framer Motion transitions, and dedicated mobile drawer navigations.
 
 However, forensic inspection across user flows reveals **several critical usability friction points**:
 1. **Cognitive Overload in Teacher Curriculum Workspace:** The faculty curriculum manager (`TeacherStudySection.jsx`, 1,948 LOC) presents all subjects, chapters, cards, and modal triggers on a single continuous page without virtual scrolling or tabbed progressive disclosure.

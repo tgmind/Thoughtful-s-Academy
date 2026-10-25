@@ -1,6 +1,6 @@
 # Backend API Catalog & Interface Matrix
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Architecture:** Direct PostgREST 12+ Data API via `@supabase/supabase-js` + Serverless Functions  
 **Base URL (PostgREST):** `https://<supabase-project-id>.supabase.co/rest/v1`  
 **Base URL (Edge Functions):** `https://<supabase-project-id>.supabase.co/functions/v1`  

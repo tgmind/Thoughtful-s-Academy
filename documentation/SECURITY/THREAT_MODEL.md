@@ -1,6 +1,6 @@
 # Threat Model & STRIDE Forensic Risk Assessment
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Methodology:** Microsoft STRIDE Threat Modeling Framework  
 **Scope:** Client Application, Network Boundaries, PostgREST Gateway, Serverless Functions, and PostgreSQL Storage  
 

@@ -1,6 +1,6 @@
 # Codebase Health & Static Analysis Report
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Software Architect & QA Automation Engineer  
 **Static Linter:** ESLint 9.13.0 with `@eslint/js` & `eslint-plugin-react-hooks`  
 **Total Source Lines of Code:** 25,284 LOC across 73 UI components + utilities  

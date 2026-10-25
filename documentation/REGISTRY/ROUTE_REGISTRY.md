@@ -1,6 +1,6 @@
 # Master Frontend Route Registry
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Router:** React Router DOM v6.26.2  
 **Total Cataloged Routes:** 27 Routes  
 

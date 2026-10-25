@@ -1,14 +1,14 @@
 # System Overview & Architecture
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Architecture Paradigm: Client-Heavy Single Page Application (SPA) + Progressive Web App (PWA) with Backend-as-a-Service (BaaS) and Serverless Edge Extensions.
 
 ---
 
 ## 1. High-Level System Architecture
 
-Thoughtful's Academy employs a **Client-Heavy 3-Tier Web Architecture** combining a static frontend distributed globally via Netlify CDN, a hosted Supabase PostgreSQL backend accessed via PostgREST and Phoenix WebSocket channels, and dedicated serverless functions for third-party orchestration.
+Graviton Academy employs a **Client-Heavy 3-Tier Web Architecture** combining a static frontend distributed globally via Netlify CDN, a hosted Supabase PostgreSQL backend accessed via PostgREST and Phoenix WebSocket channels, and dedicated serverless functions for third-party orchestration.
 
 ```mermaid
 graph TD

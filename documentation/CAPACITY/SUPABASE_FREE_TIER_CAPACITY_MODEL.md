@@ -1,6 +1,6 @@
 # Supabase Free-Tier Capacity Model & Resource Limits
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Component:** Supabase PostgreSQL, PostgREST, Auth, and Realtime Engine  
 **Date:** 2026-10-13  
 **Analysis Type:** Forensic Resource Modeling & Concurrency Scaling Limits  
@@ -80,12 +80,12 @@ The following table summarizes platform resource consumption modeled programmati
 A critical insight from this analysis is that **PostgreSQL compute and connection pooling are NOT the primary bottlenecks** under the optimized schema.
 - Because PostgREST operates stateless HTTP queries routed through the Supavisor transaction pooler, queries take only ~10–15ms. Even at 1,000 concurrent users, the arrival rate of 12.2 QPS requires only **3 to 4 active transaction pooler connections** out of the 200 available!
 - The **absolute hard limit of the Supabase Free Tier is the 200 Concurrent Realtime Client Connections**.
-- Therefore, **200 concurrent users** represents the exact maximum capacity of Thoughtful's Academy on the Supabase Free Tier.
+- Therefore, **200 concurrent users** represents the exact maximum capacity of Graviton Academy on the Supabase Free Tier.
 
 ### 4.2 Why Direct Connections (Port 5432) Must Never Be Used by Frontend Clients
 - Supabase provides two connection strings: Direct (port 5432) and Transaction Pooler (port 6543).
 - Direct connections allocate a full OS process per connection (`max_connections = 60` on free micro instances). If 60 users held open direct connections, the database would immediately reject new connections with `FATAL: remaining connection slots are reserved for non-replication superuser connections`.
-- In Thoughtful's Academy, all client traffic routes through PostgREST (Supabase REST client `supabase.from(...)`), which automatically leverages the transaction pooler. Each REST request checks out a connection for ~15ms and immediately returns it to the pool.
+- In Graviton Academy, all client traffic routes through PostgREST (Supabase REST client `supabase.from(...)`), which automatically leverages the transaction pooler. Each REST request checks out a connection for ~15ms and immediately returns it to the pool.
 
 ### 4.3 Database Storage Projection (500 MB Quota)
 Let us project disk space consumption over a 12-month academic year:
@@ -108,5 +108,5 @@ Let us project disk space consumption over a 12-month academic year:
 
 ## 5. Summary & Concurrency Verdict
 
-1. **Up to 200 Concurrent Users:** Thoughtful's Academy operates with 100% reliability, zero dropped events, and full real-time push fidelity entirely on the **Supabase Free Tier**.
+1. **Up to 200 Concurrent Users:** Graviton Academy operates with 100% reliability, zero dropped events, and full real-time push fidelity entirely on the **Supabase Free Tier**.
 2. **Above 200 Concurrent Users:** The database engine and bandwidth can easily support up to 1,000 users, but supporting more than 200 simultaneous real-time push listeners requires upgrading to Supabase Pro ($25/month), which increases the Realtime concurrent client quota to 500+ connections.

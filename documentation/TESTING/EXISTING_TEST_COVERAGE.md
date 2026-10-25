@@ -1,6 +1,6 @@
 # Existing Automated Test Coverage & Infrastructure Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Source Files:** 73 Component/Page files (25,284 LOC) + 24 Migration files  
 **Automated Test Files:** 0 Files  
 **Test Script in package.json:** None (`"test"` script is absent)  

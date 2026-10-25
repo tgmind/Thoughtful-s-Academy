@@ -1,6 +1,6 @@
 # Build, Test & CLI Command Reference
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Package Manager:** NPM 10.8.2  
 **Tooling:** Vite 5.4.9, Rollup, ESLint 9.13.0, Supabase CLI  
 

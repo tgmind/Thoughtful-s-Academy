@@ -1,7 +1,7 @@
 # Comprehensive Architecture Diagrams
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy
+Platform: Graviton Academy
 
 ---
 
@@ -9,7 +9,7 @@ Platform: Thoughtful's Academy
 
 ```mermaid
 graph TD
-    UserStudent[Student User] -->|Browse, stream lectures, mark attendance, submit fees| App[Thoughtful's Academy Platform]
+    UserStudent[Student User] -->|Browse, stream lectures, mark attendance, submit fees| App[Graviton Academy Platform]
     UserTeacher[Faculty / Teacher] -->|Publish study cards, grade homework, start live classes| App
     UserAdmin[Administrator] -->|Manage batches, verify fees, disburse salaries, audit logs| App
     UserPublic[Prospective Visitor] -->|Browse batches, preview lectures, self-register| App

@@ -1,7 +1,7 @@
 # Audit Scope, Boundaries & Environmental Limitations
 
 Audit Date: October 13, 2026  
-Target Application: Thoughtful's Academy (Coaching Institute Platform)
+Target Application: Graviton Academy (Coaching Institute Platform)
 
 ---
 

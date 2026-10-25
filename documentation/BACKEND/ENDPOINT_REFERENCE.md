@@ -1,6 +1,6 @@
 # Backend Endpoint Technical Reference
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Protocol:** HTTPS / WSS  
 **Data Format:** JSON (`application/json`) / XML (`application/xml`)  
 **Security Headers:** `apikey`, `Authorization: Bearer <JWT>`, `x-webhook-secret`  

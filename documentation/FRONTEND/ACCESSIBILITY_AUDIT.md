@@ -1,6 +1,6 @@
 # Web Accessibility (a11y) Audit & WCAG 2.2 AA Compliance
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Standard Evaluated:** Web Content Accessibility Guidelines (WCAG) 2.2 Level AA  
 **Auditor:** QA Automation & Accessibility Specialist  
 **Date of Audit:** October 2026  
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & Compliance Overview
 
-Thoughtful's Academy features foundational accessibility practices, including clear semantic landmark containers in the main dashboard shell, an explicit `:focus-visible` outline in `src/index.css`, and high contrast ratios across standard body text.
+Graviton Academy features foundational accessibility practices, including clear semantic landmark containers in the main dashboard shell, an explicit `:focus-visible` outline in `src/index.css`, and high contrast ratios across standard body text.
 
 However, forensic scanning reveals **several non-compliant WCAG 2.2 Level AA violations** that hinder screen reader navigation and keyboard-only interaction:
 1. **Low Color Contrast on Primary Buttons:** The saffron primary button (`.btn-primary`) uses white text on `#f59e0b`, yielding a contrast ratio of **2.14:1**, significantly below the mandatory 4.5:1 threshold.

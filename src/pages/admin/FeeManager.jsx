@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CheckCircle,
   XCircle,
@@ -18,7 +18,11 @@ import {
   ExternalLink,
   Check,
   X,
-  Minus
+  Minus,
+  Eye,
+  Loader2,
+  FileImage,
+  CreditCard
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -44,23 +48,37 @@ function getRecentMonths(count = 6) {
 
 const MONTH_OBJECTS = getRecentMonths(6)
 const MONTHS = MONTH_OBJECTS.map(m => m.fullName)
-const TABS = ['Fee Defaulters', 'Pending Verifications', 'All Records']
+const TABS = ['Pending Verifications', 'Fee Defaulters', 'All Records']
 const STATUS_COLORS = {
   pending: 'bg-amber-100 text-amber-800 border-amber-200',
   verified: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   rejected: 'bg-rose-100 text-rose-800 border-rose-200'
 }
 
-export default function FeeManager() {
+export default function FeeManager({ defaultTab } = {}) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [tab, setTab] = useState('Fee Defaulters')
+  const tabParam = searchParams.get('tab')
+  const resolveTab = (p) => {
+    if (defaultTab) return defaultTab
+    if (p === 'defaulters') return 'Fee Defaulters'
+    if (p === 'all') return 'All Records'
+    if (p === 'pending') return 'Pending Verifications'
+    return 'Pending Verifications'
+  }
+
+  const [tab, setTab] = useState(() => resolveTab(tabParam))
   const [pending, setPending] = useState([])
   const [all, setAll] = useState([])
   const [batches, setBatches] = useState([])
   const [students, setStudents] = useState([])
   const [allFeeRecords, setAllFeeRecords] = useState([])
+
+  // Search & Preview for Pending Verifications tab
+  const [pendingSearch, setPendingSearch] = useState('')
+  const [previewImage, setPreviewImage] = useState(null)
 
   // Filters for Defaulters section
   const [defaulterMonth, setDefaulterMonth] = useState(MONTHS[0])
@@ -76,6 +94,23 @@ export default function FeeManager() {
   const [acting, setActing] = useState(null)
   const [rejectId, setRejectId] = useState(null)
   const [reason, setReason] = useState('')
+
+  const handleTabChange = (newTab) => {
+    setTab(newTab)
+    const paramVal = newTab === 'Pending Verifications' ? 'pending' : newTab === 'Fee Defaulters' ? 'defaulters' : 'all'
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', paramVal)
+      return next
+    }, { replace: true })
+  }
+
+  useEffect(() => {
+    if (tabParam) {
+      const target = resolveTab(tabParam)
+      if (target !== tab) setTab(target)
+    }
+  }, [tabParam])
 
   const loadAllData = async () => {
     try {
@@ -520,6 +555,22 @@ export default function FeeManager() {
     return { total, unpaid, pendingCount, verifiedCount, repeatCount, complianceRate, totalCollected }
   }, [defaulterAnalysis, defaulterBatch])
 
+  const totalPendingAmount = useMemo(() => {
+    return pending.reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+  }, [pending])
+
+  const filteredPending = useMemo(() => {
+    if (!pendingSearch.trim()) return pending
+    const q = pendingSearch.toLowerCase().trim()
+    return pending.filter(f =>
+      (f.profiles?.full_name?.toLowerCase() || '').includes(q) ||
+      (f.profiles?.email?.toLowerCase() || '').includes(q) ||
+      (f.batches?.name?.toLowerCase() || '').includes(q) ||
+      (f.reference_id?.toLowerCase() || '').includes(q) ||
+      (f.payment_month?.toLowerCase() || '').includes(q)
+    )
+  }, [pending, pendingSearch])
+
   const filteredAll = useMemo(() => {
     return all.filter(r => {
       const q = search.toLowerCase().trim()
@@ -541,26 +592,26 @@ export default function FeeManager() {
             return (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => handleTabChange(t)}
                 className={`w-full py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl text-[11px] sm:text-xs md:text-sm font-extrabold transition-all flex items-center justify-center gap-1 sm:gap-2 text-center cursor-pointer ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-md'
                     : 'bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                {t === 'Fee Defaulters' && <UserX className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 shrink-0" />}
                 {t === 'Pending Verifications' && <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500 shrink-0" />}
+                {t === 'Fee Defaulters' && <UserX className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 shrink-0" />}
                 {t === 'All Records' && <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 shrink-0" />}
                 <span className="truncate">
-                  {t === 'Fee Defaulters' ? (
-                    <>
-                      <span className="hidden sm:inline">Fee Defaulters</span>
-                      <span className="sm:hidden">Defaulters</span>
-                    </>
-                  ) : t === 'Pending Verifications' ? (
+                  {t === 'Pending Verifications' ? (
                     <>
                       <span className="hidden sm:inline">Pending Verifications</span>
                       <span className="sm:hidden">Pending</span>
+                    </>
+                  ) : t === 'Fee Defaulters' ? (
+                    <>
+                      <span className="hidden sm:inline">Fee Defaulters</span>
+                      <span className="sm:hidden">Defaulters</span>
                     </>
                   ) : (
                     <>
@@ -961,76 +1012,239 @@ export default function FeeManager() {
         </div>
       )}
 
-      {/* ─── TAB 2: PENDING VERIFICATIONS ──────────────────────────────────────── */}
+      {/* ─── TAB: PENDING VERIFICATIONS ──────────────────────────────────────── */}
       {tab === 'Pending Verifications' && (
-        pending.length === 0 ? (
-          <div className="text-center py-12 sm:py-16 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <Sparkles className="h-9 w-9 text-emerald-400 mx-auto mb-2" />
-            <h4 className="font-bold text-slate-800 text-sm sm:text-base">No Pending Verifications 🎉</h4>
-            <p className="text-xs text-slate-400 mt-1">All submitted student fee payments have been verified.</p>
-          </div>
-        ) : (
-          <div className="space-y-3 w-full">
-            {pending.map(f => (
-              <div key={f.id} className="bg-white rounded-2xl border border-amber-200 p-3.5 sm:p-4 shadow-sm w-full">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="space-y-4 sm:space-y-5 min-w-0 w-full">
+          {/* Header & Controls Bar */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3.5 w-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
+                    <Clock className="h-4 w-4" />
+                  </div>
                   <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-extrabold text-sm sm:text-base text-slate-900">{f.profiles?.full_name}</p>
-                      <span className="text-[10px] sm:text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                        {f.batches?.name || 'General Batch'}
-                      </span>
-                      <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md border ${
-                        f.fee_mode === 'one_time' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}>
-                        {f.payment_month}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{f.profiles?.email}</p>
-                    <div className="flex gap-3 mt-2 text-xs flex-wrap items-center">
-                      <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        ₹{f.amount}
-                      </span>
-                      <span className="font-mono text-slate-400 text-[11px]">Ref: {f.reference_id || '—'}</span>
-                      {f.fee_mode === 'one_time' && (
-                        <span className="text-purple-700 font-semibold text-[11px]">
-                          ⚡ One-Time ({f.batches?.validity_days ? `${f.batches.validity_days} days validity` : f.batches?.validity_end_date ? `Till ${f.batches.validity_end_date}` : 'Full access'})
+                    <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                      <span>Pending Fee Verifications</span>
+                      {pending.length > 0 && (
+                        <span className="text-[11px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
+                          {pending.length} Waiting
                         </span>
                       )}
-                      {f.screenshot_url && (
-                        <a
-                          href={normalizeUrl(f.screenshot_url)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>View Screenshot</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={() => verify(f)}
-                      disabled={acting === f.id}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
-                    >
-                      <CheckCircle className="h-4 w-4" /> Verify
-                    </button>
-                    <button
-                      onClick={() => { setRejectId(f.id); setReason('') }}
-                      disabled={acting === f.id}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-extrabold rounded-xl transition-colors border border-rose-200 cursor-pointer"
-                    >
-                      <XCircle className="h-4 w-4" /> Reject
-                    </button>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Review student payment proofs and approve batch enrollment.
+                    </p>
                   </div>
                 </div>
               </div>
-            ))}
+
+              {pending.length > 0 && (
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <div className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-xl px-3.5 py-2 flex items-center justify-between sm:justify-start gap-3">
+                    <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold text-emerald-700">
+                      Awaiting Verification
+                    </span>
+                    <span className="text-sm sm:text-base font-black text-emerald-800">
+                      ₹{totalPendingAmount.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Search for Pending items */}
+            {pending.length > 0 && (
+              <div className="relative pt-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={pendingSearch}
+                  onChange={e => setPendingSearch(e.target.value)}
+                  placeholder="Search by student name, email, batch, or reference ID..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            )}
           </div>
-        )
+
+          {/* Verification Cards or Empty State */}
+          {pending.length === 0 ? (
+            <div className="text-center py-12 sm:py-16 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto text-emerald-500 shadow-inner">
+                <Sparkles className="h-8 w-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-slate-900 text-base sm:text-lg">No Pending Verifications 🎉</h4>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+                  All submitted student fee payments and proofs are currently reviewed and up to date.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                <button
+                  onClick={() => handleTabChange('Fee Defaulters')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer hover:scale-[1.02]"
+                >
+                  <UserX className="h-3.5 w-3.5 text-rose-400" />
+                  <span>Check Fee Defaulters ({defaulterMetrics.unpaid})</span>
+                </button>
+                <button
+                  onClick={() => handleTabChange('All Records')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer"
+                >
+                  <Calendar className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Browse All Records</span>
+                </button>
+              </div>
+            </div>
+          ) : filteredPending.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-2">
+              <Search className="h-8 w-8 text-slate-300 mx-auto" />
+              <p className="text-xs sm:text-sm font-bold text-slate-700">No pending payments match "{pendingSearch}"</p>
+              <button
+                onClick={() => setPendingSearch('')}
+                className="text-xs text-blue-600 font-extrabold hover:underline"
+              >
+                Clear Search Filter
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 w-full">
+              {filteredPending.map(f => {
+                const st = students.find(s => s.id === f.student_id)
+                const studentName = f.profiles?.full_name || 'Student'
+                const initials = studentName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'ST'
+                const formattedDate = f.paid_at
+                  ? new Date(f.paid_at).toLocaleString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : null
+
+                return (
+                  <div
+                    key={f.id}
+                    className="bg-white rounded-2xl border border-amber-200/90 hover:border-amber-300 p-4 sm:p-5 shadow-sm transition-all duration-200 w-full"
+                  >
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                      {/* Left: Student Identity & Payment Meta */}
+                      <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white font-black text-sm sm:text-base flex items-center justify-center shrink-0 shadow-sm">
+                          {initials}
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-black text-sm sm:text-base text-slate-900 leading-tight">
+                              {studentName}
+                            </h3>
+                            <span className="text-[10px] sm:text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                              {f.batches?.name || 'General Batch'}
+                            </span>
+                            <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md border ${
+                              f.fee_mode === 'one_time' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {f.payment_month}
+                            </span>
+                            {f.fee_mode === 'one_time' && (
+                              <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100/70 px-1.5 py-0.5 rounded">
+                                ⚡ One-Time Fee
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                            <span>{f.profiles?.email}</span>
+                            {st?.phone && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="flex items-center gap-1 font-medium">
+                                  <Phone className="h-3 w-3 text-slate-400" /> {st.phone}
+                                </span>
+                              </>
+                            )}
+                            {st?.roll_number && st.roll_number !== '—' && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="font-mono text-slate-400">Roll: {st.roll_number}</span>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 pt-1 text-xs flex-wrap">
+                            <span className="text-sm font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg">
+                              ₹{f.amount}
+                            </span>
+                            <span className="font-mono text-slate-600 text-[11px] bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                              Ref: {f.reference_id || 'Cash / Offline'}
+                            </span>
+                            {formattedDate && (
+                              <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-slate-400" /> Submitted: {formattedDate}
+                              </span>
+                            )}
+                            {f.screenshot_url && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImage(normalizeUrl(f.screenshot_url))}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition-colors border border-blue-200 cursor-pointer"
+                              >
+                                <Eye className="h-3 w-3" />
+                                <span>Receipt Screenshot</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-2 w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                        <button
+                          onClick={() => verify(f)}
+                          disabled={acting === f.id}
+                          className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl disabled:opacity-50 transition-all shadow-sm hover:shadow cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          {acting === f.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Verifying...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              <span>Verify</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => { setRejectId(f.id); setReason('') }}
+                          disabled={acting === f.id}
+                          className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-black rounded-xl transition-colors border border-rose-200 cursor-pointer"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>Reject</span>
+                        </button>
+
+                        <button
+                          onClick={() => navigate(`/admin/messages?student=${f.student_id}`)}
+                          className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-colors border border-indigo-200 cursor-pointer"
+                          title={`Message ${studentName}`}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          <span className="lg:hidden">Message</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* ─── TAB 3: ALL RECORDS ─────────────────────────────────────────────────── */}
@@ -1153,30 +1367,101 @@ export default function FeeManager() {
       )}
 
       {/* Reject Modal */}
-      {rejectId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-sm shadow-2xl space-y-4 animate-scale-up">
-            <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Reject Fee Payment</h3>
-            <textarea
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              rows={3}
-              placeholder="Reason for rejection (optional)…"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRejectId(null)}
-                className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={reject}
-                className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 transition-colors cursor-pointer shadow-sm"
-              >
-                Reject Payment
-              </button>
+      {rejectId && (() => {
+        const rejectRec = pending.find(p => p.id === rejectId) || allFeeRecords.find(a => a.id === rejectId)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 animate-scale-up">
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Reject Fee Payment</h3>
+                {rejectRec && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    For <span className="font-bold text-slate-800">{rejectRec.profiles?.full_name || 'Student'}</span> ({rejectRec.batches?.name || 'Batch'} · ₹{rejectRec.amount})
+                  </p>
+                )}
+              </div>
+
+              {/* Quick suggestions */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Suggestions:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Invalid reference / UTR ID',
+                    'Amount mismatch',
+                    'Receipt screenshot illegible',
+                    'Payment not received in account'
+                  ].map(sug => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setReason(sug)}
+                      className="text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-md transition-colors cursor-pointer text-left"
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <textarea
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                rows={3}
+                placeholder="Reason for rejection (sent to student)…"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRejectId(null)}
+                  className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={reject}
+                  disabled={acting === rejectId}
+                  className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                >
+                  {acting === rejectId ? 'Rejecting...' : 'Reject Payment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Screenshot Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-4 sm:p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-black text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                <Eye className="h-4 w-4 text-blue-600" /> Payment Receipt Proof
+              </h3>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 px-2.5 py-1 bg-blue-50 rounded-lg"
+                >
+                  <span>Open Full</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                <button
+                  onClick={() => setPreviewImage(null)}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[70vh] overflow-auto rounded-xl bg-slate-950 flex items-center justify-center p-2">
+              <img
+                src={previewImage}
+                alt="Payment Receipt"
+                className="max-h-[65vh] w-auto object-contain rounded-lg shadow-sm"
+              />
             </div>
           </div>
         </div>

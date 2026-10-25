@@ -1,6 +1,6 @@
 # Realtime Architecture & Channel Optimization
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Category:** Realtime Systems Architecture & High-Capacity Optimization  
 **Date:** 2026-10-13  
 **Status:** Implemented & Verified in Production Baseline  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Thoughtful's Academy relies heavily on instant push synchronization for its primary interactive flows:
+Graviton Academy relies heavily on instant push synchronization for its primary interactive flows:
 1. **Live Class Announcements & Alerts:** Students receive immediate floating banner alerts when an instructor starts a live class.
 2. **Batch Notifications & Homework Assignments:** Students receive instant popup alerts when homework or urgent announcements are posted.
 3. **Direct Teacher-Student Messaging:** Unread message badges and toasts appear in real-time.

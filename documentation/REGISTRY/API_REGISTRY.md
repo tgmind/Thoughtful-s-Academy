@@ -1,6 +1,6 @@
 # Master Backend API Interface Registry
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Cataloged API Endpoints:** 22 Interfaces  
 
 ---

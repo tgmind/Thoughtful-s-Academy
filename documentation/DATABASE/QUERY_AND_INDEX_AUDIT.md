@@ -1,6 +1,6 @@
 # Database Query Performance & Indexing Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Auditor:** Database Performance Engineer  
 **Index Health Score:** 68 / 100 (Critical Foreign Key & Composite Indexes Missing)  

@@ -1,6 +1,6 @@
 # Observability, Logging & Health Monitoring Architecture
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Site Reliability Engineer (SRE)  
 **Current Monitoring Maturity:** Level 1 (Basic Serverless Logs + In-App Activity Table)  
 

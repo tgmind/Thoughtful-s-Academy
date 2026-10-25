@@ -1,7 +1,7 @@
 # Frontend Route Inventory & Navigation Map
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Total Discovered Routes: **30**
 
 ---

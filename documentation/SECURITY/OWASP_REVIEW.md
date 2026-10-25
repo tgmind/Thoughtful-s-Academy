@@ -1,6 +1,6 @@
 # OWASP Top 10 Security Verification & Risk Analysis
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Standard Evaluated:** OWASP Top 10:2021 Web Application Security Risks  
 **Auditor:** Principal Cybersecurity Auditor  
 **Overall Security Posture:** High Risk (3 Critical OWASP Violations Identified)  

@@ -1,6 +1,6 @@
 # Critical User Journey (CUJ) End-to-End Test Specifications
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Standard:** Automated End-to-End Test Specifications (Playwright-Ready)  
 **Target Roles:** Student, Faculty (Teacher), Administrator  
 

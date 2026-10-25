@@ -1,6 +1,6 @@
 # Known Testing Gaps & Quality Assurance Deficit Analysis
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal QA Automation Engineer & Platform Forensic Specialist  
 **Deficit Summary:** 100% Manual Testing Dependency across all 22 Platform Features  
 

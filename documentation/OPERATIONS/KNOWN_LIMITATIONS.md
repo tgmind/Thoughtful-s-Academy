@@ -1,6 +1,6 @@
 # Known Platform Limitations & Architectural Boundaries
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Architect:** Principal Systems Architect  
 
 ---

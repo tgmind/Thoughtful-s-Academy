@@ -1,7 +1,7 @@
 # Study Cards & Lecture Room Deep Dive
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Feature IDs: FEAT-008, FEAT-009, FEAT-010
 
 ---

@@ -1,7 +1,7 @@
 # Master Documentation Index & Knowledge Base Sitemap
 
 Last Updated: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Coverage: 100% of discovered files, routes, tables, APIs, and findings
 
 ---

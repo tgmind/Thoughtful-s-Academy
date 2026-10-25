@@ -1,6 +1,6 @@
 # Backend Services & Subsystem Inventory
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Architecture:** Serverless BaaS (Supabase Cloud + Netlify Serverless Functions)  
 **Database Engine:** PostgreSQL 15.6 with PostgREST 12+  
 **Authentication Engine:** Supabase GoTrue (JWT-based OAuth2 / Resource Owner)  

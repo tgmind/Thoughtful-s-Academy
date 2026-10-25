@@ -1,6 +1,6 @@
 # Dependency Inventory & Software Bill of Materials (SBOM)
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Package Manager:** NPM 10.8.2 / Node.js 18+  
 **Manifest:** `package.json`  
 

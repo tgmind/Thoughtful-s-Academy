@@ -1,6 +1,6 @@
 # Staging Validation Setup, Safety Protocols & Isolation Runbook
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Phase:** Phase 4 — Staging Validation, Realtime Correctness, and Measured Capacity  
 **Date:** 2026-10-13  
 **Status:** Authoritative Safety Protocol & Environment Configuration  

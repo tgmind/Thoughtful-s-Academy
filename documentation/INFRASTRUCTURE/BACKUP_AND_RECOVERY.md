@@ -1,6 +1,6 @@
 # Backup, Disaster Recovery & Business Continuity Plan
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Architect:** Principal Site Reliability Engineer  
 **Target SLAs:** RPO < 1 Hour | RTO < 30 Minutes  
 

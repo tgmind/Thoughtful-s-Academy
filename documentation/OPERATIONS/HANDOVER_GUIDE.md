@@ -1,6 +1,6 @@
 # Engineering Team Handover & Onboarding Guide
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Architect:** Principal Software Architect  
 **Audience:** Incoming Engineering Team, DevOps Engineers & Maintainers  
 
@@ -8,7 +8,7 @@
 
 ## 1. Quick Technical Orientation
 
-Thoughtful's Academy is a modern, serverless EdTech platform designed for coaching institutes:
+Graviton Academy is a modern, serverless EdTech platform designed for coaching institutes:
 - **Frontend Architecture:** React 18 SPA bundled via Vite 5.4.9, styled with Tailwind CSS 3.4.14, and animated with Framer Motion.
 - **Backend Architecture:** BaaS model using Supabase PostgREST for data access, Supabase GoTrue for JWT authentication, and Phoenix Channels for real-time WebSocket updates.
 - **Serverless Compute:** Netlify serverless proxy (`youtube-playlist.js`) and Deno Edge function (`send-push.ts`).

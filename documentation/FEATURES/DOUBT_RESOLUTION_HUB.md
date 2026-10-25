@@ -1,7 +1,7 @@
 # Doubt Resolution Hub — System Architecture & Specification
 
 **Audit & Implementation Date:** October 14, 2026  
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Feature Identifiers:** `FEAT-010`, `FEAT-023`, `FEAT-024`  
 **Database Migration:** `supabase/migrations/028_doubt_resolution_hub.sql`  
 **Test Coverage:** 5 dedicated test suites (37 automated tests), 100% pass rate  
@@ -17,7 +17,7 @@ Previously, questions raised by students while watching video lectures were sent
 4. Teachers had no subject/batch-grouped doubt queue.
 5. Administrators lacked institutional visibility into faculty resolution speed and unassigned questions.
 
-The **Doubt Resolution Hub** establishes an authoritative, production-ready, first-class Doubt Resolution lifecycle across Thoughtful's Academy. Every doubt is a structured, persistent, properly authorized record in `public.doubts` accessible through role-tailored Student, Teacher, and Admin portals.
+The **Doubt Resolution Hub** establishes an authoritative, production-ready, first-class Doubt Resolution lifecycle across Graviton Academy. Every doubt is a structured, persistent, properly authorized record in `public.doubts` accessible through role-tailored Student, Teacher, and Admin portals.
 
 ```mermaid
 flowchart TD

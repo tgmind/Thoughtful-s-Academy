@@ -1,6 +1,6 @@
 # Security Findings Register & Vulnerability Index
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Cross-Reference:** See `documentation/SECURITY/SECURITY_FINDINGS.md` for complete CVSS attack vectors.  
 **Total Documented Vulnerabilities:** 7 Security Findings (`SEC-001` through `SEC-007`)  
 

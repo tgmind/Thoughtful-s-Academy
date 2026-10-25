@@ -1,6 +1,6 @@
 # Deployment Architecture & Production Topology
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Hosting Provider (Frontend & Serverless Functions):** Netlify Cloud Edge  
 **Hosting Provider (Database, Auth, Realtime & Edge Functions):** Supabase Cloud  
 **Primary Database Region:** AWS Mumbai (`ap-south-1`)  

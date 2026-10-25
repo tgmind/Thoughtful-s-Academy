@@ -1,6 +1,6 @@
 # Phase 6 — Fast, Autonomous, Zero-Cost Release Readiness Report
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Target Concurrency:** 300 Concurrent Users  
 **Budgetary Mandate:** ₹0 Recurring Expenditure (Supabase Free Tier + Netlify Free Tier)  
 **Verification Branch:** `phase6-release-readiness`  
@@ -87,7 +87,7 @@ During this phase, four high-impact architectural bottlenecks were identified an
 ## 4. Honest Capacity Evaluation (Target: 300 Concurrent Users at ₹0)
 
 ### 4.1 The Mathematical Model (Little's Law)
-For $N = 300$ concurrent users on Thoughtful's Academy:
+For $N = 300$ concurrent users on Graviton Academy:
 - **Interactive query frequency:** ~40 queries/user/hour (1 navigation/action every 90 seconds).
 - **Event-triggered sync:** ~4 queries/user/hour (debounced targeted sync).
 - **Total Arrival Rate ($\lambda$):** $\frac{300 \times 44}{3600} \approx 3.67\text{ queries per second (QPS)}$.

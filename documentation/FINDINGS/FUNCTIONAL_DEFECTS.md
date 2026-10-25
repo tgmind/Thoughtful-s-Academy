@@ -1,6 +1,6 @@
 # Functional Defects & Runtime Bugs Register
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Documented Bugs:** 8 Functional Defects (`BUG-001` through `BUG-008`)  
 
 ---

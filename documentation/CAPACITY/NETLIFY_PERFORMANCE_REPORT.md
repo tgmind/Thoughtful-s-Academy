@@ -1,6 +1,6 @@
 # Netlify Performance & Free-Tier Budget Report
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Component:** Netlify CDN, Vite Production Bundling, Edge Caching, and Serverless Functions  
 **Date:** 2026-10-13  
 **Target:** Maximize Cache Offload & Conserve Netlify Starter Free Tier Quotas  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Netlify serves as the static hosting platform, edge router, and serverless proxy runtime for Thoughtful's Academy. Under Netlify Starter / Free Tier, the application operates with the following monthly constraints:
+Netlify serves as the static hosting platform, edge router, and serverless proxy runtime for Graviton Academy. Under Netlify Starter / Free Tier, the application operates with the following monthly constraints:
 - **Bandwidth:** 100 GB / month
 - **Build Minutes:** 300 minutes / month
 - **Serverless Function Invocations:** 125,000 requests / month

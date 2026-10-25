@@ -1,7 +1,7 @@
 # Authentication & Onboarding Deep Dive
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Feature IDs: FEAT-001, FEAT-002, FEAT-003, FEAT-004
 
 ---

@@ -1,6 +1,6 @@
 # Realtime Integration Test Results & Correctness Verification
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Test Suite:** `tests/realtime/realtime_multiplexing.test.js`  
 **Framework:** Vitest 2.1.8 with Fake Timers & Synthetic Role Identities  
 **Date:** 2026-10-13  
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-This report documents the verification of real-time push synchronization across Thoughtful's Academy following channel consolidation and debounced dashboard synchronization.
+This report documents the verification of real-time push synchronization across Graviton Academy following channel consolidation and debounced dashboard synchronization.
 
 The objective was to prove that:
 1. Channel consolidation into `popup_channel_${user.id}` and `student_dash_sync_${uid}` maintains full real-time delivery.

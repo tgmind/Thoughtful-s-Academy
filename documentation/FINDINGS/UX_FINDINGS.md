@@ -1,6 +1,6 @@
 # User Experience & Accessibility (UX/a11y) Findings
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Documented UX Findings:** 6 Findings (`UX-001` through `UX-006`)  
 
 ---

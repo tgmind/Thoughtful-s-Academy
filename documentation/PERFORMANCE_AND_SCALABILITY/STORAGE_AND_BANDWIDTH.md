@@ -1,6 +1,6 @@
 # Storage, Bandwidth & Infrastructure Cost Economics
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Performance & Scalability Engineer  
 **Cost Architecture:** Hybrid Cloud / CDN-Offloaded Architecture  
 
@@ -24,7 +24,7 @@ graph LR
     $$1,000 	ext{ students} 	imes 1.5 	ext{ GB / lecture} = 1,500 	ext{ GB / day} = \mathbf{45 	ext{ TB / month}}$$
   - AWS CloudFront egress cost at \$0.085/GB:
     $$45,000 	ext{ GB} 	imes \$0.085 = \mathbf{\$3,825 	ext{ USD / month}} pprox \mathbf{\$45,900 	ext{ USD / year}}$$
-- **Thoughtful's Academy YouTube Architecture:**
+- **Graviton Academy YouTube Architecture:**
   - Videos are uploaded as unlisted videos to YouTube and wrapped in `ProtectedVideoPlayer.jsx`.
   - **Actual Video Egress Cost:** **\$0.00**. Bandwidth is absorbed entirely by YouTube's global infrastructure.
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Download, ShieldCheck, Zap, Bell, Smartphone, X, Share, PlusSquare, Sparkles, CheckCircle2, ArrowDown } from 'lucide-react'
+import { INSTITUTE_NAME } from '../lib/constants'
 
 function safeGet(key) {
   try { return localStorage.getItem(key) } catch { return null }
@@ -174,7 +175,7 @@ export default function InstallAppPrompt() {
               <div className="w-full h-full rounded-[14px] bg-[#0b0f3d] flex items-center justify-center overflow-hidden">
                 <img 
                   src="/icons/icon-192.png" 
-                  alt="Thoughtful's Academy Icon" 
+                  alt={`${INSTITUTE_NAME} Icon`} 
                   className="w-12 h-12 object-contain"
                   onError={(e) => {
                     e.target.onerror = null
@@ -193,7 +194,7 @@ export default function InstallAppPrompt() {
                 <Sparkles className="w-3 h-3 text-amber-400" /> Free Mobile App
               </div>
               <h3 className="text-xl font-extrabold tracking-tight text-white font-display">
-                Thoughtful&apos;s Academy
+                {INSTITUTE_NAME}
               </h3>
               <p className="text-xs text-indigo-200/90 font-medium">
                 Official Student &amp; Parent App
@@ -211,7 +212,7 @@ export default function InstallAppPrompt() {
               </div>
               <h4 className="text-lg font-bold text-slate-900 dark:text-white">App Installed Successfully!</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Thoughtful&apos;s Academy is now on your phone&apos;s <strong>Home Screen &amp; App Drawer</strong>.
+                {INSTITUTE_NAME} is now on your phone&apos;s <strong>Home Screen &amp; App Drawer</strong>.
               </p>
             </div>
           ) : (
@@ -280,7 +281,7 @@ export default function InstallAppPrompt() {
                     <li>
                       Scroll down and tap <strong className="text-slate-900 dark:text-white">Add to Home Screen</strong> ( <PlusSquare className="w-3.5 h-3.5 inline text-emerald-500" /> ).
                     </li>
-                    <li>Open <strong>Thoughtful&apos;s Academy</strong> from your home screen anytime!</li>
+                    <li>Open <strong>{INSTITUTE_NAME}</strong> from your home screen anytime!</li>
                   </ol>
                   <div className="pt-1 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-xs animate-bounce gap-1">
                     <ArrowDown className="w-4 h-4" /> Tap Share button below <ArrowDown className="w-4 h-4" />

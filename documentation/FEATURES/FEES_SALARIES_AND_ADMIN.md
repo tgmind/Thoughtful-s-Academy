@@ -1,7 +1,7 @@
 # Fees, Salaries & Administrative Governance Deep Dive
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Feature IDs: FEAT-015, FEAT-017, FEAT-018, FEAT-019, FEAT-020, FEAT-021, FEAT-022
 
 ---

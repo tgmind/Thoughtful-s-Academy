@@ -1,7 +1,7 @@
 # Executive Summary — Comprehensive Platform Audit
 
 Audit Date: October 13, 2026  
-Target Application: Thoughtful's Academy (Coaching Institute Platform)  
+Target Application: Graviton Academy (Coaching Institute Platform)  
 Repository: `/home/thoughtful/Downloads/coaching-institute-last`  
 Auditor Role: Principal Software Architect, Full-Stack & Security Specialist
 
@@ -9,7 +9,7 @@ Auditor Role: Principal Software Architect, Full-Stack & Security Specialist
 
 ## 1. What the Platform Actually Is
 
-**Thoughtful's Academy** is a specialized, web-based EdTech coaching and institute management platform designed for hybrid and online academic coaching institutes in India (specifically focused on secondary and senior secondary competitive coaching, e.g., Class 9-10 Foundations, Class 11-12 Physics/Science, JEE/NEET preparation).
+**Graviton Academy** is a specialized, web-based EdTech coaching and institute management platform designed for hybrid and online academic coaching institutes in India (specifically focused on secondary and senior secondary competitive coaching, e.g., Class 9-10 Foundations, Class 11-12 Physics/Science, JEE/NEET preparation).
 
 The product serves four distinct user personas:
 1. **Public Visitors & Prospective Students:** Browse active batches, view founder credentials, inspect curriculum details, watch sample video lectures, and self-register for batches with an automated 2-day free trial.

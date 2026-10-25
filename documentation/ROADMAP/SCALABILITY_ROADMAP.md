@@ -1,6 +1,6 @@
 # Scalability Roadmap: Scaling from 500 to 50,000+ Students
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Scalability Architect:** Principal Systems Architect  
 **Objective:** Define capacity scaling thresholds, infrastructure upgrades, and cost projections.  
 

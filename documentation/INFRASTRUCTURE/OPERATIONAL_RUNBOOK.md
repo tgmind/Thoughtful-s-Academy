@@ -1,6 +1,6 @@
 # Operational Runbook & Site Reliability Procedures
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Target Audience:** Institute DevOps Engineers, Technical Administrators & SREs  
 
 ---

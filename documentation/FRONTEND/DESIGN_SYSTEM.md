@@ -1,6 +1,6 @@
 # Frontend Design System & UI Specifications
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **CSS Engine:** Tailwind CSS 3.4.14 with PostCSS 8.4.47  
 **Typography:** Inter (Body/Sans) & Poppins (Display/Headings)  
 **Icon Library:** Lucide React 0.454.0  
@@ -10,7 +10,7 @@
 
 ## 1. Design Philosophy & Visual Identity
 
-Thoughtful's Academy employs an academic yet modern aesthetic blending trust and vibrancy. The visual hierarchy utilizes a **Deep Navy (`#111755` - `#1e2771`)** foundation symbolizing authority, institutional reliability, and educational depth, contrasted with a warm **Saffron / Amber (`#f59e0b`)** accent representing intellectual optimism, energy, and Indian EdTech cultural resonance.
+Graviton Academy employs an academic yet modern aesthetic blending trust and vibrancy. The visual hierarchy utilizes a **Deep Navy (`#111755` - `#1e2771`)** foundation symbolizing authority, institutional reliability, and educational depth, contrasted with a warm **Saffron / Amber (`#f59e0b`)** accent representing intellectual optimism, energy, and Indian EdTech cultural resonance.
 
 ---
 

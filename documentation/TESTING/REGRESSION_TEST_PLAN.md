@@ -1,6 +1,6 @@
 # Platform Regression Test Plan & Release Verification Gates
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Target Release Gate:** Production Deployment Verification  
 **Audit Reference:** QA Automation & Release Engineering  
 

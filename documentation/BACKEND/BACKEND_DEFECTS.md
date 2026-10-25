@@ -1,6 +1,6 @@
 # Backend & API Defects Register
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Scope:** Complete forensic register of all architectural defects, security vulnerabilities, race conditions, and data integrity gaps identified in backend APIs, triggers, functions, and database interactions.  
 **Total Defects Documented:** 8 Defects (`BED-001` through `BED-008`)  
 

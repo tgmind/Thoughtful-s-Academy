@@ -1,5 +1,5 @@
 # ZERO-MONTHLY-COST ARCHITECTURE RESEARCH FOR 300 CONCURRENT USERS
-## Platform: Thoughtful's Academy (Coaching Institute EdTech Platform)
+## Platform: Graviton Academy (Coaching Institute EdTech Platform)
 
 **Document ID:** `ARCH-RES-2026-300U-001`  
 **Classification:** Cloud Architecture & Concurrency Feasibility Report  

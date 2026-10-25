@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import FeeManager from '../../src/pages/admin/FeeManager'
 
@@ -142,9 +142,37 @@ describe('FeeManager - 6-Month Behavior & Defaulter Analysis', () => {
     mockSupabase = createChainableQueryBuilder(mockTablesData)
   })
 
-  it('does NOT falsely penalize a newly enrolled student with 6M Unpaid', async () => {
+  it('defaults to Pending Verifications tab on initial load and allows switching to Fee Defaulters', async () => {
     render(
       <MemoryRouter initialEntries={['/admin/fees']}>
+        <Routes>
+          <Route path="/admin/fees" element={<FeeManager />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    // Wait for the Pending Fee Verifications header to appear
+    await waitFor(() => {
+      expect(screen.getByText(/Pending Fee Verifications/i)).toBeInTheDocument()
+    })
+
+    // The Pending Verifications tab should have active styling
+    const pendingTabBtn = screen.getByRole('button', { name: /Pending/i })
+    expect(pendingTabBtn).toHaveClass('bg-slate-900')
+
+    // Click on Fee Defaulters tab to switch
+    const defaultersTabBtn = screen.getByRole('button', { name: /Fee Defaulters/i })
+    fireEvent.click(defaultersTabBtn)
+
+    // Now Aarav Newcomer should appear on screen
+    await waitFor(() => {
+      expect(screen.getByText('Aarav Newcomer')).toBeInTheDocument()
+    })
+  })
+
+  it('does NOT falsely penalize a newly enrolled student with 6M Unpaid', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/fees?tab=defaulters']}>
         <Routes>
           <Route path="/admin/fees" element={<FeeManager />} />
         </Routes>
@@ -166,7 +194,7 @@ describe('FeeManager - 6-Month Behavior & Defaulter Analysis', () => {
 
   it('renders clear 3-letter month labels and payment status symbols instead of ambiguous single letters', async () => {
     render(
-      <MemoryRouter initialEntries={['/admin/fees']}>
+      <MemoryRouter initialEntries={['/admin/fees?tab=defaulters']}>
         <Routes>
           <Route path="/admin/fees" element={<FeeManager />} />
         </Routes>

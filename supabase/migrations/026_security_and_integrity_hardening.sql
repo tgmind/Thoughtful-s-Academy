@@ -1,6 +1,6 @@
 -- ============================================================
 -- 026_security_and_integrity_hardening.sql
--- Thoughtful's Academy Security Hardening & Integrity Fixes
+-- Graviton Academy Security Hardening & Integrity Fixes
 --
 -- Phase 3 Hardening Updates:
 -- 1. SEC-001: Enforce role integrity in handle_new_user() (strictly 'student' for public signups)

@@ -32,6 +32,7 @@ import {
   getDoubtEligibility,
   DOUBT_ELIGIBILITY_STATUS,
 } from '../../services/doubtService'
+import { INSTITUTE_NAME } from '../../lib/constants'
 
 function formatSeconds(seconds) {
   if (!seconds || isNaN(seconds) || seconds < 0) return '0:00'
@@ -1017,7 +1018,7 @@ export default function WatchLecture() {
                     </span>
                   )}
                   <span className="flex items-center gap-1 text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Thoughtful&apos;s Academy Classroom
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" /> {INSTITUTE_NAME} Classroom
                   </span>
                 </div>
               </div>
@@ -1732,7 +1733,7 @@ export default function WatchLecture() {
                       <span className="text-xs font-extrabold uppercase tracking-wide">Reserved for Enrolled Students</span>
                     </div>
                     <p className="text-xs text-slate-200 leading-relaxed font-sans">
-                      Direct doubt clearance with expert faculty at exact video timestamps is exclusively available for enrolled students in Thoughtful&apos;s Academy batches.
+                      Direct doubt clearance with expert faculty at exact video timestamps is exclusively available for enrolled students in {INSTITUTE_NAME} batches.
                     </p>
                     <ul className="text-[11px] text-slate-300 space-y-1.5 pt-1">
                       <li className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 # Capacity Limits, Graceful Degradation & Scale Recommendations
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Category:** Operational Engineering & Future Scaling Strategy  
 **Date:** 2026-10-13  
 **Target:** Long-term Stability, Quota Protection, and Graceful Degradation  

@@ -1,6 +1,6 @@
 # Privacy, PII Protection & DPDP Act 2023 Compliance Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Jurisdiction:** Republic of India  
 **Regulatory Standard:** Digital Personal Data Protection (DPDP) Act, 2023  
 **Auditor:** Legal-Tech & Data Privacy Compliance Auditor  

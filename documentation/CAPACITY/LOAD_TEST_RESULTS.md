@@ -1,6 +1,6 @@
 # Synthetic Load Test & Capacity Simulation Results
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Framework:** Automated Capacity Model & Vitest Invariant Test Suite  
 **Date:** 2026-10-13  
 **Status:** Validated via 53 Automated Tests (100% Pass Rate)  

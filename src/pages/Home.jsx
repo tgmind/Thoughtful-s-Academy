@@ -50,23 +50,23 @@ const BTN_OUTLINE = 'inline-flex items-center justify-center gap-2 px-5 py-2.5 r
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-xl border border-[#eceae4] overflow-hidden animate-pulse flex flex-col w-full h-[320px] justify-between shadow-xs">
-      <div className="bg-[#eceae4]/70 aspect-video w-full" />
-      <div className="p-4 flex flex-col justify-between flex-1">
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#eceae4] overflow-hidden animate-pulse flex flex-col w-full h-[360px] justify-between shadow-2xs p-3 sm:p-3.5">
+      <div className="bg-[#eceae4]/70 aspect-video w-full rounded-xl sm:rounded-2xl" />
+      <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-1">
         <div className="space-y-2 mb-3">
-          <div className="h-4 bg-[#eceae4] rounded-md w-5/6" />
-          <div className="h-3 bg-[#eceae4]/60 rounded-md w-2/3" />
+          <div className="h-5 bg-[#eceae4] rounded-lg w-5/6" />
+          <div className="h-3.5 bg-[#eceae4]/60 rounded-md w-2/3" />
         </div>
         <div className="pt-3 border-t border-[#eceae4] mt-auto flex items-center justify-between">
           <div className="h-4 bg-[#eceae4] rounded-md w-24" />
-          <div className="h-4 bg-[#eceae4] rounded-md w-16" />
+          <div className="h-7 bg-[#eceae4] rounded-full w-24" />
         </div>
       </div>
     </div>
   )
 }
 
-// ─── BATCH POSTER CARD (Lovable Style) ────────────────────────────────────────
+// ─── BATCH POSTER CARD (Richard Feynman White Border Reference Style) ─────────
 
 function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -80,11 +80,11 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
 
   return (
     <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.18 }}
-      className="group block flex-shrink-0 w-[214px] sm:w-[235px] lg:w-[255px] max-w-[265px] snap-start select-none"
+      whileHover={{ y: -6, scale: 1.02 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 22 }}
+      className="group block flex-shrink-0 w-[215px] xs:w-[230px] sm:w-[245px] lg:w-[255px] max-w-[270px] snap-start select-none"
     >
-      {/* Unified Grouped Card with Visible Border wrapping Poster + Button (10% larger) */}
+      {/* Outer Card with Crisp White Border of Medium Thickness (Matching Richard Card Reference) */}
       <Link
         to={`/batch-details?id=${batch.id}`}
         onClick={(e) => {
@@ -92,10 +92,10 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
             e.preventDefault()
           }
         }}
-        className="block rounded-2xl p-2.5 bg-gradient-to-b from-[#18181d] via-[#131317] to-[#0d0d10] border border-white/20 group-hover:border-indigo-400/80 ring-1 ring-white/10 group-hover:ring-indigo-500/30 shadow-[0_12px_28px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.14)] group-hover:shadow-[0_16px_36px_rgba(99,102,241,0.25),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all duration-300"
+        className="block rounded-3xl p-2.5 sm:p-3 bg-gradient-to-b from-white via-[#faf8f3] to-white border border-[#dfdbcf] group-hover:border-white shadow-[0_16px_40px_rgba(0,0,0,0.35),0_2px_8px_rgba(0,0,0,0.1)] group-hover:shadow-[0_24px_55px_rgba(99,102,241,0.35),0_0_0_1px_rgba(255,255,255,0.4)] transition-all duration-300"
       >
-        {/* Poster Media Box (10% larger aspect-3/4 frame) */}
-        <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-[#0c0c0e] flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors">
+        {/* Inner Media Canvas (Optimized for 9:16 & all image dimensions with zero black voids & zero cropping) */}
+        <div className="relative rounded-2xl overflow-hidden aspect-[9/16] bg-slate-950 border border-black/10 flex items-center justify-center">
           {batch.poster_url?.trim() ? (
             <>
               {!imageLoaded && (
@@ -104,12 +104,26 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
                   <span className="text-[10px] font-medium text-white/50 tracking-wider uppercase">Loading Poster...</span>
                 </div>
               )}
+
+              {/* Ambient Blurred Backdrop: Fills any aspect ratio void with the poster's own vibrant tones */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+                <DriveImage
+                  src={batch.poster_url.trim()}
+                  alt=""
+                  aria-hidden="true"
+                  className="w-full h-full object-cover blur-2xl scale-125 opacity-60 brightness-95 filter pointer-events-none"
+                />
+                {/* Soft gradient wash */}
+                <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+              </div>
+
+              {/* Foreground Crisp Poster Image: object-contain guarantees 100% full view without cropping */}
               <DriveImage
                 src={batch.poster_url.trim()}
                 alt={batch.name}
                 loading="lazy"
                 onLoad={() => setImageLoaded(true)}
-                className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-[1.03] pointer-events-none ${
+                className={`relative z-10 w-full h-full object-contain transition-all duration-500 group-hover:scale-[1.02] pointer-events-none ${
                   imageLoaded ? 'opacity-100' : 'opacity-0'
                 }`}
                 fallback={
@@ -131,31 +145,13 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
             </div>
           )}
 
-          {/* Clean Pill Badge */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 bg-black/80 backdrop-blur-md text-[#fcfbf8] text-[10.5px] font-semibold tracking-wider px-2.5 py-0.5 rounded-full border border-white/20 shadow-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            LIVE
-          </div>
-
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3">
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-300">
-              View Syllabus <ArrowRight className="h-3.5 w-3.5" />
-            </span>
-          </div>
         </div>
 
-        {/* Grouped Button Below - Unified within the Card Border */}
-        <div className="mt-2.5 px-3 py-2.5 rounded-xl bg-white/[0.05] group-hover:bg-indigo-500/20 border border-white/10 group-hover:border-indigo-400/40 backdrop-blur-sm transition-all duration-200 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="text-xs sm:text-sm font-bold text-white tracking-tight truncate group-hover:text-indigo-200 transition-colors">
-              {batch.name}
-            </span>
-          </div>
-          <div className="w-5 h-5 rounded-full bg-white/10 group-hover:bg-indigo-500/30 flex items-center justify-center transition-colors shrink-0">
-            <ArrowRight className="w-3 h-3 text-white/70 group-hover:text-indigo-200 group-hover:translate-x-0.5 transition-transform" />
-          </div>
+        {/* Respective Batch Name beautifully displayed below the poster */}
+        <div className="pt-2.5 sm:pt-3 pb-0.5 px-1 text-center">
+          <p className="font-bold text-xs sm:text-sm text-[#1c1c1c] tracking-tight leading-snug truncate group-hover:text-indigo-600 transition-colors">
+            {batch.name}
+          </p>
         </div>
       </Link>
     </motion.div>
@@ -166,35 +162,22 @@ function BatchPosterCard({ batch, index = 0, isDraggingRef }) {
 
 function BatchPosterSkeletonCard() {
   return (
-    <div className="flex-shrink-0 w-[214px] sm:w-[235px] lg:w-[255px] max-w-[265px] snap-start select-none">
-      <div className="rounded-2xl p-2.5 bg-gradient-to-b from-[#18181d] via-[#131317] to-[#0d0d10] border border-white/20 ring-1 ring-white/10 shadow-[0_12px_28px_rgba(0,0,0,0.6)]">
-        {/* Poster Skeleton Frame */}
-        <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-[#0c0c0e] border border-white/10 flex flex-col items-center justify-center p-4">
-          {/* Skeleton LIVE pill */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse" />
-            <div className="w-8 h-2 bg-white/20 rounded-xs animate-pulse" />
-          </div>
-
-          <div className="w-12 h-12 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center mb-3 animate-pulse">
+    <div className="flex-shrink-0 w-[215px] xs:w-[230px] sm:w-[245px] lg:w-[255px] max-w-[270px] snap-start select-none">
+      <div className="rounded-3xl p-2.5 sm:p-3 bg-gradient-to-b from-white via-[#faf8f3] to-white border border-[#dfdbcf] shadow-[0_16px_40px_rgba(0,0,0,0.35)] animate-pulse">
+        {/* Poster Skeleton Frame (aspect-[9/16]) */}
+        <div className="relative rounded-2xl overflow-hidden aspect-[9/16] bg-slate-950 border border-black/10 flex flex-col items-center justify-center p-4">
+          <div className="w-12 h-12 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center mb-3">
             <GraduationCap className="w-6 h-6 text-white/20" />
           </div>
-          <div className="h-3 w-28 bg-white/10 rounded-md mb-2 animate-pulse" />
-          <div className="h-2 w-16 bg-white/5 rounded-md animate-pulse" />
+          <div className="h-2 w-16 bg-white/5 rounded-md" />
 
           {/* Shimmer overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
         </div>
 
-        {/* Bottom Grouped Button Skeleton */}
-        <div className="mt-2.5 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40 animate-pulse shrink-0" />
-            <div className="h-3.5 w-24 bg-white/10 rounded animate-pulse" />
-          </div>
-          <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-            <ArrowRight className="w-3 h-3 text-white/30" />
-          </div>
+        {/* Below Poster: Skeleton Batch Name */}
+        <div className="pt-2.5 sm:pt-3 pb-0.5 px-1 flex justify-center">
+          <div className="h-4 w-3/4 bg-neutral-200 rounded-md" />
         </div>
       </div>
     </div>
@@ -457,14 +440,14 @@ function LectureCard({ card, isFeaturedCard = false }) {
       whileHover={{ y: -5, transition: { type: 'spring', stiffness: 350, damping: 25 } }}
       whileTap={{ scale: 0.98 }}
       onClick={handleCardClick}
-      className={`group relative bg-white rounded-2xl border ${
+      className={`group relative bg-white rounded-2xl sm:rounded-3xl border ${
         isFeaturedCard
           ? 'border-white/20 hover:border-indigo-400/80 shadow-[0_10px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_18px_40px_rgba(99,102,241,0.25)]'
           : 'border-[#e2ddd1] hover:border-[#1c1c1c]'
-      } overflow-hidden transition-all duration-300 flex flex-col w-full h-full justify-between cursor-pointer shadow-[0_4px_20px_rgba(28,28,28,0.04)] hover:shadow-[0_16px_36px_rgba(28,28,28,0.09)] p-2 sm:p-2.5`}
+      } overflow-hidden transition-all duration-300 flex flex-col w-full h-full justify-between cursor-pointer shadow-[0_4px_20px_rgba(28,28,28,0.05)] hover:shadow-[0_20px_40px_rgba(28,28,28,0.12)] p-3 sm:p-3.5`}
     >
       {/* Thumbnail Frame */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#141414] shrink-0">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#141414] shrink-0">
         {thumb ? (
           <img
             src={thumb}
@@ -484,62 +467,63 @@ function LectureCard({ card, isFeaturedCard = false }) {
         {/* Centered Play Trigger */}
         {!isExternal ? (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-11 h-11 rounded-full bg-white text-[#1c1c1c] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 border border-white/50">
-              <PlayCircle className="h-5 w-5 ml-0.5 text-[#1c1c1c]" />
+            <div className="w-12 h-12 rounded-full bg-white/95 text-[#1c1c1c] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 border border-white/60">
+              <PlayCircle className="h-6 w-6 ml-0.5 text-[#1c1c1c]" />
             </div>
           </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-              <ExternalLink className="h-4 w-4" />
+            <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <ExternalLink className="h-5 w-5" />
             </div>
           </div>
         )}
 
         {/* Top Badges */}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none max-w-[calc(100%-54px)]">
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none max-w-[calc(100%-60px)]">
           {card.is_featured && (
-            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs border border-white/20 shrink-0">
+            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs border border-white/20 shrink-0">
               <Sparkles className="w-2.5 h-2.5 fill-white" />
               <span>Featured</span>
             </span>
           )}
           {card.subject && (
-            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-md border border-white/20 truncate">
+            <span className="bg-black/70 backdrop-blur-md text-white text-[10.5px] font-semibold px-2.5 py-0.5 rounded-lg border border-white/20 truncate">
               {card.subject}
             </span>
           )}
         </div>
 
         {/* Top Right: HD indicator */}
-        <div className="absolute top-2 right-2 pointer-events-none shrink-0">
-          <span className="bg-black/60 backdrop-blur-md text-white/90 text-[9px] font-semibold px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-wider">
+        <div className="absolute top-2.5 right-2.5 pointer-events-none shrink-0">
+          <span className="bg-black/70 backdrop-blur-md text-white/90 text-[9.5px] font-bold px-2 py-0.5 rounded-md border border-white/10 uppercase tracking-wider">
             {!isExternal ? '1080p' : 'PDF'}
           </span>
         </div>
       </div>
 
       {/* Card Content */}
-      <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-1 pt-3">
+      <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-1 pt-3.5">
         <div>
-          <h3 className="font-bold text-[#1c1c1c] text-sm leading-snug line-clamp-2 min-h-[2.5rem] tracking-tight group-hover:text-indigo-600 transition-colors">
+          <h3 className="font-bold text-[#1c1c1c] text-sm sm:text-base leading-snug line-clamp-2 min-h-[2.5rem] tracking-tight group-hover:text-indigo-600 transition-colors">
             {card.title}
           </h3>
-          <p className="text-xs text-[#5f5f5d] leading-relaxed line-clamp-2 mt-1 min-h-[2rem]">
+          <p className="text-xs sm:text-[13px] text-[#5f5f5d] leading-relaxed line-clamp-2 mt-1.5 min-h-[2rem]">
             {desc || 'Structured video lecture for thorough conceptual clarity.'}
           </p>
         </div>
 
         {/* Card Footer Bar */}
-        <div className="pt-2.5 sm:pt-3 border-t border-[#f0ede6] shrink-0 flex items-center justify-between mt-2.5 sm:mt-3 gap-1.5">
-          <span className="text-[11px] font-medium text-[#5f5f5d] truncate">
-            {!isExternal ? 'Free Video' : 'Reference Notes'}
+        <div className="pt-3 border-t border-[#f0ede6] shrink-0 flex items-center justify-between mt-3 gap-2">
+          <span className="text-[11px] font-medium text-[#5f5f5d] truncate flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+            <span>{!isExternal ? 'Free Video' : 'Reference Notes'}</span>
           </span>
 
           <button
             type="button"
             onClick={handleOpen}
-            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#1c1c1c] group-hover:bg-[#2c2c2c] text-[#fcfbf8] text-[10.5px] sm:text-[11px] font-semibold transition-all duration-200 shadow-2xs group-hover:shadow-xs active:scale-95 cursor-pointer shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#1c1c1c] group-hover:bg-[#2c2c2c] text-[#fcfbf8] text-[11px] sm:text-xs font-semibold transition-all duration-200 shadow-2xs group-hover:shadow-xs active:scale-95 cursor-pointer shrink-0"
           >
             {!isExternal ? (
               <>
@@ -760,6 +744,25 @@ function TrustMethodologyStrip() {
 
 // ─── MAIN HOME COMPONENT ──────────────────────────────────────────────────────
 
+const HERO_DECK_ITEMS = [
+  { id: 'einstein', index: 0, isInitial: false },
+  { id: 'graviton', index: 1, isInitial: true },
+  { id: 'feynman',  index: 2, isInitial: false },
+]
+const INITIAL_HERO_CARD = 'graviton'
+const INACTIVITY_DELAY_MS = 4500
+
+// Dynamic symmetrical card sizing helper for balanced grid distribution
+function getCardWidthClass(count) {
+  if (count === 1) {
+    return 'w-full max-w-xl mx-auto'
+  }
+  if (count === 2 || count === 4) {
+    return 'w-full sm:w-[calc(50%-12px)] max-w-[460px]'
+  }
+  return 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[430px]'
+}
+
 export default function Home() {
   const [notifications, setNotifications] = useState([])
   const [featured,      setFeatured]      = useState([])
@@ -772,8 +775,66 @@ export default function Home() {
   const [totalCards,    setTotalCards]    = useState(0)
   const [loading,       setLoading]       = useState(true)
   const [cols,          setCols]          = useState(2)
-  const [mobileHeroCard, setMobileHeroCard] = useState('graviton')
-  const [activeDesktopCard, setActiveDesktopCard] = useState('graviton')
+
+  // 3-Card Interactive Hero Deck State with Auto-Reset on Inactivity & Scroll
+  const [heroActiveCard, setHeroActiveCard] = useState(INITIAL_HERO_CARD)
+  const activeDesktopCard = heroActiveCard
+  const mobileHeroCard = heroActiveCard
+
+  const inactivityTimerRef = useRef(null)
+  const lastScrollYRef = useRef(0)
+
+  const clearInactivityTimer = () => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current)
+      inactivityTimerRef.current = null
+    }
+  }
+
+  const handleSelectHeroCard = (cardId) => {
+    setHeroActiveCard(cardId)
+    clearInactivityTimer()
+
+    if (cardId !== INITIAL_HERO_CARD) {
+      lastScrollYRef.current = typeof window !== 'undefined' ? window.scrollY : 0
+      inactivityTimerRef.current = setTimeout(() => {
+        setHeroActiveCard(INITIAL_HERO_CARD)
+      }, INACTIVITY_DELAY_MS)
+    }
+  }
+
+  const handleDeckActivity = () => {
+    if (heroActiveCard !== INITIAL_HERO_CARD) {
+      clearInactivityTimer()
+      inactivityTimerRef.current = setTimeout(() => {
+        setHeroActiveCard(INITIAL_HERO_CARD)
+      }, INACTIVITY_DELAY_MS)
+    }
+  }
+
+  // Automatic reset to initial state on page scroll
+  useEffect(() => {
+    if (heroActiveCard === INITIAL_HERO_CARD) return
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      // Reset if user scrolls more than 15px
+      if (Math.abs(currentScrollY - lastScrollYRef.current) > 15) {
+        clearInactivityTimer()
+        setHeroActiveCard(INITIAL_HERO_CARD)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [heroActiveCard])
+
+  useEffect(() => {
+    return () => clearInactivityTimer()
+  }, [])
+
   const featRef = useRef(null)
 
   useEffect(() => {
@@ -922,14 +983,15 @@ export default function Home() {
 
   const dynamicPageSize = useMemo(() => {
     const total = cards.length
-    if (!total || total <= 0) return cols * 2
-    for (let r = 2; r <= 4; r++) {
-      const size = r * cols
+    if (!total || total <= 0) return 6
+    // If small batch (<= 12 cards), show all on one page without awkward splits
+    if (total <= 12) return total
+    // For larger collections, paginate by balanced multiples (12, 9, 6)
+    for (const size of [12, 9, 6]) {
       if (total % size === 0) return size
     }
-    if (cols === 1 && total % 5 === 0 && total >= 5) return 5
-    return cols * 2
-  }, [cards.length, cols])
+    return 12
+  }, [cards.length])
 
   const totalPages = Math.max(1, Math.ceil(cards.length / dynamicPageSize))
 
@@ -1107,10 +1169,58 @@ export default function Home() {
           <div className="lg:col-span-6 flex flex-col items-center lg:items-end justify-center">
             
             {/* ─── DESKTOP / LAPTOP PRESENTATION (hidden sm:block) ─── */}
-            <div className="hidden sm:block relative w-full max-w-[550px] lg:max-w-[590px] group/deck">
+            <div 
+              className="hidden sm:block relative w-full max-w-[550px] lg:max-w-[590px] group/deck"
+              onMouseMove={handleDeckActivity}
+              onPointerDown={handleDeckActivity}
+            >
               
               {/* Multi-spectral ambient glow aura */}
               <div className="absolute -inset-6 bg-gradient-to-tr from-amber-500/10 via-sky-400/15 to-indigo-500/15 rounded-3xl blur-3xl opacity-75 pointer-events-none" />
+
+              {/* Minimalist Glassmorphic Dot Indicator Dock for Desktop */}
+              <div className="flex items-center justify-center mb-2">
+                <div 
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ede9de]/90 border border-[#dfdbcf] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] backdrop-blur-xs select-none"
+                  role="tablist"
+                  aria-label="Hero showcase cards"
+                >
+                  {HERO_DECK_ITEMS.map((item, idx) => {
+                    const isActive = heroActiveCard === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        aria-label={`Select card ${idx + 1}${item.isInitial ? ' (Graviton Institute)' : ''}`}
+                        onClick={() => handleSelectHeroCard(item.id)}
+                        className="relative min-w-[32px] h-6 flex items-center justify-center rounded-full transition-transform active:scale-95 focus:outline-hidden"
+                      >
+                        {isActive ? (
+                          <motion.div
+                            layoutId="heroDotActiveDesktop"
+                            className="w-8 h-2 rounded-full bg-[#1c1c1c] shadow-xs flex items-center justify-center"
+                            transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                          >
+                            {item.isInitial && (
+                              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                            )}
+                          </motion.div>
+                        ) : (
+                          <span
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                              item.isInitial
+                                ? 'bg-[#7a766c] hover:bg-[#1c1c1c] hover:scale-125'
+                                : 'bg-[#a39f93] hover:bg-[#1c1c1c]/70 hover:scale-125'
+                            }`}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
               {/* 3-Card Symmetrical Fanned Gallery Stage */}
               <div className="relative h-[340px] lg:h-[360px] flex items-center justify-center select-none pt-2">
@@ -1140,7 +1250,7 @@ export default function Home() {
                     y: -10,
                     transition: { type: 'spring', stiffness: 350, damping: 22 }
                   }}
-                  onClick={() => setActiveDesktopCard('einstein')}
+                  onClick={() => handleSelectHeroCard('einstein')}
                   className={`absolute left-0 lg:left-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
                     activeDesktopCard === 'einstein' 
                       ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.25)] ring-2 ring-amber-400/30' 
@@ -1199,7 +1309,7 @@ export default function Home() {
                     y: -10,
                     transition: { type: 'spring', stiffness: 350, damping: 22 }
                   }}
-                  onClick={() => setActiveDesktopCard('feynman')}
+                  onClick={() => handleSelectHeroCard('feynman')}
                   className={`absolute right-0 lg:right-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
                     activeDesktopCard === 'feynman' 
                       ? 'border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.25)] ring-2 ring-cyan-400/30' 
@@ -1253,7 +1363,7 @@ export default function Home() {
                     y: -12,
                     transition: { type: 'spring', stiffness: 350, damping: 22 }
                   }}
-                  onClick={() => setActiveDesktopCard('graviton')}
+                  onClick={() => handleSelectHeroCard('graviton')}
                   className={`relative z-20 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
                     activeDesktopCard === 'graviton'
                       ? 'border-amber-400/80 shadow-[0_25px_60px_rgba(28,28,28,0.22),0_4px_16px_rgba(0,0,0,0.08)] ring-2 ring-amber-400/40'
@@ -1317,43 +1427,54 @@ export default function Home() {
             </div>
 
             {/* ─── MOBILE PRESENTATION (block sm:hidden) ─── */}
-            <div className="block sm:hidden w-full max-w-[340px] xs:max-w-[370px] mx-auto select-none">
+            <div 
+              className="block sm:hidden w-full max-w-[340px] xs:max-w-[370px] mx-auto select-none"
+              onTouchStart={handleDeckActivity}
+              onPointerDown={handleDeckActivity}
+            >
               
-              {/* Interactive Segmented Pill Selector (Touch Dock) */}
-              <div className="flex items-center justify-between p-1 rounded-full bg-[#ede9de] border border-[#dfdbcf] shadow-inner mb-3.5 max-w-[325px] mx-auto">
-                <button
-                  type="button"
-                  onClick={() => setMobileHeroCard('einstein')}
-                  className={`flex-1 py-1 px-2 rounded-full text-[11px] font-bold transition-all text-center ${
-                    mobileHeroCard === 'einstein'
-                      ? 'bg-[#1c1c1c] text-white shadow-xs'
-                      : 'text-[#5f5f5d] hover:text-[#1c1c1c]'
-                  }`}
+              {/* Minimalist Glassmorphic Dot Indicator Dock for Mobile */}
+              <div className="flex items-center justify-center mb-3.5">
+                <div 
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ede9de]/90 border border-[#dfdbcf] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] backdrop-blur-xs select-none"
+                  role="tablist"
+                  aria-label="Hero showcase cards"
                 >
-                  ✦ Einstein
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileHeroCard('graviton')}
-                  className={`flex-1 py-1 px-2 rounded-full text-[11px] font-bold transition-all text-center ${
-                    mobileHeroCard === 'graviton'
-                      ? 'bg-[#1c1c1c] text-white shadow-xs'
-                      : 'text-[#5f5f5d] hover:text-[#1c1c1c]'
-                  }`}
-                >
-                  ⚛ Graviton
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileHeroCard('feynman')}
-                  className={`flex-1 py-1 px-2 rounded-full text-[11px] font-bold transition-all text-center ${
-                    mobileHeroCard === 'feynman'
-                      ? 'bg-[#1c1c1c] text-white shadow-xs'
-                      : 'text-[#5f5f5d] hover:text-[#1c1c1c]'
-                  }`}
-                >
-                  ⚡ Feynman
-                </button>
+                  {HERO_DECK_ITEMS.map((item, idx) => {
+                    const isActive = heroActiveCard === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        aria-label={`Select card ${idx + 1}${item.isInitial ? ' (Graviton Institute)' : ''}`}
+                        onClick={() => handleSelectHeroCard(item.id)}
+                        className="relative min-w-[32px] h-6 flex items-center justify-center rounded-full transition-transform active:scale-90 focus:outline-hidden"
+                      >
+                        {isActive ? (
+                          <motion.div
+                            layoutId="heroDotActiveMobile"
+                            className="w-7 h-2 rounded-full bg-[#1c1c1c] shadow-xs flex items-center justify-center"
+                            transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                          >
+                            {item.isInitial && (
+                              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                            )}
+                          </motion.div>
+                        ) : (
+                          <span
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                              item.isInitial
+                                ? 'bg-[#7a766c] hover:bg-[#1c1c1c]'
+                                : 'bg-[#a39f93] hover:bg-[#1c1c1c]/70'
+                            }`}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               {/* Mobile 3D Triad Staging Area */}
@@ -1362,7 +1483,8 @@ export default function Home() {
                 {/* Flanking Card: Einstein (Visible or Peeking) */}
                 <motion.div
                   layout
-                  onClick={() => setMobileHeroCard('einstein')}
+                  transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                  onClick={() => handleSelectHeroCard('einstein')}
                   className={`transition-all duration-300 rounded-2xl border ${
                     mobileHeroCard === 'einstein'
                       ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.22)] ring-1 ring-amber-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
@@ -1391,7 +1513,8 @@ export default function Home() {
                 {/* Central / Active Card: Graviton Logo */}
                 <motion.div
                   layout
-                  onClick={() => setMobileHeroCard('graviton')}
+                  transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                  onClick={() => handleSelectHeroCard('graviton')}
                   className={`transition-all duration-300 rounded-2xl border ${
                     mobileHeroCard === 'graviton'
                       ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-amber-400/80 shadow-[0_20px_50px_rgba(28,28,28,0.22)] ring-1 ring-amber-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
@@ -1434,7 +1557,8 @@ export default function Home() {
                 {/* Flanking Card: Richard Feynman */}
                 <motion.div
                   layout
-                  onClick={() => setMobileHeroCard('feynman')}
+                  transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+                  onClick={() => handleSelectHeroCard('feynman')}
                   className={`transition-all duration-300 rounded-2xl border ${
                     mobileHeroCard === 'feynman'
                       ? 'relative z-20 w-[215px] xs:w-[230px] aspect-[4/5] border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.22)] ring-1 ring-cyan-400/30 p-2 bg-gradient-to-b from-white via-[#faf8f3] to-white scale-100 rotate-0'
@@ -1580,27 +1704,44 @@ export default function Home() {
               </section>
             )}
 
-            {/* ── All Lectures (Framer Grid with Spring Layout) ── */}
-            <section>
-              <div className="mb-6 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#1c1c1c] text-[#fcfbf8] flex items-center justify-center shadow-xs">
-                      <BookOpen className="w-4.5 h-4.5" />
+            {/* ── All Lectures (Curated Landmark Academic Section) ── */}
+            <section className="relative rounded-3xl sm:rounded-[36px] bg-gradient-to-b from-white via-[#fcfbfa] to-[#faf7f0] border border-[#e4ded2] shadow-[0_12px_45px_rgba(28,28,28,0.06),0_2px_4px_rgba(28,28,28,0.02)] p-5 sm:p-8 lg:p-10 overflow-hidden">
+              {/* Architectural tactile dot grid background texture */}
+              <div
+                className="absolute inset-0 pointer-events-none opacity-[0.035]"
+                style={{
+                  backgroundImage: 'radial-gradient(#1c1c1c 1px, transparent 1px)',
+                  backgroundSize: '24px 24px',
+                }}
+              />
+
+              {/* Subtle ambient warm radial corner glow */}
+              <div className="absolute -top-28 -right-28 w-96 h-96 bg-gradient-to-br from-amber-400/10 via-amber-200/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-28 -left-28 w-96 h-96 bg-gradient-to-tr from-indigo-500/5 via-sky-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 mb-7 sm:mb-8 space-y-4 sm:space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#f4efe4] border border-[#dfd8cb] text-[#1c1c1c] text-xs font-semibold tracking-wide uppercase shadow-2xs">
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-700" />
+                      <span>Academic Curriculum & Lectures</span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl sm:text-2xl font-bold text-[#1c1c1c] tracking-tight">
-                          All lectures
-                        </h2>
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#f3eee3] text-[#1c1c1c] border border-[#e2ddd1]">
-                          {totalCards} {totalCards === 1 ? 'Lesson' : 'Lessons'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#5f5f5d] mt-0.5">
-                        {totalCards > 0 ? `${totalCards} public study cards available` : 'Browse all study material'}
-                      </p>
+
+                    <div className="flex items-center gap-3 flex-wrap pt-0.5">
+                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#1c1c1c] tracking-tight">
+                        All lectures
+                      </h2>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1c1c1c] text-[#fcfbf8] text-xs font-bold tracking-tight shadow-xs">
+                        <Sparkles className="w-3 h-3 text-amber-300 fill-amber-300" />
+                        <span>{totalCards} {totalCards === 1 ? 'Curated Lesson' : 'Curated Lessons'}</span>
+                      </span>
                     </div>
+
+                    <p className="text-xs sm:text-sm text-[#5f5f5d] max-w-2xl leading-relaxed">
+                      {totalCards > 0
+                        ? `Explore all ${totalCards} public study cards with in-depth lectures and reference material.`
+                        : 'Browse all video lectures and structured course material.'}
+                    </p>
                   </div>
 
                   {totalPages > 1 && (
@@ -1632,10 +1773,10 @@ export default function Home() {
 
                 {/* Batch Category Filters with Framer sliding layoutId */}
                 <div className="w-full overflow-x-auto pb-1 -mx-1 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
-                  <div className="flex gap-1.5 sm:gap-2 w-max items-center p-1 bg-white/70 backdrop-blur-xs rounded-full border border-[#e2ddd1]">
+                  <div className="flex gap-2 w-max items-center p-1.5 bg-white/80 backdrop-blur-md rounded-full border border-[#ded8cb] shadow-2xs">
                     <button
                       onClick={() => { setActiveBatch('all'); setPage(1) }}
-                      className="relative px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer"
+                      className="relative px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer"
                     >
                       {activeBatch === 'all' && (
                         <motion.div
@@ -1652,7 +1793,7 @@ export default function Home() {
                       <button
                         key={b.id}
                         onClick={() => { setActiveBatch(b.id); setPage(1) }}
-                        className="relative px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer"
+                        className="relative px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer"
                       >
                         {activeBatch === b.id && (
                           <motion.div
@@ -1671,28 +1812,29 @@ export default function Home() {
               </div>
 
               {loading ? (
-                <div
-                  className="grid gap-4 sm:gap-5 items-stretch"
-                  style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-                >
-                  {[...Array(dynamicPageSize)].map((_, i) => (
-                    <SkeletonCard key={i} />
+                <div className="flex flex-wrap justify-center gap-5 sm:gap-6 items-stretch pt-2 pb-2 relative z-10">
+                  {[...Array(dynamicPageSize || 6)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`${getCardWidthClass(dynamicPageSize || 6)} flex flex-col`}
+                    >
+                      <SkeletonCard />
+                    </div>
                   ))}
                 </div>
               ) : cards.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-3xl border border-[#e2ddd1] shadow-2xs">
-                  <div className="w-12 h-12 rounded-2xl bg-[#f7f4ed] border border-[#e2ddd1] flex items-center justify-center mx-auto mb-3">
-                    <BookOpen className="h-6 w-6 text-[#5f5f5d] opacity-60" />
+                <div className="text-center py-16 sm:py-20 bg-white/70 rounded-3xl border border-[#e2ddd1] shadow-2xs relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-[#f7f4ed] border border-[#e2ddd1] flex items-center justify-center mx-auto mb-3.5 shadow-2xs">
+                    <BookOpen className="h-7 w-7 text-[#5f5f5d]/70" />
                   </div>
-                  <p className="text-sm font-semibold text-[#1c1c1c]">No lectures available in this filter.</p>
-                  <p className="text-xs text-[#5f5f5d] mt-1">Please select another batch tab above.</p>
+                  <p className="text-base font-bold text-[#1c1c1c]">No lectures available in this filter.</p>
+                  <p className="text-xs sm:text-sm text-[#5f5f5d] mt-1">Please select another batch tab above to explore study material.</p>
                 </div>
               ) : (
                 <>
                   <motion.div
                     layout
-                    className="grid gap-4 sm:gap-5 items-stretch pt-2 pb-2"
-                    style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+                    className="flex flex-wrap justify-center gap-5 sm:gap-6 items-stretch pt-2 pb-2 relative z-10"
                   >
                     <AnimatePresence mode="popLayout">
                       {visibleCards.map((card, idx) => (
@@ -1708,7 +1850,7 @@ export default function Home() {
                             damping: 26,
                             delay: idx * 0.04,
                           }}
-                          className="h-full"
+                          className={`${getCardWidthClass(visibleCards.length)} flex flex-col`}
                         >
                           <LectureCard card={card} />
                         </motion.div>
@@ -1717,7 +1859,7 @@ export default function Home() {
                   </motion.div>
 
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-1.5 mt-10">
+                    <div className="flex items-center justify-center gap-1.5 mt-10 relative z-10">
                       <motion.button
                         whileTap={{ scale: 0.92 }}
                         onClick={() => setPage(p => Math.max(1, p - 1))}

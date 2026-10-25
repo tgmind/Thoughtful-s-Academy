@@ -1,6 +1,6 @@
 # Release Verification Gates & Quality Sign-Off Checklist
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead QA Architect:** Principal QA Automation Engineer & Release Manager  
 
 ---

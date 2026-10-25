@@ -1,6 +1,6 @@
 # Prioritized Platform Upgrade Roadmap
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Planning Horizon:** Immediate Hotfix (P0) to Long-Term Vision (P4)  
 **Lead Architect:** Principal Software Architect & Product Strategist  
 
@@ -10,7 +10,7 @@
 
 ```mermaid
 gantt
-    title Thoughtful's Academy Platform Upgrade Roadmap
+    title Graviton Academy Platform Upgrade Roadmap
     dateFormat  YYYY-MM-DD
     section Phase 0: Emergency Security
     Patch SEC-001 Role Elevation       :crit, 2026-10-15, 1d

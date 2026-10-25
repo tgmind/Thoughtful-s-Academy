@@ -1,6 +1,6 @@
 # Database Relationships, Foreign Keys & Constraint Specifications
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Scope:** Complete inventory of entity foreign keys, cascading deletion mechanics, unique constraints, and check constraints across all 18 tables.  
 

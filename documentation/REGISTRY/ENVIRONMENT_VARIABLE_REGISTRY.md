@@ -1,6 +1,6 @@
 # Master Environment Variable & Secret Registry
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Cataloged Configuration Variables:** 9 Variables  
 
 ---

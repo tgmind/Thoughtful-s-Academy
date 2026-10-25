@@ -1,6 +1,6 @@
 # System Bottleneck Analysis & Performance Profiling
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Performance & Scalability Engineer  
 **Scope:** Client Virtual DOM, Network Ingestion, API Gateway, and Database Query Contention  
 

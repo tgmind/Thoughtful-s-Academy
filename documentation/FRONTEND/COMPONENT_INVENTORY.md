@@ -1,6 +1,6 @@
 # Frontend Component Inventory
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Scope:** Complete inventory of all React/JSX components across layouts, shared widgets, pages, modals, and charts.  
 **Total Source Files:** 78 UI components/pages  
 **Total Frontend Lines of Code:** 26,800+ LOC  

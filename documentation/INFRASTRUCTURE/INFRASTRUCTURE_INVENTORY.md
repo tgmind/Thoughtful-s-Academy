@@ -1,6 +1,6 @@
 # Infrastructure Asset & Cloud Vendor Inventory
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal DevOps & Infrastructure Engineer  
 
 ---

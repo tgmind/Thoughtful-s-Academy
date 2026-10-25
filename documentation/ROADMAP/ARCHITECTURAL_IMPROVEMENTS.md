@@ -1,6 +1,6 @@
 # Architectural Improvements & Clean Code Refactoring Plan
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Architect:** Principal Software Architect  
 **Objective:** Transform monolithic React components into a modular, testable, and maintainable layered architecture.  
 

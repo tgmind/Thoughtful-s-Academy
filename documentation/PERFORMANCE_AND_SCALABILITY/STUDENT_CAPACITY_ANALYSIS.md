@@ -1,6 +1,6 @@
 # Student Capacity Analysis & Scalability Thresholds
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Performance & Scalability Engineer  
 **Objective:** Determine concurrent user thresholds and scaling ceilings across infrastructure tiers.  
 

@@ -14,7 +14,7 @@ Headers:
   Vary: Origin
   Cache-Control: no-cache
   Etag: W/"136b-aioFGkAjaeRKoWhXWaEf1NolDBs"
-HTML Title: Thoughtful's Academy — Online Coaching, Live Classes & Study Material
+HTML Title: Graviton Academy — Online Coaching, Live Classes & Study Material
 
 GET /login
 Status: 200 OK

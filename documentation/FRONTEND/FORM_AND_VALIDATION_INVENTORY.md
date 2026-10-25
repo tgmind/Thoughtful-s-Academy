@@ -1,6 +1,6 @@
 # Form and Validation Comprehensive Inventory
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Scope:** Complete inventory of all input forms, client and server-side validation rules, error handling behavior, and sanitization mechanisms across all 3 portals.  
 **Total Forms Documented:** 15 distinct forms  
 

@@ -1,6 +1,6 @@
 # Dependency Security & Software Supply Chain Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Package Manager:** NPM 10.8.2 / Node.js 18+  
 **Audit Output:** Verified via `npm audit` (Exited with code 1)  
 **Total Vulnerabilities Identified:** 19 Vulnerabilities (13 High, 6 Moderate, 0 Critical)  

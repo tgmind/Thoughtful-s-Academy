@@ -1,6 +1,6 @@
 # Security Architecture & Posture Overview
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Security Posture:** High Risk (Critical Privilege Escalation & Stored XSS Vulnerabilities Identified)  
 **Lead Auditor:** Principal Cybersecurity Auditor & Application Security Architect  
 **Evaluation Standard:** OWASP Top 10 (2021/2025), STRIDE Threat Modeling, and CIS Benchmarks  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Security Summary
 
-An exhaustive forensic security audit was conducted across the source code, database policies, runtime functions, and dependency tree of Thoughtful's Academy.
+An exhaustive forensic security audit was conducted across the source code, database policies, runtime functions, and dependency tree of Graviton Academy.
 
 While the platform employs modern security foundations—such as **100% Row Level Security (RLS)** enablement on all public tables, parameterized PostgREST SQL generation, and cryptographic JWT verification—the audit identified **two critical (P0) security vulnerabilities** that completely compromise platform integrity if exploited:
 1. **`SEC-001` (P0 Critical):** Client-Controlled Admin Role Assignment during Registration (`014_handle_new_user.sql`).

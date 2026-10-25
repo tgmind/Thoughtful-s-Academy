@@ -1,6 +1,6 @@
 # Technical Debt Assessment & Remediation Backlog
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Architect:** Principal Software Architect  
 **Estimated Total Debt Effort:** ~140 Engineering Hours (3.5 Person-Weeks)  
 

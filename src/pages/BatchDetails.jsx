@@ -330,7 +330,7 @@ export default function BatchDetails() {
 
       {/* ════════════ MAIN CONTENT BODY ════════════ */}
       {activeBatch ? (
-        <main className="flex-1 pb-20">
+        <main className="flex-1 pb-28 sm:pb-24">
           
           {/* ─── BATCH HERO BANNER (Warm Illuminated Gradient #fbf9f4 to #f3eee3) ─── */}
           <section
@@ -597,7 +597,7 @@ export default function BatchDetails() {
                           </span>
                         </div>
                         <span className="inline-block text-[11px] text-[#5f5f5d] mt-1 font-medium">
-                          Thoughtful&apos;s Senior Faculty
+                          {INSTITUTE_NAME} Senior Faculty
                         </span>
                       </div>
                     </motion.div>
@@ -858,14 +858,17 @@ export default function BatchDetails() {
         </div>
       )}
 
-      {/* ─── FLOATING BACK TO HOME BUTTON (Tablet & Desktop) ─── */}
+      {/* ─── FLOATING BACK TO HOME BUTTON (Mobile & Desktop) ─── */}
       <Link
         to="/"
-        className="hidden sm:flex fixed bottom-6 right-6 z-40 items-center gap-2 px-4 py-2 bg-[#1c1c1c] hover:bg-[#2c2c2c] text-[#fcfbf8] font-medium text-xs rounded-lg shadow-md border border-white/10 transition-all hover:scale-105 active:opacity-85 group"
+        className={`fixed ${
+          activeBatch ? 'bottom-[72px]' : 'bottom-4'
+        } sm:bottom-6 right-3 sm:right-6 z-40 inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-[#1c1c1c]/95 hover:bg-[#2c2c2c] text-[#fcfbf8] font-medium text-xs rounded-full sm:rounded-lg shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.2)] border border-white/15 backdrop-blur-md transition-all hover:scale-105 active:scale-95 group`}
         title="Return to Home"
       >
-        <HomeIcon className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-        <span>Back to Home</span>
+        <HomeIcon className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+        <span className="hidden sm:inline">Back to Home</span>
+        <span className="sm:hidden text-[11px] font-semibold tracking-tight">Home</span>
       </Link>
 
     </div>

@@ -1,6 +1,6 @@
 # Master External Integration Registry
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total External Services Integrated:** 5 Primary Gateways  
 
 ---

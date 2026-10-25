@@ -11,10 +11,10 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {}
   } catch {
-    data = { title: "Thoughtful's Academy", body: event.data ? event.data.text() : '' }
+    data = { title: "Graviton Academy", body: event.data ? event.data.text() : '' }
   }
 
-  const title = data.title || "Thoughtful's Academy"
+  const title = data.title || "Graviton Academy"
   const options = {
     body: data.body || '',
     icon: data.icon || '/icons/icon-192.png',

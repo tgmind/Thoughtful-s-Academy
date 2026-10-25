@@ -31,6 +31,7 @@ function createChainableQueryBuilder(tablesData = {}) {
 
   return {
     from: vi.fn((table) => createQuery(table)),
+    rpc: vi.fn(() => Promise.resolve({ data: null, error: null })),
     channel: vi.fn(() => ({
       on: vi.fn().mockReturnThis(),
       subscribe: vi.fn().mockReturnThis(),
@@ -45,6 +46,7 @@ let mockSupabase = null
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: (table) => mockSupabase.from(table),
+    rpc: (...args) => mockSupabase.rpc ? mockSupabase.rpc(...args) : Promise.resolve({ data: null, error: null }),
     channel: (name) => mockSupabase.channel(name),
     removeChannel: (ch) => mockSupabase.removeChannel(ch),
   },
@@ -77,7 +79,7 @@ describe('Student Fee Portal UI & Mobile Banner Responsiveness', () => {
       ],
       qr_settings: {
         id: 'qr-1',
-        payee_name: "Thoughtful's Academy",
+        payee_name: "Graviton Academy",
         upi_id: 'academy@upi',
         qr_image_url: 'https://example.com/qr.png',
         is_active: true,

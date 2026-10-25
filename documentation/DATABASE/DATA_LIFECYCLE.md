@@ -1,6 +1,6 @@
 # Data Lifecycle, Retention & Archival Policies
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Regulatory Context:** India Digital Personal Data Protection (DPDP) Act 2023 & Indian Income Tax Act (Sec 44AA)  
 **Database Engine:** PostgreSQL 15.6  
 

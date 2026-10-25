@@ -1,7 +1,7 @@
 # Repository Structure & File Organization
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy
+Platform: Graviton Academy
 
 ---
 

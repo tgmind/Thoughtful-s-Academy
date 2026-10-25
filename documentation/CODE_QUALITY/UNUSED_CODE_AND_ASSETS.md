@@ -1,6 +1,6 @@
 # Unused Code, Dead Assets & Redundancy Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Senior Full-Stack Engineer & Refactoring Specialist  
 
 ---

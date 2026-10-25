@@ -1,7 +1,7 @@
 # Live Classes & Attendance Tracking Deep Dive
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy  
+Platform: Graviton Academy  
 Feature IDs: FEAT-011, FEAT-012
 
 ---

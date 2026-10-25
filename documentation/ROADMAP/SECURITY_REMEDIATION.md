@@ -1,6 +1,6 @@
 # Security Remediation Playbook & Code Fixes
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Security Engineer:** Principal Cybersecurity Auditor  
 **Scope:** Ready-to-apply SQL migration scripts and frontend code patches for `SEC-001` through `SEC-007`.  
 

@@ -1,6 +1,6 @@
 # Master Technical Inventory & Cross-Reference Index
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Source Files:** 73 UI Components/Pages (25,284 LOC) + 24 SQL Migrations + 2 Serverless Functions  
 **Total Documentation Modules:** 12 Subsystems across `documentation/`  
 

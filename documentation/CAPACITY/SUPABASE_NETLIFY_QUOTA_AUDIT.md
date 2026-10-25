@@ -1,6 +1,6 @@
 # Supabase & Netlify Free-Tier Quota Audit
 
-**Platform:** Thoughtful's Academy / Coaching Institute  
+**Platform:** Graviton Academy / Coaching Institute  
 **Target Environments:** Supabase Free Tier (Hobby) & Netlify Starter Free Tier  
 **Phase:** Phase 4 — Staging Validation & Quota Accounting  
 **Date:** 2026-10-13  
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-This document establishes the verified operational quotas governing Thoughtful's Academy under the Supabase and Netlify free tiers. It explicitly differentiates between:
+This document establishes the verified operational quotas governing Graviton Academy under the Supabase and Netlify free tiers. It explicitly differentiates between:
 1. **Measured Consumption:** Values established via test instrumentation, build logs, and synthetic simulations.
 2. **Projected Consumption:** Values calculated via mathematical models for peak and monthly workloads.
 
@@ -46,7 +46,7 @@ This document establishes the verified operational quotas governing Thoughtful's
 ### 4.1 Realtime WebSocket Connection Ceiling (The Governing Bottleneck)
 - **Constraint:** Supabase limits free projects to **200 concurrent active WebSocket connections**.
 - **Client Architecture:**
-  - In Thoughtful's Academy, every browser client instance opens **exactly 1 WebSocket connection**.
+  - In Graviton Academy, every browser client instance opens **exactly 1 WebSocket connection**.
   - Within that single socket, channel topics are multiplexed: `popup_channel_${user.id}`, `nav_badges_${role}_${suffix}`, and the current view channel (`student_dash_sync_${uid}`).
 - **Capacity Ceiling:**
   - Up to **200 simultaneous students/teachers** can be connected at the same instant.

@@ -1,6 +1,6 @@
 # Frontend Defects, Usability Gaps & UI Technical Debt
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Scope:** Complete catalog of all client-side bugs, UX defects, rendering glitches, accessibility violations, and architectural anti-patterns identified in the frontend codebase (`src/`).  
 **Total Defects Documented:** 10 Frontend Defects (`FED-001` through `FED-010`)  
 

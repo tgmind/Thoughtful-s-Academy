@@ -1,6 +1,6 @@
 # Platform Load Testing & Capacity Benchmark Plan
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Tooling Recommendation:** k6 Open-Source Load Tester / Artillery  
 **Target Environments:** Staging / Isolated Supabase Preview Branch  
 

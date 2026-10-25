@@ -1,4 +1,4 @@
-# Thoughtful's Academy — Phase 3 Independent Security Verification and Deployment Readiness Gate Report
+# Graviton Academy — Phase 3 Independent Security Verification and Deployment Readiness Gate Report
 
 **Date:** October 13, 2026  
 **Auditor / Engineer:** Principal Security & Software Systems Auditor  
@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary
 
-Phase 3 was conducted as an autonomous, independent security verification and deployment readiness gate for the Thoughtful's Academy EdTech coaching platform. The audit reviewed the Phase 1 forensic findings, Phase 2 remediation implementations, actual source code, database migrations, and build artifacts.
+Phase 3 was conducted as an autonomous, independent security verification and deployment readiness gate for the Graviton Academy EdTech coaching platform. The audit reviewed the Phase 1 forensic findings, Phase 2 remediation implementations, actual source code, database migrations, and build artifacts.
 
 During this independent verification, several critical gaps in the initial Phase 2 fixes were uncovered and remediated:
 1. **Public Teacher Registration Exposure:** Public signup previously permitted selecting `'teacher'`, granting staff layout and broad student profile visibility to unvetted users. This was eliminated by strictly restricting public registration to `'student'` and establishing server-authorized administrative provisioning for teachers.

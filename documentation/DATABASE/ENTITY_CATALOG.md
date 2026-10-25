@@ -1,6 +1,6 @@
 # Database Entity Catalog & Schema Reference
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Total Entities Documented:** 19 Core Relational Tables  
 

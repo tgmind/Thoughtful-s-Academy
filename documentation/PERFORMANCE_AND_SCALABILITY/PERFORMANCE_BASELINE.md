@@ -1,6 +1,6 @@
 # Performance Baseline & Frontend Bundle Metrics
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Auditor:** Principal Performance & Scalability Engineer  
 **Build Tool:** Vite 5.4.9 with Rollup Bundler  
 **PWA Engine:** Workbox 7.0 via `vite-plugin-pwa`  

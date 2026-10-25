@@ -1,6 +1,6 @@
 # Master Frontend Component Registry
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Source Files:** 73 UI Component/Page files (25,284 LOC)  
 
 ---

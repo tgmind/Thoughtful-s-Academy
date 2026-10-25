@@ -1,6 +1,6 @@
 # Horizontal & Vertical Scaling Strategy
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Target Growth Horizon:** 500 to 50,000+ Active Students  
 **Lead Architect:** Principal Systems Architect & Performance Specialist  
 

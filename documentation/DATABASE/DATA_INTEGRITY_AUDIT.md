@@ -1,6 +1,6 @@
 # Database Integrity, Constraints & Orphan Records Audit
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Database Engine:** PostgreSQL 15.6  
 **Auditor:** Database Architect & Systems Forensics Specialist  
 **Integrity Score:** 84 / 100 (Solid Relational Skeleton with Specific Structural Risks)  

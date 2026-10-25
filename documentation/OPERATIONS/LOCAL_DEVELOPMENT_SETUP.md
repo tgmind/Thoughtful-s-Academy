@@ -1,6 +1,6 @@
 # Local Development Setup & Environment Bootstrap Guide
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Target Environment:** Node.js 18+ / Linux, macOS, or Windows (WSL2)  
 **Lead DevOps Engineer:** Senior DevOps Specialist  
 

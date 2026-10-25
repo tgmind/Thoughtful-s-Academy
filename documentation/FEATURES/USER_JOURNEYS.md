@@ -1,7 +1,7 @@
 # End-to-End User Journeys
 
 Audit Date: 2026-10-13  
-Platform: Thoughtful's Academy
+Platform: Graviton Academy
 
 ---
 

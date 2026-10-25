@@ -1,6 +1,6 @@
 # Feature Test Matrix & Verification Coverage Mapping
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Scope:** Complete QA test case mapping across all 22 cataloged platform features (`FEAT-001` through `FEAT-022`).  
 
 ---

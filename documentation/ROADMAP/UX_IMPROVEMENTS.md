@@ -1,6 +1,6 @@
 # User Experience & Accessibility (UX/a11y) Upgrade Plan
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead Product Designer:** Senior Product Designer & Accessibility Specialist  
 **Design Standard:** WCAG 2.2 Level AA Compliance & Material Design 3 Mobile Ergonomics  
 

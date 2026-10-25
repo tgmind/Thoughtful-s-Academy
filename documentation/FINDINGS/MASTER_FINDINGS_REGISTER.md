@@ -1,6 +1,6 @@
 # Master Platform Audit Findings Register
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Identified Findings:** 30 Distinct Forensic Findings  
 **Severity Breakdown:** 3 P0 Critical | 8 P1 High | 12 P2 Medium | 7 P3 Low  
 

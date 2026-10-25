@@ -1,6 +1,6 @@
 # Performance Findings & Scalability Bottlenecks
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Total Documented Performance Findings:** 5 Findings (`PERF-001` through `PERF-005`)  
 
 ---

@@ -1,6 +1,6 @@
 # Master Security Findings Register
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Standard:** Common Vulnerability Scoring System (CVSS v3.1)  
 **Total Documented Vulnerabilities:** 7 Security Findings (`SEC-001` through `SEC-007`)  
 

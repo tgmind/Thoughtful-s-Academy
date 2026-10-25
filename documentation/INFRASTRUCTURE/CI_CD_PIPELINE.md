@@ -1,6 +1,6 @@
 # Continuous Integration & Continuous Deployment (CI/CD) Pipeline
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Lead DevOps Architect:** Principal Release Engineer  
 **Current Automation:** Netlify Webhook Deploy on Git Push to `main`  
 

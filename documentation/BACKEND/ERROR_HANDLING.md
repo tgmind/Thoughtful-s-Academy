@@ -1,6 +1,6 @@
 # Backend Error Handling & Exception Management
 
-**Platform:** Thoughtful's Academy (Coaching Institute Management System)  
+**Platform:** Graviton Academy (Coaching Institute Management System)  
 **Scope:** PostgREST error codes, Edge function status codes, Netlify proxy exceptions, client-side error propagation, and security implications of leaked database errors.  
 
 ---
