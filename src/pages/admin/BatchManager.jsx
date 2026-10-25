@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Edit2, Trash2, X, Users, Layers, Calendar, Zap, BookOpen, Shield, GraduationCap, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Edit2, Trash2, X, Users, Layers, Calendar, Zap, BookOpen, Shield, GraduationCap, ArrowRight, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import CustomSelect from '../../components/ui/CustomSelect'
@@ -227,12 +228,22 @@ export default function BatchManager() {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Batches & Course Management</h2>
           <p className="text-xs text-slate-500 font-medium mt-0.5">Configure cohorts, curriculum modules, faculty assignments and fee schedules</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-950 to-indigo-950 hover:from-blue-900 hover:to-indigo-900 text-white text-xs sm:text-sm font-extrabold rounded-xl shadow-xs transition-all shrink-0 whitespace-nowrap active:scale-95 cursor-pointer"
-        >
-          <Plus className="h-4 w-4 shrink-0" /> Add New Batch
-        </button>
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <Link
+            to="/admin/batch-details"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 shadow-2xs transition-all shrink-0 cursor-pointer"
+            title="Edit batch curriculum, faculty profiles, and manage landing page featured lectures"
+          >
+            <BookOpen className="h-4 w-4 text-blue-900" />
+            <span>Batch Details & Featured</span>
+          </Link>
+          <button
+            onClick={openAdd}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-950 to-indigo-950 hover:from-blue-900 hover:to-indigo-900 text-white text-xs sm:text-sm font-extrabold rounded-xl shadow-xs transition-all shrink-0 whitespace-nowrap active:scale-95 cursor-pointer"
+          >
+            <Plus className="h-4 w-4 shrink-0" /> Add New Batch
+          </button>
+        </div>
       </div>
 
       {batches.length === 0 ? (
@@ -334,13 +345,20 @@ export default function BatchManager() {
                   >
                     {b.is_active ? 'Deactivate' : 'Activate'}
                   </button>
+                  <Link
+                    to={`/admin/batch-details?id=${b.id}`}
+                    title="Open rich details & study cards for this batch"
+                    className="p-2 text-slate-400 hover:text-blue-900 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                  </Link>
                   {b.subjects?.length > 0 && (counts[b.id] || 0) > 0 && (
                     <button
                       onClick={() => setSyncModal({ isOpen: true, batch: b, addedSubjects: b.subjects })}
                       title="Sync subjects to enrolled students"
                       className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
                     >
-                      <BookOpen className="h-4 w-4" />
+                      <Layers className="h-4 w-4" />
                     </button>
                   )}
                   <button

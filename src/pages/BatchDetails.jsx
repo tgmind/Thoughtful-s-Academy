@@ -188,7 +188,7 @@ export default function BatchDetails() {
   const facultyList = activeBatch && Array.isArray(activeBatch.faculty_images) ? activeBatch.faculty_images : []
 
   return (
-    <div className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] flex flex-col">
+    <div className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] flex flex-col w-full min-w-0 max-w-full overflow-x-hidden">
 
       {/* ════════════ TOP NAVIGATION BAR (Lovable Style) ════════════ */}
       <header className="sticky top-0 z-40 bg-[#f7f4ed]/95 backdrop-blur-md border-b border-[#e7e4dc]">
@@ -247,7 +247,7 @@ export default function BatchDetails() {
               <button
                 type="button"
                 onClick={() => setShowBatchDropdown(!showBatchDropdown)}
-                className={`w-full sm:w-auto min-w-[260px] sm:min-w-[300px] inline-flex items-center justify-between gap-3 px-4 py-2 rounded-xl border transition-all duration-150 cursor-pointer shadow-2xs ${
+                className={`w-full sm:w-auto min-w-0 sm:min-w-[300px] inline-flex items-center justify-between gap-3 px-4 py-2 rounded-xl border transition-all duration-150 cursor-pointer shadow-2xs ${
                   showBatchDropdown
                     ? 'bg-[#f7f4ed] border-[#1c1c1c]'
                     : 'bg-white hover:bg-[#f7f4ed]/50 border-[#e2ddd1]'

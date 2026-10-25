@@ -57,19 +57,69 @@ function youtubePlaylistDevPlugin() {
   }
 }
 
+const BUILD_TIME = Date.now().toString()
+
+function generateVersionJsonPlugin() {
+  return {
+    name: 'generate-version-json',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify(
+          {
+            version: BUILD_TIME,
+            builtAt: new Date().toISOString(),
+          },
+          null,
+          2
+        ),
+      })
+    },
+  }
+}
+
 export default defineConfig({
+  define: {
+    __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   plugins: [
     react(),
     youtubePlaylistDevPlugin(),
+    generateVersionJsonPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: false,   // using our own public/manifest.json
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Exclude index.html from precache so it is never served stale from CacheStorage
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        globIgnores: ['**/index.html'],
         // Layer our Web Push handler on top of the generated Workbox SW so
         // push/notificationclick work without touching the caching strategy.
         importScripts: ['/push-sw.js'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
+          {
+            // NetworkFirst for all HTML navigation requests so live deploys are served immediately
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-html-cache',
+              networkTimeoutSeconds: 3,
+              plugins: [
+                {
+                  cacheWillUpdate: async ({ response }) => {
+                    if (response && response.status === 200) {
+                      return response
+                    }
+                    return null
+                  },
+                },
+              ],
+            },
+          },
           {
             urlPattern: /^https:\/\/img\.youtube\.com\/.*/i,
             handler: 'CacheFirst',

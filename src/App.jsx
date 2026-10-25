@@ -4,6 +4,7 @@ import { AuthProvider }   from './context/AuthContext'
 import { ProtectedRoute } from './utils/roleGuard'
 import { Toaster }        from 'react-hot-toast'
 import InstallAppPrompt from './components/InstallAppPrompt'
+import AppUpdateNotification from './components/shared/AppUpdateNotification'
 import RouteLoader from './components/shared/RouteLoader'
 
 // Lazy-loaded Public Pages
@@ -72,6 +73,7 @@ export default function App() {
       }} />
 
       <InstallAppPrompt />
+      <AppUpdateNotification />
 
       <Suspense fallback={<RouteLoader />}>
         <Routes>

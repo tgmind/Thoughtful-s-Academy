@@ -14,6 +14,10 @@ import {
 import { getYouTubeThumbnail } from '../utils/formatters'
 import DriveImage from '../components/shared/DriveImage'
 import InstallHeaderButton from '../components/InstallHeaderButton'
+import StudentReviewsDesktop from '../components/home/StudentReviewsDesktop'
+import StudentReviewsMobile from '../components/home/StudentReviewsMobile'
+import LectureCard from '../components/home/LectureCard'
+import AllLecturesSection from '../components/home/AllLecturesSection'
 
 function getThumbnail(url) {
   return getYouTubeThumbnail(url)
@@ -413,135 +417,7 @@ function BatchPostersSection({ batches = [], loading = false }) {
   )
 }
 
-// ─── LECTURE CARD (Framer Spring & Bezel Design) ─────────────────────────────
-
-function LectureCard({ card, isFeaturedCard = false }) {
-  const navigate = useNavigate()
-  const thumb = card.thumbnail_url || getThumbnail(card.url)
-  const isExternal = card.type === 'external_link'
-  const desc = card.description?.trim() || ''
-
-  const handleOpen = (e) => {
-    if (e) e.stopPropagation()
-    if (!isExternal) {
-      navigate(`/watch/${card.id}`, { state: { card } })
-    } else {
-      window.open(card.url, '_blank', 'noopener,noreferrer')
-    }
-  }
-
-  const handleCardClick = (e) => {
-    if (e.target.closest('a') || e.target.closest('button')) return
-    handleOpen()
-  }
-
-  return (
-    <motion.div
-      whileHover={{ y: -5, transition: { type: 'spring', stiffness: 350, damping: 25 } }}
-      whileTap={{ scale: 0.98 }}
-      onClick={handleCardClick}
-      className={`group relative bg-white rounded-2xl sm:rounded-3xl border ${
-        isFeaturedCard
-          ? 'border-white/20 hover:border-indigo-400/80 shadow-[0_10px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_18px_40px_rgba(99,102,241,0.25)]'
-          : 'border-[#e2ddd1] hover:border-[#1c1c1c]'
-      } overflow-hidden transition-all duration-300 flex flex-col w-full h-full justify-between cursor-pointer shadow-[0_4px_20px_rgba(28,28,28,0.05)] hover:shadow-[0_20px_40px_rgba(28,28,28,0.12)] p-3 sm:p-3.5`}
-    >
-      {/* Thumbnail Frame */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#141414] shrink-0">
-        {thumb ? (
-          <img
-            src={thumb}
-            alt={card.title}
-            loading="lazy"
-            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full bg-[#f7f4ed] flex items-center justify-center">
-            <BookOpen className="h-8 w-8 text-[#5f5f5d]/60" />
-          </div>
-        )}
-
-        {/* Ambient dark vignette on hover */}
-        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors duration-300 pointer-events-none" />
-
-        {/* Centered Play Trigger */}
-        {!isExternal ? (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-12 h-12 rounded-full bg-white/95 text-[#1c1c1c] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 border border-white/60">
-              <PlayCircle className="h-6 w-6 ml-0.5 text-[#1c1c1c]" />
-            </div>
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-              <ExternalLink className="h-5 w-5" />
-            </div>
-          </div>
-        )}
-
-        {/* Top Badges */}
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none max-w-[calc(100%-60px)]">
-          {card.is_featured && (
-            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs border border-white/20 shrink-0">
-              <Sparkles className="w-2.5 h-2.5 fill-white" />
-              <span>Featured</span>
-            </span>
-          )}
-          {card.subject && (
-            <span className="bg-black/70 backdrop-blur-md text-white text-[10.5px] font-semibold px-2.5 py-0.5 rounded-lg border border-white/20 truncate">
-              {card.subject}
-            </span>
-          )}
-        </div>
-
-        {/* Top Right: HD indicator */}
-        <div className="absolute top-2.5 right-2.5 pointer-events-none shrink-0">
-          <span className="bg-black/70 backdrop-blur-md text-white/90 text-[9.5px] font-bold px-2 py-0.5 rounded-md border border-white/10 uppercase tracking-wider">
-            {!isExternal ? '1080p' : 'PDF'}
-          </span>
-        </div>
-      </div>
-
-      {/* Card Content */}
-      <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-1 pt-3.5">
-        <div>
-          <h3 className="font-bold text-[#1c1c1c] text-sm sm:text-base leading-snug line-clamp-2 min-h-[2.5rem] tracking-tight group-hover:text-indigo-600 transition-colors">
-            {card.title}
-          </h3>
-          <p className="text-xs sm:text-[13px] text-[#5f5f5d] leading-relaxed line-clamp-2 mt-1.5 min-h-[2rem]">
-            {desc || 'Structured video lecture for thorough conceptual clarity.'}
-          </p>
-        </div>
-
-        {/* Card Footer Bar */}
-        <div className="pt-3 border-t border-[#f0ede6] shrink-0 flex items-center justify-between mt-3 gap-2">
-          <span className="text-[11px] font-medium text-[#5f5f5d] truncate flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
-            <span>{!isExternal ? 'Free Video' : 'Reference Notes'}</span>
-          </span>
-
-          <button
-            type="button"
-            onClick={handleOpen}
-            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#1c1c1c] group-hover:bg-[#2c2c2c] text-[#fcfbf8] text-[11px] sm:text-xs font-semibold transition-all duration-200 shadow-2xs group-hover:shadow-xs active:scale-95 cursor-pointer shrink-0"
-          >
-            {!isExternal ? (
-              <>
-                <Youtube className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                <span className="whitespace-nowrap">Watch lecture</span>
-              </>
-            ) : (
-              <>
-                <ExternalLink className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                <span className="whitespace-nowrap">Open material</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
+// ─── LECTURE CARD is imported from ../components/home/LectureCard ─────────────
 
 // ─── NOTIFICATION ROW ─────────────────────────────────────────────────────────
 
@@ -1003,6 +879,44 @@ export default function Home() {
     const from = (page - 1) * dynamicPageSize
     return cards.slice(from, from + dynamicPageSize)
   }, [cards, page, dynamicPageSize])
+
+  // Dynamic height synchronization between desktop reviews and all lectures section
+  const allLecturesRef = useRef(null)
+  const whatsOnRef = useRef(null)
+  const [reviewsHeight, setReviewsHeight] = useState(580)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateReviewsHeight = () => {
+      if (!allLecturesRef.current) return
+      const allLecturesH = allLecturesRef.current.offsetHeight || 0
+      const whatsOnH = whatsOnRef.current?.offsetHeight || 260
+      const gap = 20 // space-y-5
+      
+      if (allLecturesH > 0) {
+        // Dynamically match height of All Lectures section to eliminate empty void below reviews
+        const target = Math.max(460, Math.min(allLecturesH - whatsOnH - gap, 920))
+        setReviewsHeight(target)
+      }
+    }
+
+    updateReviewsHeight()
+
+    let ro
+    if (allLecturesRef.current && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        updateReviewsHeight()
+      })
+      ro.observe(allLecturesRef.current)
+    }
+
+    window.addEventListener('resize', updateReviewsHeight)
+    return () => {
+      if (ro) ro.disconnect()
+      window.removeEventListener('resize', updateReviewsHeight)
+    }
+  }, [cards, activeBatch, loading])
 
   const now = Date.now()
   const isNew = (d) => now - new Date(d).getTime() < 86400000
@@ -1704,209 +1618,40 @@ export default function Home() {
               </section>
             )}
 
-            {/* ── All Lectures (Curated Landmark Academic Section) ── */}
-            <section className="relative rounded-3xl sm:rounded-[36px] bg-gradient-to-b from-white via-[#fcfbfa] to-[#faf7f0] border border-[#e4ded2] shadow-[0_12px_45px_rgba(28,28,28,0.06),0_2px_4px_rgba(28,28,28,0.02)] p-5 sm:p-8 lg:p-10 overflow-hidden">
-              {/* Architectural tactile dot grid background texture */}
-              <div
-                className="absolute inset-0 pointer-events-none opacity-[0.035]"
-                style={{
-                  backgroundImage: 'radial-gradient(#1c1c1c 1px, transparent 1px)',
-                  backgroundSize: '24px 24px',
-                }}
-              />
+            {/* ── ALL LECTURES (Curated Landmark Academic Section) ── */}
+            <AllLecturesSection
+              sectionRef={allLecturesRef}
+              cards={cards}
+              visibleCards={visibleCards}
+              loading={loading}
+              batches={batches}
+              activeBatch={activeBatch}
+              setActiveBatch={setActiveBatch}
+              totalCards={totalCards}
+              totalPages={totalPages}
+              page={page}
+              setPage={setPage}
+              dynamicPageSize={dynamicPageSize}
+              getCardWidthClass={getCardWidthClass}
+            />
 
-              {/* Subtle ambient warm radial corner glow */}
-              <div className="absolute -top-28 -right-28 w-96 h-96 bg-gradient-to-br from-amber-400/10 via-amber-200/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-28 -left-28 w-96 h-96 bg-gradient-to-tr from-indigo-500/5 via-sky-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-
-              <div className="relative z-10 mb-7 sm:mb-8 space-y-4 sm:space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1.5">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#f4efe4] border border-[#dfd8cb] text-[#1c1c1c] text-xs font-semibold tracking-wide uppercase shadow-2xs">
-                      <BookOpen className="w-3.5 h-3.5 text-indigo-700" />
-                      <span>Academic Curriculum & Lectures</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-wrap pt-0.5">
-                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#1c1c1c] tracking-tight">
-                        All lectures
-                      </h2>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1c1c1c] text-[#fcfbf8] text-xs font-bold tracking-tight shadow-xs">
-                        <Sparkles className="w-3 h-3 text-amber-300 fill-amber-300" />
-                        <span>{totalCards} {totalCards === 1 ? 'Curated Lesson' : 'Curated Lessons'}</span>
-                      </span>
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-[#5f5f5d] max-w-2xl leading-relaxed">
-                      {totalCards > 0
-                        ? `Explore all ${totalCards} public study cards with in-depth lectures and reference material.`
-                        : 'Browse all video lectures and structured course material.'}
-                    </p>
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-1.5 self-end sm:self-auto bg-white p-1 rounded-xl border border-[#e2ddd1] shadow-2xs">
-                      <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="w-7 h-7 rounded-lg text-[#1c1c1c] hover:bg-[#f7f4ed] disabled:opacity-30 flex items-center justify-center transition-colors cursor-pointer"
-                        title="Previous"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </motion.button>
-                      <span className="text-xs font-bold text-[#1c1c1c] px-2 tabular-nums">
-                        {page} <span className="text-[#5f5f5d] font-normal">/</span> {totalPages}
-                      </span>
-                      <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="w-7 h-7 rounded-lg text-[#1c1c1c] hover:bg-[#f7f4ed] disabled:opacity-30 flex items-center justify-center transition-colors cursor-pointer"
-                        title="Next"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </motion.button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Batch Category Filters with Framer sliding layoutId */}
-                <div className="w-full overflow-x-auto pb-1 -mx-1 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
-                  <div className="flex gap-2 w-max items-center p-1.5 bg-white/80 backdrop-blur-md rounded-full border border-[#ded8cb] shadow-2xs">
-                    <button
-                      onClick={() => { setActiveBatch('all'); setPage(1) }}
-                      className="relative px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      {activeBatch === 'all' && (
-                        <motion.div
-                          layoutId="activeBatchPill"
-                          className="absolute inset-0 bg-[#1c1c1c] rounded-full shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),0_2px_6px_rgba(0,0,0,0.12)]"
-                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                        />
-                      )}
-                      <span className={`relative z-10 transition-colors ${activeBatch === 'all' ? 'text-[#fcfbf8]' : 'text-[#5f5f5d] hover:text-[#1c1c1c]'}`}>
-                        All
-                      </span>
-                    </button>
-                    {batches.map(b => (
-                      <button
-                        key={b.id}
-                        onClick={() => { setActiveBatch(b.id); setPage(1) }}
-                        className="relative px-4 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer"
-                      >
-                        {activeBatch === b.id && (
-                          <motion.div
-                            layoutId="activeBatchPill"
-                            className="absolute inset-0 bg-[#1c1c1c] rounded-full shadow-[inset_0px_0.5px_0px_rgba(255,255,255,0.25),0_2px_6px_rgba(0,0,0,0.12)]"
-                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                          />
-                        )}
-                        <span className={`relative z-10 transition-colors ${activeBatch === b.id ? 'text-[#fcfbf8]' : 'text-[#5f5f5d] hover:text-[#1c1c1c]'}`}>
-                          {b.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="flex flex-wrap justify-center gap-5 sm:gap-6 items-stretch pt-2 pb-2 relative z-10">
-                  {[...Array(dynamicPageSize || 6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`${getCardWidthClass(dynamicPageSize || 6)} flex flex-col`}
-                    >
-                      <SkeletonCard />
-                    </div>
-                  ))}
-                </div>
-              ) : cards.length === 0 ? (
-                <div className="text-center py-16 sm:py-20 bg-white/70 rounded-3xl border border-[#e2ddd1] shadow-2xs relative z-10">
-                  <div className="w-14 h-14 rounded-2xl bg-[#f7f4ed] border border-[#e2ddd1] flex items-center justify-center mx-auto mb-3.5 shadow-2xs">
-                    <BookOpen className="h-7 w-7 text-[#5f5f5d]/70" />
-                  </div>
-                  <p className="text-base font-bold text-[#1c1c1c]">No lectures available in this filter.</p>
-                  <p className="text-xs sm:text-sm text-[#5f5f5d] mt-1">Please select another batch tab above to explore study material.</p>
-                </div>
-              ) : (
-                <>
-                  <motion.div
-                    layout
-                    className="flex flex-wrap justify-center gap-5 sm:gap-6 items-stretch pt-2 pb-2 relative z-10"
-                  >
-                    <AnimatePresence mode="popLayout">
-                      {visibleCards.map((card, idx) => (
-                        <motion.div
-                          key={card.id}
-                          layout
-                          initial={{ opacity: 0, y: 15 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{
-                            type: 'spring',
-                            stiffness: 300,
-                            damping: 26,
-                            delay: idx * 0.04,
-                          }}
-                          className={`${getCardWidthClass(visibleCards.length)} flex flex-col`}
-                        >
-                          <LectureCard card={card} />
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </motion.div>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-1.5 mt-10 relative z-10">
-                      <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="p-2 rounded-xl border border-[#e2ddd1] bg-white hover:border-[#1c1c1c] text-[#1c1c1c] disabled:opacity-30 transition-colors cursor-pointer shadow-2xs"
-                        title="Previous page"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </motion.button>
-                      {[...Array(totalPages)].map((_, i) => (
-                        <motion.button
-                          key={i}
-                          whileTap={{ scale: 0.92 }}
-                          onClick={() => setPage(i + 1)}
-                          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                            page === i + 1
-                              ? 'bg-[#1c1c1c] text-[#fcfbf8] shadow-xs'
-                              : 'bg-white border border-[#e2ddd1] text-[#1c1c1c] hover:border-[#1c1c1c]'
-                          }`}
-                        >
-                          {i + 1}
-                        </motion.button>
-                      ))}
-                      <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="p-2 rounded-xl border border-[#e2ddd1] bg-white hover:border-[#1c1c1c] text-[#1c1c1c] disabled:opacity-30 transition-colors cursor-pointer shadow-2xs"
-                        title="Next page"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </motion.button>
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
+            {/* ── MOBILE STUDENT REVIEWS (Horizontal Rolling Cards - Shown at Last on Mobile) ── */}
+            <div className="lg:hidden mt-10 sm:mt-14">
+              <StudentReviewsMobile />
+            </div>
           </div>
 
-          {/* RIGHT: DESKTOP STICKY SIDEBAR ("WHAT'S ON" CARD) */}
+          {/* RIGHT: DESKTOP STICKY SIDEBAR ("WHAT'S ON" CARD + DYNAMIC STUDENT REVIEWS) */}
           <aside className="hidden lg:block w-80 xl:w-88 flex-shrink-0">
-            <div className="sticky top-24">
-              <WhatsOnCard
-                notifications={notifications}
-                isNew={isNew}
-                hasNew={hasNew}
-              />
+            <div className="sticky top-24 space-y-5">
+              <div ref={whatsOnRef}>
+                <WhatsOnCard
+                  notifications={notifications}
+                  isNew={isNew}
+                  hasNew={hasNew}
+                />
+              </div>
+              <StudentReviewsDesktop targetHeight={reviewsHeight} />
             </div>
           </aside>
 
