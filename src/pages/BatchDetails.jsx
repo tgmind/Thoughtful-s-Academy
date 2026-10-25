@@ -334,7 +334,7 @@ export default function BatchDetails() {
           
           {/* ─── BATCH HERO BANNER (Warm Illuminated Gradient #fbf9f4 to #f3eee3) ─── */}
           <section
-            className="relative overflow-hidden py-12 sm:py-16 border-b border-[#e7e4dc]"
+            className="relative overflow-hidden py-8 sm:py-12 lg:py-14 border-b border-[#e7e4dc]"
             style={{
               background: 'linear-gradient(180deg, #fbf9f4 0%, #f7f4ed 60%, #f3eee3 100%)',
             }}
@@ -347,10 +347,10 @@ export default function BatchDetails() {
               }}
             />
 
-            <div className={`${CONTAINER} relative z-10 grid lg:grid-cols-12 gap-10 items-center`}>
+            <div className={`${CONTAINER} relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-10 items-center`}>
               
               {/* Left Details */}
-              <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+              <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left">
                 
                 {/* Admissions Badge */}
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#e2ddd1] bg-white text-xs text-[#1c1c1c] shadow-2xs">
@@ -361,7 +361,7 @@ export default function BatchDetails() {
                 </div>
 
                 {/* Batch Title */}
-                <h1 className="text-3xl sm:text-5xl font-semibold text-[#1c1c1c] tracking-[-0.035em] leading-[1.08] break-words">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-semibold text-[#1c1c1c] tracking-[-0.035em] leading-[1.12] break-words">
                   {activeBatch.name}
                 </h1>
 
@@ -415,14 +415,14 @@ export default function BatchDetails() {
 
               {/* Right: Poster Showcase Card */}
               <div className="lg:col-span-5 flex justify-center lg:justify-end items-start">
-                <div className="flex flex-col w-full sm:w-[320px] lg:w-[330px]">
+                <div className="flex flex-col w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[310px] mx-auto lg:mx-0">
                   
                   {/* Poster Clickable Frame with Champagne Border */}
                   <motion.div
                     whileHover={{ y: -4 }}
                     transition={{ duration: 0.18 }}
                     onClick={() => activeBatch.poster_url?.trim() && setShowPosterModal(true)}
-                    className="group relative cursor-pointer rounded-2xl overflow-hidden aspect-[9/16] bg-white border border-[#e2ddd1] shadow-[0_12px_40px_rgba(28,28,28,0.06)] flex items-center justify-center"
+                    className="group relative cursor-pointer rounded-2xl overflow-hidden aspect-[9/16] max-h-[460px] sm:max-h-[500px] bg-white border border-[#e2ddd1] shadow-[0_12px_40px_rgba(28,28,28,0.06)] flex items-center justify-center"
                   >
                     {activeBatch.poster_url?.trim() ? (
                       <DriveImage
@@ -569,7 +569,7 @@ export default function BatchDetails() {
                     <motion.div
                       key={i}
                       whileHover={{ y: -4, transition: { type: 'spring', stiffness: 350, damping: 25 } }}
-                      className="flex-shrink-0 w-80 sm:w-88 snap-start bg-gradient-to-b from-white via-[#fcfbf9] to-white rounded-2xl border border-[#ded9cb] hover:border-indigo-500/80 shadow-[0_10px_30px_rgba(28,28,28,0.06)] hover:shadow-[0_16px_36px_rgba(99,102,241,0.12)] p-4 sm:p-5 flex items-center gap-4 transition-all duration-300 relative group overflow-hidden"
+                      className="flex-shrink-0 w-72 sm:w-80 lg:w-84 snap-start bg-gradient-to-b from-white via-[#fcfbf9] to-white rounded-2xl border border-[#ded9cb] hover:border-indigo-500/80 shadow-[0_10px_30px_rgba(28,28,28,0.06)] hover:shadow-[0_16px_36px_rgba(99,102,241,0.12)] p-4 sm:p-5 flex items-center gap-4 transition-all duration-300 relative group overflow-hidden"
                     >
                       {/* Subtle top edge gradient highlight */}
                       <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-700 opacity-80 group-hover:opacity-100 transition-opacity" />

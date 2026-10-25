@@ -109,7 +109,7 @@ export default function Login() {
     <div className="min-h-screen lg:h-screen flex flex-col lg:flex-row overflow-x-hidden">
       {/* ─── LEFT: Editorial Branding Canvas (Deep Charcoal & Spotlights) ─── */}
       <div
-        className="hidden lg:flex flex-col justify-between w-1/2 px-8 py-5 xl:px-12 xl:py-7 2xl:px-16 2xl:py-8 relative overflow-hidden text-white border-r border-white/10 shrink-0"
+        className="hidden lg:flex flex-col justify-between w-1/2 px-6 py-5 xl:px-10 xl:py-7 2xl:px-14 2xl:py-8 relative overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] text-white border-r border-white/10 shrink-0"
         style={{
           background: 'radial-gradient(ellipse 90% 70% at 20% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(30, 27, 75, 0.14) 40%, transparent 75%), linear-gradient(180deg, #09090b 0%, #111115 50%, #09090b 100%)',
         }}
@@ -144,14 +144,14 @@ export default function Login() {
           </Link>
         </div>
 
-        {/* Hero Narrative */}
-        <div className="relative z-10 max-w-lg my-auto py-1 xl:py-2 origin-left scale-[1.30]">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-3.5 xl:mb-4.5">
+        {/* Hero Narrative - Fluid & responsive, never clipped on laptops or scaled displays */}
+        <div className="relative z-10 max-w-md xl:max-w-lg 2xl:max-w-xl my-auto py-2 xl:py-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold tracking-wide uppercase shadow-2xs backdrop-blur-md mb-3 xl:mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Student &amp; Faculty Portal</span>
           </div>
 
-          <h1 className="font-extrabold text-3xl sm:text-4xl xl:text-5xl text-white tracking-tight leading-[1.14] mb-3 xl:mb-3.5">
+          <h1 className="font-extrabold text-2xl sm:text-3xl xl:text-4xl 2xl:text-5xl text-white tracking-tight leading-[1.16] mb-2.5 xl:mb-3.5">
             Your path to{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-indigo-200 to-white">
               academic excellence
@@ -159,7 +159,7 @@ export default function Login() {
             starts here.
           </h1>
 
-          <p className="text-sm xl:text-base text-[#a1a1aa] leading-relaxed mb-4 xl:mb-5">
+          <p className="text-xs sm:text-sm xl:text-base text-[#a1a1aa] leading-relaxed mb-4 xl:mb-5">
             <span className="font-serif italic text-indigo-300 font-normal">
               Empowering Concepts. Building Toppers.
             </span>{' '}
@@ -167,29 +167,29 @@ export default function Login() {
           </p>
 
           {/* Bento Feature Highlights */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2.5">
-                <Video className="w-4 h-4" />
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="rounded-2xl p-3 sm:p-3.5 xl:p-4 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 sm:mb-2.5">
+                <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <p className="text-white font-bold text-sm tracking-tight">Live</p>
-              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Daily Classes</p>
+              <p className="text-white font-bold text-xs sm:text-sm tracking-tight">Live</p>
+              <p className="text-[10px] sm:text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Daily Classes</p>
             </div>
 
-            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center justify-center mb-2.5">
-                <BookOpen className="w-4 h-4" />
+            <div className="rounded-2xl p-3 sm:p-3.5 xl:p-4 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center justify-center mb-2 sm:mb-2.5">
+                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <p className="text-white font-bold text-sm tracking-tight">Smart</p>
-              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Study Cards</p>
+              <p className="text-white font-bold text-xs sm:text-sm tracking-tight">Smart</p>
+              <p className="text-[10px] sm:text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">Study Cards</p>
             </div>
 
-            <div className="rounded-2xl p-3.5 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center justify-center mb-2.5">
-                <MessageSquare className="w-4 h-4" />
+            <div className="rounded-2xl p-3 sm:p-3.5 xl:p-4 bg-white/[0.04] border border-white/10 backdrop-blur-md hover:border-indigo-400/40 hover:bg-white/[0.07] transition-all">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center justify-center mb-2 sm:mb-2.5">
+                <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <p className="text-white font-bold text-sm tracking-tight">Instant</p>
-              <p className="text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">1-on-1 Doubts</p>
+              <p className="text-white font-bold text-xs sm:text-sm tracking-tight">Instant</p>
+              <p className="text-[10px] sm:text-[11px] text-[#a1a1aa] mt-0.5 leading-tight">1-on-1 Doubts</p>
             </div>
           </div>
         </div>

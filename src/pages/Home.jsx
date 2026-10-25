@@ -997,7 +997,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] overflow-x-hidden md:[zoom:1.2]"
+      className="min-h-screen bg-[#f7f4ed] text-[#1c1c1c] font-sans antialiased selection:bg-[#1c1c1c] selection:text-[#fcfbf8] overflow-x-hidden"
     >
 
       {/* ════════════ TOP NAVIGATION BAR ════════════ */}
