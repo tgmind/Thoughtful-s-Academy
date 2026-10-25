@@ -13,8 +13,8 @@ export default function StudentReviewsDesktop({ targetHeight }) {
   const STEP = CARD_HEIGHT + GAP
   const totalReviews = STUDENT_REVIEWS.length
 
-  // Duplicate reviews array to enable seamless continuous vertical rolling
-  const extendedReviews = [...STUDENT_REVIEWS, ...STUDENT_REVIEWS]
+  // Triplicate reviews array to enable seamless continuous vertical rolling on tall viewports
+  const extendedReviews = [...STUDENT_REVIEWS, ...STUDENT_REVIEWS, ...STUDENT_REVIEWS]
 
   useEffect(() => {
     if (isPaused) {
@@ -31,7 +31,7 @@ export default function StudentReviewsDesktop({ targetHeight }) {
     }
   }, [isPaused, totalReviews])
 
-  const containerStyle = targetHeight ? { height: `${targetHeight}px` } : { minHeight: '520px' }
+  const containerStyle = targetHeight ? { height: `${targetHeight}px` } : { minHeight: '580px' }
 
   return (
     <div

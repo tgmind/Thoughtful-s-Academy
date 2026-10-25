@@ -883,40 +883,71 @@ export default function Home() {
   // Dynamic height synchronization between desktop reviews and all lectures section
   const allLecturesRef = useRef(null)
   const whatsOnRef = useRef(null)
-  const [reviewsHeight, setReviewsHeight] = useState(580)
+  const feedContainerRef = useRef(null)
+  const [reviewsHeight, setReviewsHeight] = useState(720)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     const updateReviewsHeight = () => {
-      if (!allLecturesRef.current) return
-      const allLecturesH = allLecturesRef.current.offsetHeight || 0
+      if (!allLecturesRef.current || !feedContainerRef.current) return
+
+      const containerEl = feedContainerRef.current
+      const allLecturesEl = allLecturesRef.current
+
+      // Calculate vertical positions relative to the common feed container
+      const containerRect = containerEl.getBoundingClientRect()
+      const allLecturesRect = allLecturesEl.getBoundingClientRect()
+
+      // Top of container in page coordinate (scroll-independent)
+      const containerTopPage = containerRect.top + window.scrollY
+      // Bottom of AllLecturesSection in page coordinate (scroll-independent)
+      const allLecturesBottomPage = allLecturesRect.bottom + window.scrollY
+
+      // Distance from container top down to the bottom edge of AllLecturesSection
+      const allLecturesBottomRelative = allLecturesBottomPage - containerTopPage
+
+      // In the desktop sidebar, WhatsOnCard sits at the top of the sidebar.
+      // Get its actual rendered height (or fallback 260) + gap (20)
       const whatsOnH = whatsOnRef.current?.offsetHeight || 260
       const gap = 20 // space-y-5
-      
-      if (allLecturesH > 0) {
-        // Dynamically match height of All Lectures section to eliminate empty void below reviews
-        const target = Math.max(460, Math.min(allLecturesH - whatsOnH - gap, 920))
-        setReviewsHeight(target)
+
+      // reviewsTopRelative is where StudentReviewsDesktop starts in the sidebar
+      const reviewsTopRelative = whatsOnH + gap
+
+      // The exact height StudentReviewsDesktop needs so its bottom matches AllLecturesSection bottom:
+      const calculatedHeight = allLecturesBottomRelative - reviewsTopRelative
+
+      // Safe minimum height so at least 3-4 review cards are comfortably visible
+      const minHeight = 580
+
+      if (calculatedHeight > 0) {
+        setReviewsHeight(Math.max(minHeight, Math.round(calculatedHeight)))
       }
     }
 
     updateReviewsHeight()
+    const rafId = requestAnimationFrame(updateReviewsHeight)
+    const timeoutId = setTimeout(updateReviewsHeight, 200)
 
     let ro
-    if (allLecturesRef.current && typeof ResizeObserver !== 'undefined') {
+    if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => {
         updateReviewsHeight()
       })
-      ro.observe(allLecturesRef.current)
+      if (allLecturesRef.current) ro.observe(allLecturesRef.current)
+      if (feedContainerRef.current) ro.observe(feedContainerRef.current)
+      if (whatsOnRef.current) ro.observe(whatsOnRef.current)
     }
 
     window.addEventListener('resize', updateReviewsHeight)
     return () => {
+      cancelAnimationFrame(rafId)
+      clearTimeout(timeoutId)
       if (ro) ro.disconnect()
       window.removeEventListener('resize', updateReviewsHeight)
     }
-  }, [cards, activeBatch, loading])
+  }, [cards, activeBatch, loading, featured.length])
 
   const now = Date.now()
   const isNew = (d) => now - new Date(d).getTime() < 86400000
@@ -1530,7 +1561,7 @@ export default function Home() {
 
       {/* ════════════ LECTURES FEED + STICKY DESKTOP SIDEBAR ════════════ */}
       <div className={`${CONTAINER} py-10 sm:py-16`}>
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
+        <div ref={feedContainerRef} className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
 
           {/* MAIN LEFT FEED */}
           <div className="flex-1 min-w-0 w-full">
