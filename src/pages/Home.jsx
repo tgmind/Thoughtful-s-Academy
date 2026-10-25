@@ -884,7 +884,7 @@ export default function Home() {
   const allLecturesRef = useRef(null)
   const whatsOnRef = useRef(null)
   const feedContainerRef = useRef(null)
-  const [reviewsHeight, setReviewsHeight] = useState(720)
+  const [reviewsHeight, setReviewsHeight] = useState(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -918,11 +918,11 @@ export default function Home() {
       // The exact height StudentReviewsDesktop needs so its bottom matches AllLecturesSection bottom:
       const calculatedHeight = allLecturesBottomRelative - reviewsTopRelative
 
-      // Safe minimum height so at least 3-4 review cards are comfortably visible
-      const minHeight = 580
-
+      // The desktop reviews section must NEVER exceed the All Lectures section height.
+      // Match the available height down to the bottom of AllLecturesSection.
       if (calculatedHeight > 0) {
-        setReviewsHeight(Math.max(minHeight, Math.round(calculatedHeight)))
+        const target = Math.max(120, Math.floor(calculatedHeight))
+        setReviewsHeight(prev => (prev !== target && Math.abs((prev || 0) - target) > 1 ? target : prev))
       }
     }
 

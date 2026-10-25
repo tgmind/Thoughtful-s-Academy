@@ -105,7 +105,20 @@ describe('All Lectures & Desktop Reviews Suite', () => {
     it('dynamically applies the targetHeight style to match the All Lectures section', () => {
       const { container } = render(<StudentReviewsDesktop targetHeight={640} />)
       const rootDiv = container.firstChild
-      expect(rootDiv).toHaveStyle({ height: '640px' })
+      expect(rootDiv).toHaveStyle({ height: '640px', maxHeight: '640px' })
+    })
+
+    it('adapts cleanly to shorter All Lectures heights without overflowing or exceeding', () => {
+      // For a 1-row All Lectures section, targetHeight is around 260px
+      const { container } = render(<StudentReviewsDesktop targetHeight={260} />)
+      const rootDiv = container.firstChild
+      expect(rootDiv).toHaveStyle({ height: '260px', maxHeight: '260px' })
+
+      // The viewport div must have min-h-0 rather than min-h-[300px]
+      const viewport = rootDiv.querySelector('.overflow-hidden.bg-white')
+      expect(viewport).toBeInTheDocument()
+      expect(viewport.className).toContain('min-h-0')
+      expect(viewport.className).not.toContain('min-h-[300px]')
     })
   })
 })

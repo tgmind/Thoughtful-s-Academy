@@ -31,7 +31,9 @@ export default function StudentReviewsDesktop({ targetHeight }) {
     }
   }, [isPaused, totalReviews])
 
-  const containerStyle = targetHeight ? { height: `${targetHeight}px` } : { minHeight: '580px' }
+  const containerStyle = targetHeight
+    ? { height: `${targetHeight}px`, maxHeight: `${targetHeight}px` }
+    : { minHeight: '260px' }
 
   return (
     <div
@@ -76,7 +78,7 @@ export default function StudentReviewsDesktop({ targetHeight }) {
       </div>
 
       {/* Auto-scrolling Viewport (Flex-1 fills remaining card height) */}
-      <div className="relative flex-1 min-h-[300px] overflow-hidden bg-white p-3.5">
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-white p-3.5">
         {/* Soft top gradient fade mask */}
         <div className="pointer-events-none absolute top-0 inset-x-0 h-6 bg-gradient-to-b from-white via-white/80 to-transparent z-10" />
 
