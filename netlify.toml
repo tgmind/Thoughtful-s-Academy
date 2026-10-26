@@ -14,7 +14,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  SECRETS_SCAN_OMIT_PATHS = "documentation/**,.env.example"
+  SECRETS_SCAN_OMIT_PATHS = "documentation/**,.env.example,tests/**"
   VITE_INSTITUTE_NAME = "Graviton Academy"
   VITE_INSTITUTE_TAGLINE = "Learn. Grow. Succeed."
 

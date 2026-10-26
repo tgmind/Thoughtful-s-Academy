@@ -37,6 +37,27 @@ if (typeof window !== 'undefined') {
 
   // 3. Initialize background version checker for instant update detection
   initVersionWatcher()
+
+  // 4. Dynamic Preconnect to configured Supabase Gateway (zero secret exposure in source HTML)
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    if (supabaseUrl) {
+      const origin = new URL(supabaseUrl).origin
+      if (!document.querySelector(`link[href="${origin}"]`)) {
+        const preconnectLink = document.createElement('link')
+        preconnectLink.rel = 'preconnect'
+        preconnectLink.href = origin
+        preconnectLink.crossOrigin = ''
+        const dnsPrefetchLink = document.createElement('link')
+        dnsPrefetchLink.rel = 'dns-prefetch'
+        dnsPrefetchLink.href = origin
+        document.head.appendChild(preconnectLink)
+        document.head.appendChild(dnsPrefetchLink)
+      }
+    }
+  } catch {
+    // Non-blocking performance optimization
+  }
 }
 
 const queryClient = new QueryClient({
