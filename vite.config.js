@@ -105,6 +105,7 @@ export default defineConfig(({ mode }) => {
         // Exclude index.html from precache so it is never served stale from CacheStorage
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         globIgnores: ['**/index.html'],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB limit to accommodate high-res hero images
         // Layer our Web Push handler on top of the generated Workbox SW so
         // push/notificationclick work without touching the caching strategy.
         importScripts: ['/push-sw.js'],

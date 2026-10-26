@@ -200,27 +200,27 @@ export default function GravitonHeroDesktop({
               >
                 <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/einstein">
                   <picture className="contents">
-                    <source type="image/webp" srcSet="/einstein.webp" />
+                    <source type="image/webp" srcSet="/rupan-left.webp, /einstein.webp" />
                     <img
-                      src="/einstein.png"
-                      alt="Albert Einstein — Theoretical Physics"
-                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-700 group-hover/einstein:scale-105"
-                      style={{ objectPosition: '55% 15%' }}
+                      src="/rupan-left.png"
+                      alt="Rupan Sir — Gold Medalist, 1st Convocation MBBU"
+                      className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/einstein:scale-105"
+                      style={{ objectPosition: '50% 0%' }}
                     />
                   </picture>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
 
                   <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] font-bold shadow-xs">
-                    <Sparkles className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                    <span>E = mc²</span>
+                    <Award className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                    <span>Gold Medalist</span>
                   </div>
 
                   <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold leading-tight truncate">Albert Einstein</p>
-                      <span className="text-[9px] font-mono text-amber-300/90 font-semibold px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-400/25">Theory</span>
+                      <p className="text-xs font-bold leading-tight truncate">Rupan Sir</p>
+                      <span className="text-[9px] font-mono text-amber-300/90 font-semibold px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-400/25">Gold Medalist</span>
                     </div>
-                    <p className="text-[10px] text-amber-200/80 font-mono mt-0.5 leading-none truncate">Relativity &amp; Rigor</p>
+                    <p className="text-[10px] text-amber-200/80 font-mono mt-0.5 leading-none truncate">1st Convocation • MBBU</p>
                   </div>
                 </div>
               </motion.div>
@@ -260,27 +260,27 @@ export default function GravitonHeroDesktop({
               >
                 <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/feynman">
                   <picture className="contents">
-                    <source type="image/webp" srcSet="/Richard.webp" />
+                    <source type="image/webp" srcSet="/rupan-right.webp, /Richard.webp" />
                     <img
-                      src="/Richard.png"
-                      alt="Richard Feynman — Quantum Physics"
-                      className="w-full h-full object-cover filter contrast-[1.03] transition-transform duration-700 group-hover/feynman:scale-105"
-                      style={{ objectPosition: '35% 10%' }}
+                      src="/rupan-right.png"
+                      alt="Rupan Sir — NITian & Physics Mentor"
+                      className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/feynman:scale-105"
+                      style={{ objectPosition: '50% 0%' }}
                     />
                   </picture>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
 
                   <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/40 text-cyan-300 text-[10px] font-bold shadow-xs">
                     <Zap className="w-2.5 h-2.5 text-cyan-400 fill-cyan-400" />
-                    <span>QED Nobel</span>
+                    <span>NITian</span>
                   </div>
 
                   <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold leading-tight truncate">Richard Feynman</p>
-                      <span className="text-[9px] font-mono text-cyan-300/90 font-semibold px-1.5 py-0.5 rounded bg-cyan-400/15 border border-cyan-400/25">Quantum</span>
+                      <p className="text-xs font-bold leading-tight truncate">Rupan Sir</p>
+                      <span className="text-[9px] font-mono text-cyan-300/90 font-semibold px-1.5 py-0.5 rounded bg-cyan-400/15 border border-cyan-400/25">Mentor</span>
                     </div>
-                    <p className="text-[10px] text-cyan-200/80 font-mono mt-0.5 leading-none truncate">Intuition &amp; Inquiry</p>
+                    <p className="text-[10px] text-cyan-200/80 font-mono mt-0.5 leading-none truncate">Graviton Physics • Concept Mastery</p>
                   </div>
                 </div>
               </motion.div>

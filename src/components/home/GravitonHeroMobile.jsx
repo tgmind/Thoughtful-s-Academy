@@ -177,22 +177,22 @@ export default function GravitonHeroMobile({
             >
               <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
                 <picture className="contents">
-                  <source type="image/webp" srcSet="/einstein.webp" />
+                  <source type="image/webp" srcSet="/rupan-left.webp, /einstein.webp" />
                   <img
-                    src="/einstein.png"
-                    alt="Albert Einstein — Theoretical Physics"
-                    className="w-full h-full object-cover filter contrast-[1.03]"
-                    style={{ objectPosition: '55% 15%' }}
+                    src="/rupan-left.png"
+                    alt="Rupan Sir — Gold Medalist, 1st Convocation MBBU"
+                    className="w-full h-full object-cover filter contrast-[1.02]"
+                    style={{ objectPosition: '50% 0%' }}
                   />
                 </picture>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
                 <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[9px] font-bold">
-                  <Sparkles className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                  <span>E = mc²</span>
+                  <Award className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                  <span>Gold Medalist</span>
                 </div>
                 <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-white">
-                  <p className="text-[11px] font-bold leading-tight truncate">Albert Einstein</p>
-                  <p className="text-[9px] text-amber-300/90 font-mono mt-0.5 truncate">Relativity &amp; Rigor</p>
+                  <p className="text-[11px] font-bold leading-tight truncate">Rupan Sir</p>
+                  <p className="text-[9px] text-amber-300/90 font-mono mt-0.5 truncate">Gold Medalist • MBBU</p>
                 </div>
               </div>
             </motion.div>
@@ -281,22 +281,22 @@ export default function GravitonHeroMobile({
             >
               <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
                 <picture className="contents">
-                  <source type="image/webp" srcSet="/Richard.webp" />
+                  <source type="image/webp" srcSet="/rupan-right.webp, /Richard.webp" />
                   <img
-                    src="/Richard.png"
-                    alt="Richard Feynman — Quantum Physics"
-                    className="w-full h-full object-cover filter contrast-[1.03]"
-                    style={{ objectPosition: '35% 10%' }}
+                    src="/rupan-right.png"
+                    alt="Rupan Sir — NITian & Physics Mentor"
+                    className="w-full h-full object-cover filter contrast-[1.02]"
+                    style={{ objectPosition: '50% 0%' }}
                   />
                 </picture>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
                 <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/40 text-cyan-300 text-[9px] font-bold">
                   <Zap className="w-2.5 h-2.5 text-cyan-400 fill-cyan-400" />
-                  <span>QED Nobel</span>
+                  <span>NITian</span>
                 </div>
                 <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-white text-right">
-                  <p className="text-[11px] font-bold leading-tight truncate">Richard Feynman</p>
-                  <p className="text-[9px] text-cyan-300/90 font-mono mt-0.5 truncate">Quantum &amp; Intuition</p>
+                  <p className="text-[11px] font-bold leading-tight truncate">Rupan Sir</p>
+                  <p className="text-[9px] text-cyan-300/90 font-mono mt-0.5 truncate">Graviton Physics • Mentor</p>
                 </div>
               </div>
             </motion.div>
