@@ -12,7 +12,7 @@ describe('Banner & Methodology Overlay Section', () => {
     )
 
     // Check banner image and picture sources
-    const img = screen.getByAltText(/Graviton Academy Physics Pedagogy & Mentorship/i)
+    const img = screen.getByAltText(/GRAViTON PHYSICS Pedagogy & Mentorship/i)
     expect(img).toBeInTheDocument()
     expect(img).toHaveAttribute('loading', 'lazy')
     expect(img).toHaveAttribute('decoding', 'async')

@@ -72,7 +72,7 @@ export default function BannerMethodologySection() {
           <span>of Teaching Experience</span>
         </h2>
         <p className="mt-2.5 text-xs xs:text-sm text-[#444] font-medium leading-[1.6] max-w-sm mx-auto">
-          A{' '}
+          AN{' '}
           <span className="relative inline-flex items-center gap-1 font-black text-sm xs:text-base tracking-tight text-[#1e3a8a] mx-0.5 align-baseline">
             <GraduationCap className="w-3.5 h-3.5 text-[#1e3a8a] shrink-0" />
             <span>NITian</span>
@@ -107,7 +107,7 @@ export default function BannerMethodologySection() {
           />
           <img
             src="/banner.png"
-            alt="Graviton Academy Physics Pedagogy & Mentorship"
+            alt="GRAViTON PHYSICS Pedagogy & Mentorship"
             width="2172"
             height="724"
             loading="lazy"
@@ -127,7 +127,7 @@ export default function BannerMethodologySection() {
                 <span className="text-[#1c1c1c]">of Teaching Experience</span>
               </h2>
               <p className="mt-4 sm:mt-5 text-base sm:text-lg lg:text-[20px] text-[#2d2d2b] font-medium leading-[1.65]">
-                A{' '}
+                AN{' '}
                 <span className="relative inline-flex items-center gap-1.5 font-black text-xl sm:text-2xl lg:text-[25px] tracking-tight text-[#1e3a8a] mx-1 align-baseline group">
                   <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-[#1e3a8a] shrink-0 inline-block" />
                   <span>NITian</span>

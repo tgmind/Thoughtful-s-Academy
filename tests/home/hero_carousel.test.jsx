@@ -19,11 +19,11 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     vi.useRealTimers()
   })
 
-  it('Desktop: mounts with Slide 1 (Graviton Academy) active and displays institute headline', () => {
+  it('Desktop: mounts with Slide 1 (GRAViTON PHYSICS) active and displays institute headline', () => {
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -36,7 +36,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
 
     // Slide 1 elements present
     expect(screen.getAllByText(/Empowering Concepts. Building Toppers./i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Graviton Academy/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/GRAViTON PHYSICS/i).length).toBeGreaterThan(0)
 
     // Visual segment indicator dock: Segment 0 active
     const academyTabs = screen.getAllByRole('tab', { name: /Slide 1: Institute Overview/i })
@@ -47,7 +47,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -69,14 +69,14 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     // Now Slide 2 is active
     expect(mentorTabs[0].getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('heading', { name: /Meet Your Mentor/i })).toBeInTheDocument()
-    expect(screen.getByAltText(/Graviton Academy Lead Mentor/i)).toBeInTheDocument()
+    expect(screen.getByAltText(/GRAViTON PHYSICS Lead Mentor/i)).toBeInTheDocument()
   })
 
   it('Desktop: seamless right-to-left loop returns to Slide 1 after another 4500ms', () => {
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -106,7 +106,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     const { container } = render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -144,7 +144,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     const { container } = render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -172,7 +172,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -215,7 +215,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -259,7 +259,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -283,7 +283,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     render(
       <MemoryRouter>
         <HeroCarouselDesktop
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           activeDesktopCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -335,7 +335,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     render(
       <MemoryRouter>
         <HeroCarouselMobile
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           mobileHeroCard="graviton"
           heroDeckItems={mockHeroDeckItems}
@@ -362,7 +362,7 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     const { container } = render(
       <MemoryRouter>
         <HeroCarouselMobile
-          instituteName="Graviton Academy"
+          instituteName="GRAViTON PHYSICS"
           heroActiveCard="graviton"
           mobileHeroCard="graviton"
           heroDeckItems={mockHeroDeckItems}

@@ -84,9 +84,9 @@ export default defineConfig(({ mode }) => {
   // Normalize brand name and reject stale legacy name from deployment environment variables
   const instituteName = (env.VITE_INSTITUTE_NAME && !env.VITE_INSTITUTE_NAME.includes("Thoughtful"))
     ? env.VITE_INSTITUTE_NAME
-    : 'Graviton Academy'
+    : 'GRAViTON PHYSICS'
 
-  // Ensure HTML template interpolation (%VITE_INSTITUTE_NAME%) always uses Graviton Academy
+  // Ensure HTML template interpolation (%VITE_INSTITUTE_NAME%) always uses GRAViTON PHYSICS
   process.env.VITE_INSTITUTE_NAME = instituteName
 
   return {

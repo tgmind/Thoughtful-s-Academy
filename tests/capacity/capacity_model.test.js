@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 /**
- * Capacity Calculation Model for Graviton Academy (EdTech Platform)
+ * Capacity Calculation Model for GRAViTON PHYSICS (EdTech Platform)
  * Models user concurrency profiles, Supabase Free Tier quotas, and Netlify Free Tier limits.
  */
 
@@ -18,7 +18,7 @@ export const QUOTAS = {
 }
 
 /**
- * Models the workload metrics for N concurrent users on Graviton Academy.
+ * Models the workload metrics for N concurrent users on GRAViTON PHYSICS.
  * @param {number} concurrentUsers - Number of simultaneously connected active users
  * @param {object} options - Custom parameters (e.g., student/teacher ratio, event frequency)
  */
@@ -96,7 +96,7 @@ export function calculatePlatformLoad(concurrentUsers, options = {}) {
   }
 }
 
-describe('Graviton Academy Capacity & Realtime Load Model', () => {
+describe('GRAViTON PHYSICS Capacity & Realtime Load Model', () => {
   describe('Baseline vs Optimized Invariants', () => {
     it('verifies channel consolidation cuts WebSocket channel count by 66.7%', () => {
       const unoptimized = calculatePlatformLoad(100, { channelConsolidationFactor: 3 })

@@ -24,7 +24,7 @@ export default function InstallAppPrompt() {
       window.navigator.standalone === true ||
       document.referrer.includes('android-app://')
 
-    if (isStandalone) {
+    if (isStandalone || window.location.search.includes('no_pwa')) {
       setIsInstalled(true)
       safeSet('pwa_app_installed', 'true')
       return

@@ -249,7 +249,7 @@ export default function PersonalHeroMobile() {
                 <source type="image/webp" srcSet="/rupan.webp" />
                 <img
                   src="/rupan.png"
-                  alt="Graviton Academy Lead Mentor"
+                  alt="GRAViTON PHYSICS Lead Mentor"
                   className="max-h-[270px] xs:max-h-[290px] w-auto object-contain select-none"
                   style={{
                     filter: 'drop-shadow(0 10px 20px rgba(28, 28, 28, 0.16)) drop-shadow(0 0 15px rgba(245, 158, 11, 0.16))',

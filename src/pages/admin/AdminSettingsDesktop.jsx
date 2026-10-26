@@ -3,6 +3,7 @@ import { TriangleAlert, Trash2, RefreshCcw, ShieldAlert, ChevronDown, ChevronRig
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import SocialLinksManager from '../../components/admin/SocialLinksManager'
 
 const CONFIRM_WORD = 'RESET'
 
@@ -22,6 +23,7 @@ const DELETION_STEPS = [
   { label: 'Teacher profiles',         table: 'teacher_profiles' },
   { label: 'Batches',                  table: 'batches' },
   { label: 'QR settings',              table: 'qr_settings' },
+  { label: 'Social media links',       table: 'social_media_links' },
   { label: 'User profiles (non-admin)', table: 'profiles', filter: true },
 ]
 
@@ -288,6 +290,9 @@ export default function AdminSettings() {
         <h1 className="text-xl font-semibold text-gray-900">Admin Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage institute-level settings and data.</p>
       </div>
+
+      {/* ── Social Media & Public Channels Management ── */}
+      <SocialLinksManager />
 
       {/* ── Remove Students ── */}
       <div className="border border-gray-200 rounded-xl overflow-hidden">

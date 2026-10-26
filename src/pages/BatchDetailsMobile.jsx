@@ -14,6 +14,7 @@ import { INSTITUTE_NAME, CONTACT_EMAIL } from '../lib/constants'
 import { getYouTubeThumbnail, convertDriveUrl } from '../utils/formatters'
 import DriveImage from '../components/shared/DriveImage'
 import DOMPurify from 'dompurify'
+import GravitonBrandText from '../components/shared/GravitonBrandText'
 
 const CONTAINER = 'max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8'
 
@@ -200,9 +201,7 @@ export default function BatchDetails() {
               <div className="w-8 h-8 rounded-lg bg-[#1c1c1c] text-[#fcfbf8] flex items-center justify-center font-bold shadow-xs">
                 <GraduationCap className="w-4.5 h-4.5" />
               </div>
-              <span className="font-semibold text-base text-[#1c1c1c] tracking-tight group-hover:opacity-80 transition-opacity">
-                {INSTITUTE_NAME}
-              </span>
+              <GravitonBrandText variant="nav" className="text-base group-hover:opacity-85 transition-opacity" />
             </Link>
 
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#5f5f5d] pl-3 border-l border-[#e7e4dc]">

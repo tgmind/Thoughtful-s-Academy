@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award, Zap
 } from 'lucide-react'
+import GravitonBrandText from '../shared/GravitonBrandText'
 
 const CONTAINER = 'max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8'
 
@@ -40,9 +41,7 @@ export default function GravitonHeroMobile({
                 Physics Coaching Institute
               </span>
               <span className="block mt-0.5">
-                <span className="inline-block text-3xl sm:text-4xl font-black text-[#1c1c1c]">
-                  {instituteName}
-                </span>
+                <GravitonBrandText name={instituteName} variant="hero-mobile" className="text-3xl sm:text-4xl" />
               </span>
               <span className="block text-base sm:text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#1c1c1c] via-[#2d2d2d] to-[#454545] mt-1 font-serif italic tracking-tight">
                 Empowering Concepts. Building Toppers.

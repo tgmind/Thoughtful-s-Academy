@@ -77,6 +77,7 @@ if (targetFile) {
         "048_fix_student_profiles_admin_insert_rls.sql",
         "049_harden_student_profiles_admin_update_rls.sql",
         "050_sync_batch_subjects_rpc.sql",
+        "051_social_media_links.sql",
       ]
 
   console.log(`Starting automated database migration (${targetFiles.length} migrations)...`)

@@ -175,7 +175,7 @@ export default function HeroCarouselMobile({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      aria-label="Graviton Academy Featured Showcases"
+      aria-label="GRAViTON PHYSICS Featured Showcases"
       role="region"
     >
       {/* Architectural subtle dot grid */}

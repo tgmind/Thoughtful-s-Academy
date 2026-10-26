@@ -305,7 +305,7 @@ export default function HeroCarouselDesktop({
       onMouseLeave={pauseOnHover ? handleResumeRotation : undefined}
       onFocusCapture={pauseOnHover ? handlePauseRotation : undefined}
       onBlurCapture={pauseOnHover ? handleResumeRotation : undefined}
-      aria-label="Graviton Academy Featured Showcases"
+      aria-label="GRAViTON PHYSICS Featured Showcases"
       role="region"
     >
       {/* Subtle architectural tactile dot grid */}

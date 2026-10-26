@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award, Zap
 } from 'lucide-react'
+import GravitonBrandText from '../shared/GravitonBrandText'
 
 const CONTAINER = 'max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12'
 
@@ -41,7 +42,9 @@ export default function GravitonHeroDesktop({
           {/* Display Headline */}
           <div className="space-y-2 sm:space-y-3">
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-[#1c1c1c] tracking-[-0.03em] leading-[1.1]">
-              <span className="block">{instituteName}</span>
+              <span className="block">
+                <GravitonBrandText name={instituteName} variant="hero" />
+              </span>
               <span className="block text-xl sm:text-3xl lg:text-4xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#1c1c1c] via-[#2d2d2d] to-[#454545] mt-1 sm:mt-2 font-serif italic">
                 Empowering Concepts. Building Toppers.
               </span>

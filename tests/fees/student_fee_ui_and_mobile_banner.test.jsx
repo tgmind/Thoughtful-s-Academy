@@ -79,7 +79,7 @@ describe('Student Fee Portal UI & Mobile Banner Responsiveness', () => {
       ],
       qr_settings: {
         id: 'qr-1',
-        payee_name: "Graviton Academy",
+        payee_name: "GRAViTON PHYSICS",
         upi_id: 'academy@upi',
         qr_image_url: 'https://example.com/qr.png',
         is_active: true,

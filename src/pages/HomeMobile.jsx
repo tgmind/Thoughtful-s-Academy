@@ -21,6 +21,8 @@ import LectureCard from '../components/home/LectureCard'
 import AllLecturesSection from '../components/home/AllLecturesSection'
 import HeroCarouselMobile from '../components/home/HeroCarouselMobile'
 import BannerMethodologySection from '../components/home/BannerMethodologySection'
+import GravitonBrandText from '../components/shared/GravitonBrandText'
+import SocialMediaButtons from '../components/home/SocialMediaButtons'
 
 function getThumbnail(url) {
   return getYouTubeThumbnail(url)
@@ -915,9 +917,7 @@ export default function Home() {
             <div className="w-8 h-8 rounded-lg bg-[#1c1c1c] text-[#fcfbf8] flex items-center justify-center font-bold shadow-xs shrink-0">
               <GraduationCap className="w-4.5 h-4.5" />
             </div>
-            <span className="font-semibold text-sm sm:text-base text-[#1c1c1c] tracking-tight truncate group-hover:opacity-80 transition-opacity">
-              {INSTITUTE_NAME}
-            </span>
+            <GravitonBrandText variant="nav" className="text-sm sm:text-base group-hover:opacity-85 transition-opacity" />
           </Link>
 
           {/* Right Actions */}
@@ -1089,7 +1089,7 @@ export default function Home() {
 
       {/* ════════════ EDITORIAL PHILOSOPHY (Stone Linen Background #efebe1) ════════════ */}
       <section className="py-14 sm:py-20 border-t border-[#e5dfd2] bg-[#efebe1]">
-        <div className={`${CONTAINER} text-center max-w-2xl mx-auto`}>
+        <div className={`${CONTAINER} text-center max-w-3xl mx-auto`}>
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-indigo-950 bg-indigo-50 border border-indigo-200/80 px-3 py-1 rounded-full inline-block mb-3">
             Our Philosophy
           </span>
@@ -1100,6 +1100,9 @@ export default function Home() {
             Students thrive when instruction is methodical and the freedom to ask questions is always protected.
             Clear explanations, steady problem-solving practice, and direct teacher guidance.
           </p>
+
+          {/* Modern Social Media Buttons (Manageable from Admin Settings) */}
+          <SocialMediaButtons className="mt-4" />
         </div>
       </section>
 

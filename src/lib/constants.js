@@ -6,7 +6,7 @@
 const rawInstituteName = import.meta.env.VITE_INSTITUTE_NAME
 export const INSTITUTE_NAME    = (rawInstituteName && !rawInstituteName.includes("Thoughtful"))
   ? rawInstituteName
-  : 'Graviton Academy'
+  : 'GRAViTON PHYSICS'
 export const INSTITUTE_TAGLINE = import.meta.env.VITE_INSTITUTE_TAGLINE || 'Learn. Grow. Succeed.'
 export const CONTACT_EMAIL     = import.meta.env.VITE_CONTACT_EMAIL     || ''
 

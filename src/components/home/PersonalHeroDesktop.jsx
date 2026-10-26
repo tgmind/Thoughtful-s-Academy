@@ -381,7 +381,7 @@ export default function PersonalHeroDesktop({
                     <source type="image/webp" srcSet="/rupan.webp" />
                     <img
                       src="/rupan.png"
-                      alt="Graviton Academy Lead Mentor"
+                      alt="GRAViTON PHYSICS Lead Mentor"
                       className="max-h-[340px] lg:max-h-[365px] w-auto object-contain select-none transition-transform duration-500 hover:scale-[1.01]"
                       style={{
                         filter: 'drop-shadow(0 14px 26px rgba(28, 28, 28, 0.16)) drop-shadow(0 0 20px rgba(245, 158, 11, 0.16))',
