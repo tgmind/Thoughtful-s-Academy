@@ -1,18 +1,24 @@
-import { LayoutDashboard, CalendarCheck, BookOpen, ClipboardList, MessageCircle, CreditCard, Bell, Video, HelpCircle } from 'lucide-react'
-import DashboardShell from '../../components/layout/DashboardShell'
+import { useIsDesktop } from '../../hooks/useDevice'
+import StudentLayoutDesktop from './StudentLayoutDesktop'
+import StudentLayoutMobile from './StudentLayoutMobile'
 
-const NAV = [
-  { label: 'Home',          path: '/student/dashboard',     icon: <LayoutDashboard className="h-4 w-4" /> },
-  { label: 'Attendance',    path: '/student/attendance',    icon: <CalendarCheck className="h-4 w-4" /> },
-  { label: 'Study',         path: '/student/study',         icon: <BookOpen className="h-4 w-4" /> },
-  { label: 'Doubts',        path: '/student/doubts',        icon: <HelpCircle className="h-4 w-4" /> },
-  { label: 'Homework',      path: '/student/homework',      icon: <ClipboardList className="h-4 w-4" /> },
-  { label: 'Live Class',    shortLabel: 'Live',   path: '/student/live-class',    icon: <Video className="h-4 w-4" /> },
-  { label: 'Messages',      path: '/student/messages',      icon: <MessageCircle className="h-4 w-4" /> },
-  { label: 'Pay Fee',       shortLabel: 'Fees',   path: '/student/pay-fee',       icon: <CreditCard className="h-4 w-4" /> },
-  { label: 'Notifications', shortLabel: 'Alerts', path: '/student/notifications', icon: <Bell className="h-4 w-4" /> },
-]
+/**
+ * StudentLayout - Viewport Responsive Coordinator
+ *
+ * Segregates Desktop UI and Mobile/Tablet UI into dedicated files:
+ * - Desktop View (>= 1024px): src/pages/student/StudentLayoutDesktop.jsx
+ * - Mobile & Tablet View (< 1024px): src/pages/student/StudentLayoutMobile.jsx
+ *
+ * Allows independent layout and design customization while preserving 100%
+ * functionality and exact visual parity.
+ */
+export default function StudentLayout(props) {
+  const isDesktop = useIsDesktop()
+  const isDesktopMode = props.device ? props.device === 'desktop' : isDesktop
 
-export default function StudentLayout() {
-  return <DashboardShell navItems={NAV} pageTitle="Student Portal" />
+  return isDesktopMode ? (
+    <StudentLayoutDesktop {...props} />
+  ) : (
+    <StudentLayoutMobile {...props} />
+  )
 }

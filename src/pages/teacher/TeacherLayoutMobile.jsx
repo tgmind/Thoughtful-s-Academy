@@ -1,0 +1,19 @@
+import { LayoutDashboard, BookOpen, ClipboardList, Video, MessageCircle, DollarSign, Bell, Receipt, HelpCircle, CalendarCheck } from 'lucide-react'
+import DashboardShell from '../../components/layout/DashboardShell'
+
+const NAV = [
+  { label: 'Home',          path: '/teacher/dashboard',     icon: <LayoutDashboard className="h-4 w-4" /> },
+  { label: 'Attendance',    path: '/teacher/attendance',    icon: <CalendarCheck className="h-4 w-4" />   },
+  { label: 'Study Cards',   shortLabel: 'Study',  path: '/teacher/study',         icon: <BookOpen className="h-4 w-4" />        },
+  { label: 'Doubts',        path: '/teacher/doubts',        icon: <HelpCircle className="h-4 w-4" />      },
+  { label: 'Homework',      path: '/teacher/homework',      icon: <ClipboardList className="h-4 w-4" />   },
+  { label: 'Live Class',    shortLabel: 'Live',   path: '/teacher/live-class',    icon: <Video className="h-4 w-4" />           },
+  { label: 'Messages',      path: '/teacher/messages',      icon: <MessageCircle className="h-4 w-4" />   },
+  { label: 'Salary',        path: '/teacher/salary',        icon: <DollarSign className="h-4 w-4" />      },
+  { label: 'Fee Records',   shortLabel: 'Fees',   path: '/teacher/fee-records',   icon: <Receipt className="h-4 w-4" />         },
+  { label: 'Notifications', shortLabel: 'Alerts', path: '/teacher/notifications', icon: <Bell className="h-4 w-4" />            },
+]
+
+export default function TeacherLayout() {
+  return <DashboardShell navItems={NAV} pageTitle="Teacher Portal" />
+}

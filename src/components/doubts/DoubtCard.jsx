@@ -121,7 +121,7 @@ export default function DoubtCard({
         {/* Tier 2: Question Summary & Context Line */}
         <div className="mt-1.5 pl-8 min-w-0">
           <p className="text-xs text-slate-600 font-normal truncate italic">
-            "{doubt.question}"
+            &ldquo;{doubt.question}&rdquo;
           </p>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium truncate mt-0.5">
             <span className="font-bold text-indigo-700 shrink-0">{doubt.subject || 'General'}</span>

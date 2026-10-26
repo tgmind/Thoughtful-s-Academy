@@ -4,6 +4,21 @@ import { vi } from 'vitest'
 if (typeof window !== 'undefined') {
   window.HTMLElement.prototype.scrollIntoView = vi.fn()
 
+  if (typeof window.matchMedia !== 'function') {
+    window.matchMedia = function (query) {
+      return {
+        matches: query.includes('1024') ? (window.innerWidth >= 1024) : false,
+        media: query,
+        onchange: null,
+        addListener: function () {},
+        removeListener: function () {},
+        addEventListener: function () {},
+        removeEventListener: function () {},
+        dispatchEvent: function () { return true },
+      }
+    }
+  }
+
   if (!window.localStorage || typeof window.localStorage.getItem !== 'function') {
     let store = {}
     const storageMock = {

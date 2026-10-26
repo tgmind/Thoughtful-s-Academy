@@ -51,30 +51,36 @@ export function getDriveFileId(url) {
 }
 
 
-export function convertDriveUrl(url) {
+export function convertDriveUrl(url, options = {}) {
   if (!url) return ''
   const fileId = getDriveFileId(url)
   if (fileId) {
-    return `https://lh3.googleusercontent.com/d/${fileId}=s1200`
+    const width = options.width || 800
+    return `https://lh3.googleusercontent.com/d/${fileId}=w${width}-rw`
   }
   return url
 }
 
-export function getDriveImageUrls(url) {
+export function getDriveImageUrls(url, options = {}) {
   if (!url) return []
   const fileId = getDriveFileId(url)
   if (!fileId) return url.startsWith('http') ? [url] : []
 
-  const ids = [fileId]
-
-  const urls = []
-  for (const id of ids) {
-    urls.push(`https://lh3.googleusercontent.com/d/${id}=s1200`)
-    urls.push(`https://lh3.googleusercontent.com/d/${id}`)
-    urls.push(`https://drive.google.com/thumbnail?id=${id}&sz=w1200`)
-    urls.push(`https://drive.google.com/uc?export=view&id=${id}`)
-    urls.push(`https://drive.google.com/uc?id=${id}`)
-  }
+  const width = options.width || 700
+  const urls = [
+    // 1. High-Performance Google CDN WebP format with optimal card dimensions
+    `https://lh3.googleusercontent.com/d/${fileId}=w${width}-rw`,
+    // 2. High-Performance Google CDN standard dimensions
+    `https://lh3.googleusercontent.com/d/${fileId}=w${width}`,
+    // 3. Crisp High-Res Fallback
+    `https://lh3.googleusercontent.com/d/${fileId}=s1200`,
+    `https://lh3.googleusercontent.com/d/${fileId}`,
+    // 4. Drive Thumbnail CDN
+    `https://drive.google.com/thumbnail?id=${fileId}&sz=w${width}`,
+    // 5. Classic Drive Export Fallbacks
+    `https://drive.google.com/uc?export=view&id=${fileId}`,
+    `https://drive.google.com/uc?id=${fileId}`,
+  ]
 
   if (url.startsWith('http')) {
     urls.push(url)
