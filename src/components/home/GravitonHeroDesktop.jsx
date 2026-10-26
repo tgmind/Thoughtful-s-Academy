@@ -17,6 +17,8 @@ export default function GravitonHeroDesktop({
   isClone = false,
   onCtaHoverStart,
   onCtaHoverEnd,
+  onCardHoverStart = () => {},
+  onCardHoverEnd = () => {},
 }) {
   return (
     <div className="w-full relative" aria-hidden={isClone ? true : undefined}>
@@ -161,11 +163,15 @@ export default function GravitonHeroDesktop({
 
             {/* 3-Card Symmetrical Fanned Gallery Stage */}
             <div 
-              onMouseLeave={handleDeckMouseLeave}
+              onMouseEnter={onCardHoverStart}
+              onMouseLeave={(e) => {
+                handleDeckMouseLeave(e)
+                onCardHoverEnd()
+              }}
               className="relative h-[340px] lg:h-[360px] flex items-center justify-center select-none pt-2"
             >
               
-              {/* CARD 1: ALBERT EINSTEIN */}
+              {/* CARD 1: RUPAN SIR CONVOCATION (LEFT) */}
               <motion.div
                 initial={{ opacity: 0, x: -35, y: 30, rotate: -10 }}
                 animate={{ 
@@ -190,6 +196,8 @@ export default function GravitonHeroDesktop({
                   y: -10,
                   transition: { type: 'spring', stiffness: 350, damping: 22 }
                 }}
+                onMouseEnter={onCardHoverStart}
+                onMouseLeave={onCardHoverEnd}
                 onClick={() => handleSelectHeroCard('einstein')}
                 className={`absolute left-0 lg:left-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
                   activeDesktopCard === 'einstein' 
@@ -205,27 +213,13 @@ export default function GravitonHeroDesktop({
                       src="/rupan-left.png"
                       alt="Rupan Sir — Gold Medalist, 1st Convocation MBBU"
                       className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/einstein:scale-105"
-                      style={{ objectPosition: '50% 0%' }}
+                      style={{ objectPosition: '50% 28%' }}
                     />
                   </picture>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
-
-                  <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] font-bold shadow-xs">
-                    <Award className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                    <span>Gold Medalist</span>
-                  </div>
-
-                  <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold leading-tight truncate">Rupan Sir</p>
-                      <span className="text-[9px] font-mono text-amber-300/90 font-semibold px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-400/25">Gold Medalist</span>
-                    </div>
-                    <p className="text-[10px] text-amber-200/80 font-mono mt-0.5 leading-none truncate">1st Convocation • MBBU</p>
-                  </div>
                 </div>
               </motion.div>
 
-              {/* CARD 3: RICHARD FEYNMAN */}
+              {/* CARD 3: RUPAN SIR GRAVITON PHYSICS (RIGHT) */}
               <motion.div
                 initial={{ opacity: 0, x: 35, y: 30, rotate: 10 }}
                 animate={{ 
@@ -250,6 +244,8 @@ export default function GravitonHeroDesktop({
                   y: -10,
                   transition: { type: 'spring', stiffness: 350, damping: 22 }
                 }}
+                onMouseEnter={onCardHoverStart}
+                onMouseLeave={onCardHoverEnd}
                 onClick={() => handleSelectHeroCard('feynman')}
                 className={`absolute right-0 lg:right-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
                   activeDesktopCard === 'feynman' 
@@ -265,23 +261,9 @@ export default function GravitonHeroDesktop({
                       src="/rupan-right.png"
                       alt="Rupan Sir — NITian & Physics Mentor"
                       className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/feynman:scale-105"
-                      style={{ objectPosition: '50% 0%' }}
+                      style={{ objectPosition: '50% 24%' }}
                     />
                   </picture>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent pointer-events-none" />
-
-                  <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/40 text-cyan-300 text-[10px] font-bold shadow-xs">
-                    <Zap className="w-2.5 h-2.5 text-cyan-400 fill-cyan-400" />
-                    <span>NITian</span>
-                  </div>
-
-                  <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold leading-tight truncate">Rupan Sir</p>
-                      <span className="text-[9px] font-mono text-cyan-300/90 font-semibold px-1.5 py-0.5 rounded bg-cyan-400/15 border border-cyan-400/25">Mentor</span>
-                    </div>
-                    <p className="text-[10px] text-cyan-200/80 font-mono mt-0.5 leading-none truncate">Graviton Physics • Concept Mastery</p>
-                  </div>
                 </div>
               </motion.div>
 
@@ -307,6 +289,8 @@ export default function GravitonHeroDesktop({
                   y: -12,
                   transition: { type: 'spring', stiffness: 350, damping: 22 }
                 }}
+                onMouseEnter={onCardHoverStart}
+                onMouseLeave={onCardHoverEnd}
                 onClick={() => handleSelectHeroCard('graviton')}
                 className={`relative z-20 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
                   activeDesktopCard === 'graviton'

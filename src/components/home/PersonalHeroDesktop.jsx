@@ -9,6 +9,8 @@ const CONTAINER = 'max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-
 export default function PersonalHeroDesktop({
   onCtaHoverStart,
   onCtaHoverEnd,
+  onCardHoverStart = () => {},
+  onCardHoverEnd = () => {},
 } = {}) {
   return (
     <div className="w-full relative">
@@ -397,6 +399,8 @@ export default function PersonalHeroDesktop({
                 initial={{ opacity: 0, x: 20, scale: 0.95 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.35 }}
+                onMouseEnter={onCardHoverStart}
+                onMouseLeave={onCardHoverEnd}
                 className="absolute bottom-10 sm:bottom-14 right-1 sm:right-4 lg:right-2 xl:right-4 z-30 flex items-center gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-white border-2 border-amber-400 shadow-[0_16px_36px_-4px_rgba(217,119,6,0.22),0_6px_18px_-2px_rgba(0,0,0,0.12)] select-none pointer-events-auto"
               >
                 <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-white flex items-center justify-center shrink-0 shadow-md ring-2 ring-amber-300/60">

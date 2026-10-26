@@ -211,6 +211,50 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     expect(mentorTabs[0].getAttribute('aria-selected')).toBe('true')
   })
 
+  it('Desktop: pauses auto-rotation when hovering over any of the 3 hero cards and resumes when pointer moves away', () => {
+    render(
+      <MemoryRouter>
+        <HeroCarouselDesktop
+          instituteName="Graviton Academy"
+          heroActiveCard="graviton"
+          activeDesktopCard="graviton"
+          heroDeckItems={mockHeroDeckItems}
+          handleSelectHeroCard={vi.fn()}
+          handleDeckActivity={vi.fn()}
+          handleDeckMouseLeave={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    // Starts on Slide 1
+    const academyTabs = screen.getAllByRole('tab', { name: /Slide 1: Institute Overview/i })
+    expect(academyTabs[0].getAttribute('aria-selected')).toBe('true')
+
+    // Hover mouse pointer over the left card (Convocation portrait)
+    const cardImg = screen.getAllByAltText(/Rupan Sir — Gold Medalist/i)[0]
+    const cardEl = cardImg.closest('.cursor-pointer') || cardImg
+    fireEvent.mouseEnter(cardEl)
+
+    // Advance timer past 4500ms
+    act(() => {
+      vi.advanceTimersByTime(10000)
+    })
+
+    // Carousel MUST remain paused on Slide 1 while hovering hero card
+    expect(academyTabs[0].getAttribute('aria-selected')).toBe('true')
+
+    // Pointer moves away from the card
+    fireEvent.mouseLeave(cardEl)
+
+    // Natural sliding resumes and advances to Slide 2
+    act(() => {
+      vi.advanceTimersByTime(4500)
+    })
+
+    const mentorTabs = screen.getAllByRole('tab', { name: /Slide 2: Meet Your Mentor/i })
+    expect(mentorTabs[0].getAttribute('aria-selected')).toBe('true')
+  })
+
   it('Desktop: supports manual slide switching via modern visual indicator segments', () => {
     render(
       <MemoryRouter>

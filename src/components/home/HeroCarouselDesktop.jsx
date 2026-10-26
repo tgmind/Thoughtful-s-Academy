@@ -20,7 +20,13 @@ export default function HeroCarouselDesktop({
   const [trackPosition, setTrackPosition] = useState(0)
   const [isSnapping, setIsSnapping] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
+  
   const timerRef = useRef(null)
+  const startTimeRef = useRef(Date.now())
+  const remainingTimeRef = useRef(SLIDE_DURATION)
+  const isPausedRef = useRef(false)
+  const isCardHoveredRef = useRef(false)
+  const isCtaHoveredRef = useRef(false)
   const prefersReducedMotion = useReducedMotion()
 
   // Logical active slide (0 = Academy, 1 = Mentor)
@@ -40,30 +46,85 @@ export default function HeroCarouselDesktop({
       if (prev === 1) return 2
       return 1
     })
+    remainingTimeRef.current = SLIDE_DURATION
+    startTimeRef.current = Date.now()
   }, [])
+
+  // Precise Pause: saves exact elapsed time and freezes countdown
+  const handlePauseRotation = useCallback(() => {
+    if (isPausedRef.current) return
+    isPausedRef.current = true
+    setIsPaused(true)
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+      const elapsed = Date.now() - (startTimeRef.current || Date.now())
+      remainingTimeRef.current = Math.max(500, remainingTimeRef.current - elapsed)
+    }
+  }, [])
+
+  // Precise Resume: seamlessly continues sliding from where it paused with remaining duration
+  const handleResumeRotation = useCallback(() => {
+    // Only resume if neither cards nor CTA buttons are hovered
+    if (isCardHoveredRef.current || isCtaHoveredRef.current) return
+    if (!isPausedRef.current) return
+
+    isPausedRef.current = false
+    setIsPaused(false)
+    startTimeRef.current = Date.now()
+
+    clearTimer()
+    timerRef.current = setTimeout(() => {
+      advanceSlide()
+    }, remainingTimeRef.current)
+  }, [advanceSlide, clearTimer])
+
+  // Card Hover Handlers (Pauses when pointer hovers over any of the 3 cards)
+  const handleCardHoverStart = useCallback(() => {
+    isCardHoveredRef.current = true
+    handlePauseRotation()
+  }, [handlePauseRotation])
+
+  const handleCardHoverEnd = useCallback(() => {
+    isCardHoveredRef.current = false
+    handleResumeRotation()
+  }, [handleResumeRotation])
 
   // Explicit hover pausing for the 3 CTA buttons ("Explore All Batches", "Login", "Register Free")
   const handleCtaHoverStart = useCallback(() => {
-    setIsPaused(true)
-  }, [])
+    isCtaHoveredRef.current = true
+    handlePauseRotation()
+  }, [handlePauseRotation])
 
   const handleCtaHoverEnd = useCallback(() => {
-    setIsPaused(false)
-  }, [])
+    isCtaHoveredRef.current = false
+    handleResumeRotation()
+  }, [handleResumeRotation])
 
-  // Automatic Rotation Lifecycle with Strict Right-to-Left Cadence
+  // Automatic Rotation Lifecycle with Strict Right-to-Left Cadence & Resumable Countdown
   useEffect(() => {
-    if (prefersReducedMotion || isPaused || isSnapping) {
+    if (prefersReducedMotion || isSnapping) {
       clearTimer()
       return
     }
 
+    if (isPausedRef.current) {
+      clearTimer()
+      return
+    }
+
+    // New slide entered viewport: reset countdown to full duration
+    remainingTimeRef.current = SLIDE_DURATION
+    startTimeRef.current = Date.now()
+
+    clearTimer()
     timerRef.current = setTimeout(() => {
       advanceSlide()
-    }, SLIDE_DURATION)
+    }, remainingTimeRef.current)
 
     return () => clearTimer()
-  }, [trackPosition, isPaused, isSnapping, prefersReducedMotion, clearTimer, advanceSlide])
+  }, [trackPosition, isSnapping, prefersReducedMotion, clearTimer, advanceSlide])
 
   // Desktop-only Initial Scroll Capture:
   // When a visitor lands on Slide 1 and scrolls down, we intercept the scroll
@@ -162,19 +223,19 @@ export default function HeroCarouselDesktop({
     }
   }, [advanceSlide])
 
-  // Pause rotation when browser tab is inactive / hidden
+  // Pause rotation when browser tab is inactive / hidden, resume from where paused
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setIsPaused(true)
+        handlePauseRotation()
       } else {
-        setIsPaused(false)
+        handleResumeRotation()
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [])
+  }, [handlePauseRotation, handleResumeRotation])
 
   // Seamless right-to-left snap reset: when position 2 (clone) finishes sliding in,
   // instantaneously reset track to position 0 without animation.
@@ -240,10 +301,10 @@ export default function HeroCarouselDesktop({
       style={{
         background: 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.05) 0%, rgba(245, 242, 235, 0.4) 40%, rgba(247, 244, 237, 0) 70%), linear-gradient(180deg, #fbfaf6 0%, #f7f4ed 55%, #f3eee3 100%)',
       }}
-      onMouseEnter={pauseOnHover ? () => setIsPaused(true) : undefined}
-      onMouseLeave={pauseOnHover ? () => setIsPaused(false) : undefined}
-      onFocusCapture={pauseOnHover ? () => setIsPaused(true) : undefined}
-      onBlurCapture={pauseOnHover ? () => setIsPaused(false) : undefined}
+      onMouseEnter={pauseOnHover ? handlePauseRotation : undefined}
+      onMouseLeave={pauseOnHover ? handleResumeRotation : undefined}
+      onFocusCapture={pauseOnHover ? handlePauseRotation : undefined}
+      onBlurCapture={pauseOnHover ? handleResumeRotation : undefined}
       aria-label="Graviton Academy Featured Showcases"
       role="region"
     >
@@ -294,6 +355,8 @@ export default function HeroCarouselDesktop({
               handleDeckMouseLeave={handleDeckMouseLeave}
               onCtaHoverStart={handleCtaHoverStart}
               onCtaHoverEnd={handleCtaHoverEnd}
+              onCardHoverStart={handleCardHoverStart}
+              onCardHoverEnd={handleCardHoverEnd}
             />
           </div>
 
@@ -302,6 +365,8 @@ export default function HeroCarouselDesktop({
             <PersonalHeroDesktop
               onCtaHoverStart={handleCtaHoverStart}
               onCtaHoverEnd={handleCtaHoverEnd}
+              onCardHoverStart={handleCardHoverStart}
+              onCardHoverEnd={handleCardHoverEnd}
             />
           </div>
 
