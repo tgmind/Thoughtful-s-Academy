@@ -15,6 +15,10 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
+  Info,
+  HelpCircle,
+  Compass,
+  FileCheck2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -54,7 +58,9 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
     return match ? parseInt(match[1], 10) : 50
   })
   const [selectedFile, setSelectedFile] = useState(null)
+  const [showGuidelines, setShowGuidelines] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [altText, setAltText] = useState(currentData?.alt_text || slotDef.defaultAlt || '')
   const [previewDevice, setPreviewDevice] = useState('desktop') // 'desktop' | 'mobile'
   const fileInputRef = useRef(null)
 
@@ -65,6 +71,12 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
       setFocalY(parseInt(match[1], 10))
     }
   }, [currentData?.object_position, slotDef.defaultObjectPosition])
+
+  useEffect(() => {
+    if (currentData?.alt_text) {
+      setAltText(currentData.alt_text)
+    }
+  }, [currentData?.alt_text])
 
   // Clean up blob URLs when component unmounts or preview changes
   useEffect(() => {
@@ -175,7 +187,7 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
     try {
       await uploadLandingSlotMedia(slotKey, optimizedResult, {
         title: slotDef.title,
-        alt_text: currentData?.alt_text || slotDef.defaultAlt,
+        alt_text: altText.trim() || currentData?.alt_text || slotDef.defaultAlt,
       })
       toast.success(`${slotDef.title} published with optimized WebP!`)
       if (optimizedResult.revoke) optimizedResult.revoke()
@@ -284,6 +296,69 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
         </div>
       </div>
 
+      {/* Recommended Dimensions & Format Specifications Bar */}
+      <div className="px-5 py-2.5 bg-gray-50/80 border-b border-gray-100 flex flex-wrap items-center gap-2 text-xs">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50/90 text-indigo-900 border border-indigo-200/70 font-medium">
+          <Maximize2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+          <span>Target: <strong className="font-semibold">{slotDef.recommendedDimensions}</strong></span>
+          <span className="text-indigo-600/70 font-mono text-[11px]">({slotDef.ratioLabel || slotDef.aspectRatio})</span>
+        </div>
+
+        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-medium ${
+          slotDef.fit === 'contain'
+            ? 'bg-amber-50 text-amber-900 border-amber-300'
+            : 'bg-slate-100 text-slate-800 border-slate-200'
+        }`}>
+          <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${slotDef.fit === 'contain' ? 'text-amber-600' : 'text-slate-600'}`} />
+          <span>Format: <strong className="font-semibold">{slotDef.recommendedFormat}</strong></span>
+        </div>
+
+        <div className="inline-flex items-center gap-1 text-gray-500 text-[11px] font-mono">
+          <span>Min: {slotDef.minDimensions}</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowGuidelines(!showGuidelines)}
+          className="ml-auto inline-flex items-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors text-[11px] font-medium cursor-pointer"
+        >
+          <Info className="w-3.5 h-3.5 text-indigo-500" />
+          <span>{showGuidelines ? 'Hide Guide' : 'Placement & Framing Guide'}</span>
+          {showGuidelines ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </button>
+      </div>
+
+      {/* Expandable Framing & Placement Guidance Drawer */}
+      <AnimatePresence>
+        {showGuidelines && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-5 py-3 bg-gradient-to-r from-indigo-50/50 via-white to-indigo-50/30 border-b border-indigo-100/80 text-xs text-indigo-950 space-y-2 overflow-hidden"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div className="sm:col-span-3 font-semibold text-indigo-900 flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Where it appears:</span>
+              </div>
+              <div className="sm:col-span-9 text-gray-700 leading-relaxed">
+                {slotDef.placementGuide}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1.5 border-t border-indigo-100/60">
+              <div className="sm:col-span-3 font-semibold text-indigo-900 flex items-center gap-1">
+                <Compass className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Framing rule:</span>
+              </div>
+              <div className="sm:col-span-9 text-gray-700 leading-relaxed font-sans">
+                {slotDef.framingTip}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Content Grid: Preview on Left, Dropzone on Right */}
       <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 items-center flex-1">
         {/* Preview Container */}
@@ -374,15 +449,18 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
               <p className="text-[11px] text-gray-500 mt-0.5">
                 or <span className="text-indigo-600 font-medium underline">browse files</span> (PNG, JPG, WebP)
               </p>
+              <p className="text-[10px] text-indigo-700/80 font-mono mt-1 font-medium">
+                Target: {slotDef.recommendedDimensions}
+              </p>
             </div>
           </div>
 
-          {/* Realtime Compression Analytics */}
+          {/* Realtime Compression & Live Dimension Analytics */}
           {optimizedResult && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-3 rounded-xl bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border border-emerald-200/90 text-xs space-y-1.5"
+              className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50/90 to-teal-50/90 border border-emerald-200 text-xs space-y-2"
             >
               <div className="flex items-center justify-between font-semibold text-emerald-950">
                 <span className="flex items-center gap-1.5">
@@ -393,13 +471,54 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
                   -{optimizedResult.savingsPercent}% Smaller
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-[11px] text-emerald-900/80 pt-1 font-mono">
-                <div>Original: <span className="font-bold">{formatBytes(optimizedResult.originalSize)}</span></div>
-                <div>WebP: <span className="font-bold">{formatBytes(optimizedResult.primarySize)}</span></div>
-                <div>Multi-Res: <span className="font-bold">3 tiers</span></div>
+
+              {/* Source vs Output Dimensions Comparison */}
+              <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-100 grid grid-cols-2 gap-2 text-[11px] text-emerald-950">
+                <div>
+                  <span className="text-gray-500 block text-[10px] uppercase font-medium">Source Image:</span>
+                  <span className="font-mono font-semibold">{optimizedResult.originalWidth} × {optimizedResult.originalHeight} px</span>
+                  <span className="text-gray-500 ml-1 font-mono">({formatBytes(optimizedResult.originalSize)})</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-[10px] uppercase font-medium">Desktop WebP:</span>
+                  <span className="font-mono font-semibold">{optimizedResult.variants.desktop?.width} × {optimizedResult.variants.desktop?.height} px</span>
+                  <span className="text-emerald-700 font-semibold ml-1 font-mono">({formatBytes(optimizedResult.primarySize)})</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-[11px] text-emerald-900/80 pt-0.5 font-mono">
+                <div>Tablet: <span className="font-bold">{optimizedResult.variants.tablet?.width} × {optimizedResult.variants.tablet?.height}</span></div>
+                <div>Mobile: <span className="font-bold">{optimizedResult.variants.mobile?.width} × {optimizedResult.variants.mobile?.height}</span></div>
+                <div className="text-right"><span className="font-bold text-emerald-700">3-Tier WebP</span></div>
               </div>
             </motion.div>
           )}
+
+          {/* SEO & Accessibility Alt Text */}
+          <div className="pt-0.5">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+            >
+              <span>Image Alt Text (SEO &amp; Accessibility)</span>
+              {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {showAdvanced && (
+              <div className="mt-1.5 space-y-1">
+                <input
+                  type="text"
+                  value={altText}
+                  onChange={(e) => setAltText(e.target.value)}
+                  placeholder={slotDef.defaultAlt}
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-gray-800"
+                />
+                <p className="text-[10px] text-gray-500">
+                  Screen reader description and search engine indexing attribute.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Focal Point Alignment Controls (Collapsible / Accordion) */}
           {slotDef.fit === 'cover' && (
@@ -508,7 +627,7 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
 export default function LandingMediaManager() {
   const [mediaList, setMediaList] = useState([])
   const [loading, setLoading] = useState(true)
-
+  const [showCheatSheet, setShowCheatSheet] = useState(false)
   const [purging, setPurging] = useState(false)
 
   const fetchMedia = async () => {
@@ -602,6 +721,16 @@ export default function LandingMediaManager() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
+            onClick={() => setShowCheatSheet(!showCheatSheet)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+            title="View recommended dimensions and specs for all landing slots"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">{showCheatSheet ? 'Hide Specs' : 'Dimensions Cheat Sheet'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handlePurgeStorage}
             disabled={purging || loading}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 hover:text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
@@ -622,6 +751,87 @@ export default function LandingMediaManager() {
           </button>
         </div>
       </div>
+
+      {/* Expandable Dimensions & Format Cheat Sheet */}
+      <AnimatePresence>
+        {showCheatSheet && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <Maximize2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-gray-900">
+                    Landing Page Assets Dimension &amp; Format Specifications
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Reference guide for admins and designers to ensure razor-sharp graphics across 4K, Retina, and mobile screens.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCheatSheet(false)}
+                className="text-xs font-medium text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50/80 text-gray-600 font-semibold">
+                    <th className="py-2 px-3">Slot / Section</th>
+                    <th className="py-2 px-3">Target Resolution</th>
+                    <th className="py-2 px-3">Aspect Ratio</th>
+                    <th className="py-2 px-3">Min Resolution</th>
+                    <th className="py-2 px-3">Format &amp; Transparency</th>
+                    <th className="py-2 px-3">Framing &amp; Positioning Tip</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-mono text-[11px]">
+                  {Object.entries(LANDING_SLOTS).map(([key, def]) => (
+                    <tr key={key} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="py-2.5 px-3 font-sans font-medium text-gray-900 whitespace-nowrap">
+                        <div className="font-bold text-xs">{def.title}</div>
+                        <div className="text-[10px] text-gray-500 font-sans">{def.section}</div>
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-indigo-700 whitespace-nowrap">
+                        {def.recommendedDimensions}
+                      </td>
+                      <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap font-sans">
+                        {def.ratioLabel || def.aspectRatio}
+                      </td>
+                      <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">
+                        {def.minDimensions}
+                      </td>
+                      <td className="py-2.5 px-3 font-sans">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
+                          def.fit === 'contain'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {def.recommendedFormat}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-sans text-gray-600 max-w-xs text-[11px] leading-snug">
+                        {def.framingTip}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Slot Groups */}
       <div className="space-y-8">

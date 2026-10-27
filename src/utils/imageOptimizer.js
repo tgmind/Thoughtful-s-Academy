@@ -21,8 +21,14 @@ export const LANDING_SLOTS = {
     title: 'Slide 1 — Left Card (Portrait Deck)',
     section: 'Hero Carousel (Slide 1)',
     aspectRatio: '4/5',
+    ratioLabel: '4:5 Portrait',
     fit: 'cover',
     defaultObjectPosition: '50% 28%',
+    recommendedDimensions: '960 × 1200 px',
+    minDimensions: '800 × 1000 px',
+    recommendedFormat: 'JPG, PNG, or WebP (High Resolution)',
+    placementGuide: 'Displayed as the left flanking card in the Slide 1 Hero Deck on both Desktop and Mobile.',
+    framingTip: 'Educator or student portrait. Keep the face vertically centered around 25%–30%. Use the focal point slider to fine-tune alignment.',
     defaultUrls: {
       desktop: '/rupan-left.webp',
       tablet: '/rupan-left.webp',
@@ -40,8 +46,14 @@ export const LANDING_SLOTS = {
     title: 'Slide 1 — Center Card (Brand Emblem)',
     section: 'Hero Carousel (Slide 1)',
     aspectRatio: '4/5',
+    ratioLabel: '4:5 Portrait Container',
     fit: 'cover',
     defaultObjectPosition: 'center center',
+    recommendedDimensions: '800 × 1000 px (or 1000 × 1000 px Square)',
+    minDimensions: '600 × 600 px',
+    recommendedFormat: 'PNG with transparency, or high-res JPG/WebP',
+    placementGuide: 'Central focal card of Slide 1 Hero Deck with brand badges and quick action buttons.',
+    framingTip: 'Institute crest, academy insignia, or emblem. Center-aligned with clean padding around edges.',
     defaultUrls: {
       desktop: '/mainlogo.jpg',
       tablet: '/mainlogo.jpg',
@@ -59,8 +71,14 @@ export const LANDING_SLOTS = {
     title: 'Slide 1 — Right Card (Portrait Deck)',
     section: 'Hero Carousel (Slide 1)',
     aspectRatio: '4/5',
+    ratioLabel: '4:5 Portrait',
     fit: 'cover',
     defaultObjectPosition: '50% 24%',
+    recommendedDimensions: '960 × 1200 px',
+    minDimensions: '800 × 1000 px',
+    recommendedFormat: 'JPG, PNG, or WebP (High Resolution)',
+    placementGuide: 'Displayed as the right flanking card in the Slide 1 Hero Deck on Desktop and Mobile.',
+    framingTip: 'Educator or academic guide portrait. Keep the head centered around 20%–25% vertical position for optimal card framing.',
     defaultUrls: {
       desktop: '/rupan-right.webp',
       tablet: '/rupan-right.webp',
@@ -78,8 +96,14 @@ export const LANDING_SLOTS = {
     title: 'Slide 2 — Mentor Portrait Cutout',
     section: 'Hero Carousel (Slide 2 - Mentor)',
     aspectRatio: 'contain',
+    ratioLabel: 'Cutout Aspect Ratio',
     fit: 'contain',
     defaultObjectPosition: 'center bottom',
+    recommendedDimensions: '1200 × 900 px (or 1000 × 1000 px)',
+    minDimensions: '800 × 600 px',
+    recommendedFormat: 'Transparent PNG cutout (Background Removed)',
+    placementGuide: 'Floats on Slide 2 over the soft radiant halo with an automatic feathered waist mask and contact drop-shadow.',
+    framingTip: 'CRITICAL: Upload an image with the background removed (transparent PNG). Alpha transparency is preserved 100% in generated WebP files.',
     defaultUrls: {
       desktop: '/rupan.webp',
       tablet: '/rupan.webp',
@@ -97,8 +121,14 @@ export const LANDING_SLOTS = {
     title: 'Panoramic Trust Banner (Desktop & Tablet)',
     section: 'Trust & Methodology Banner',
     aspectRatio: '3/1',
+    ratioLabel: '3:1 Ultra-Wide Panoramic',
     fit: 'cover',
     defaultObjectPosition: '50% 20%',
+    recommendedDimensions: '2172 × 724 px (or 2400 × 800 px)',
+    minDimensions: '1920 × 640 px',
+    recommendedFormat: 'High-Res JPG, PNG, or WebP',
+    placementGuide: 'Full-width cinematic banner rendered on Desktop & Tablet screens (viewport width ≥ 641px).',
+    framingTip: 'Compose key visuals (mentor, apparatus, highlights) in the center and right areas. The left quadrant carries the "6+ Years Experience" headline on desktop.',
     defaultUrls: {
       desktop: '/banner.webp',
       tablet: '/banner-1200.webp',
@@ -116,8 +146,14 @@ export const LANDING_SLOTS = {
     title: 'Panoramic Trust Banner (Mobile Art-Directed)',
     section: 'Trust & Methodology Banner',
     aspectRatio: '4/3',
+    ratioLabel: '4:3 Mobile Art-Directed',
     fit: 'cover',
     defaultObjectPosition: 'center center',
+    recommendedDimensions: '1100 × 825 px (or 1200 × 900 px)',
+    minDimensions: '600 × 450 px',
+    recommendedFormat: 'High-Res JPG, PNG, or WebP',
+    placementGuide: 'Full-width mobile banner for smartphones and compact screens (viewport width ≤ 640px).',
+    framingTip: 'Art-directed tighter framing where the educator and physics illustration are centered and punchy on narrow vertical displays.',
     defaultUrls: {
       desktop: '/banner-mobile.webp',
       tablet: '/banner-mobile.webp',
@@ -328,6 +364,8 @@ export async function optimizeImageForSlot(file, slotId, customOptions = {}) {
     return {
       slotId,
       originalSize,
+      originalWidth: loaded.width,
+      originalHeight: loaded.height,
       totalOptimizedSize,
       primarySize,
       savingsPercent,
@@ -424,6 +462,21 @@ export async function cleanOrphanedLandingMediaStorage() {
           // If the file's public URL is not in the active database set, it is orphaned
           if (!activeUrlSet.has(publicUrlData.publicUrl)) {
             filesToPurge.push(filePath)
+          }
+        }
+      }
+    }
+
+    // 3. Also check legacy root files matching `${slotId}_*`
+    const { data: rootFiles } = await supabase.storage.from(bucketName).list('')
+    if (rootFiles && rootFiles.length > 0) {
+      for (const file of rootFiles) {
+        if (file && file.name && Object.keys(LANDING_SLOTS).some((s) => file.name.startsWith(`${s}_`))) {
+          const { data: publicUrlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(file.name)
+          if (!activeUrlSet.has(publicUrlData.publicUrl)) {
+            filesToPurge.push(file.name)
           }
         }
       }

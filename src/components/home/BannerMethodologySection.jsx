@@ -130,9 +130,10 @@ export default function BannerMethodologySection() {
             height="724"
             loading="lazy"
             decoding="async"
-            className="w-full h-[240px] sm:h-[400px] md:h-[460px] lg:h-[500px] xl:h-[560px] 2xl:h-[600px] object-cover object-center sm:object-top select-none"
+            className="w-full h-[240px] sm:h-[400px] md:h-[460px] lg:h-[500px] xl:h-[560px] 2xl:h-[600px] object-cover [object-position:var(--banner-pos-mobile)] sm:[object-position:var(--banner-pos-desktop)] select-none"
             style={{
-              objectPosition: desktopBannerMedia?.object_position || 'center top',
+              '--banner-pos-desktop': desktopBannerMedia?.object_position || '50% 20%',
+              '--banner-pos-mobile': mobileBannerMedia?.object_position || 'center center',
             }}
             onError={(e) => handleImageFallback(e, '/banner.png')}
           />

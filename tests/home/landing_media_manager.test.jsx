@@ -171,6 +171,12 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
     // Verify dropzone prompts exist
     const dropPrompts = screen.getAllByText(/Drag & drop high-res image here/i)
     expect(dropPrompts.length).toBe(6)
+
+    // Verify admin dimensions guidance specs are rendered
+    expect(screen.getByText('Dimensions Cheat Sheet')).toBeDefined()
+    expect(screen.getAllByText(/960 × 1200 px/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Transparent PNG cutout/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/2172 × 724 px/i).length).toBeGreaterThan(0)
   })
 
   it('renders GravitonHeroDesktop using dynamic landing media with safe fallbacks', async () => {
