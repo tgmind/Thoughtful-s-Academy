@@ -65,11 +65,11 @@ export default function BannerMethodologySection() {
     <section className="relative pt-4 sm:pt-0 pb-14 sm:pb-22 overflow-visible bg-[#fbfaf6]">
       {/* ─── MOBILE SECTION HEADER (CLEAN & CENTERED ABOVE BANNER - NEVER COVERS MENTOR) ─── */}
       <div className="sm:hidden px-4 mb-4 text-center">
-        <h2 className="text-2xl xs:text-3xl font-extrabold text-[#1c1c1c] tracking-tight leading-[1.32] pb-1.5">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-amber-700 to-amber-950 font-black">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1c1c1c] tracking-tight leading-snug pb-1.5">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-amber-700 to-amber-950 font-black inline-block">
             6+ Years
           </span>{' '}
-          <span>of Teaching Experience</span>
+          <span className="inline-block">of Teaching Experience</span>
         </h2>
         <p className="mt-2.5 text-xs xs:text-sm text-[#444] font-medium leading-[1.6] max-w-sm mx-auto">
           AN{' '}
@@ -112,14 +112,14 @@ export default function BannerMethodologySection() {
             height="724"
             loading="lazy"
             decoding="async"
-            className="w-full h-[220px] xs:h-[260px] sm:h-[380px] md:h-[440px] lg:h-[500px] xl:h-[560px] 2xl:h-[600px] object-cover object-center sm:object-top select-none"
+            className="w-full h-[240px] sm:h-[400px] md:h-[460px] lg:h-[500px] xl:h-[560px] 2xl:h-[600px] object-cover object-center sm:object-top select-none"
           />
         </picture>
 
         {/* Desktop Overlay Content (Positioned in CONTAINER on open left quadrant, >=sm only) */}
         <div className="hidden sm:block absolute inset-0 pointer-events-none z-10">
           <div className={`${CONTAINER} h-full flex flex-col justify-center`}>
-            <div className="max-w-lg lg:max-w-xl xl:max-w-2xl pb-14 lg:pb-20">
+            <div className="max-w-lg lg:max-w-xl xl:max-w-2xl pb-16 lg:pb-20">
               <h2 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[48px] font-extrabold text-[#1c1c1c] tracking-[-0.025em] leading-[1.3] sm:leading-[1.28] lg:leading-[1.25] pb-1.5">
                 <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-amber-700 to-amber-950 font-black drop-shadow-xs">
                   6+ Years
@@ -147,7 +147,7 @@ export default function BannerMethodologySection() {
       </div>
 
       {/* ─── OVERLAPPING INFO CARDS (OVERLAPPING BANNER BOTTOM MARGIN ONLY) ─── */}
-      <div className="relative -mt-6 xs:-mt-8 sm:-mt-16 lg:-mt-20 xl:-mt-24 z-20">
+      <div className="relative -mt-6 sm:-mt-16 lg:-mt-20 xl:-mt-24 z-20">
         <div className={CONTAINER}>
           {/* Track: Swipeable carousel on mobile (<sm), 4-col responsive grid on tablet/desktop (>=sm) */}
           <div
@@ -160,7 +160,7 @@ export default function BannerMethodologySection() {
               return (
                 <div
                   key={card.title}
-                  className={`p-5 sm:p-6 rounded-2xl sm:rounded-3xl border ${card.border} ${card.bg} transition-all duration-300 shadow-[0_8px_24px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_36px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 flex flex-col justify-between w-[80vw] max-w-[290px] xs:w-[270px] shrink-0 sm:w-auto sm:shrink sm:max-w-none snap-start backdrop-blur-md group`}
+                  className={`p-5 sm:p-6 rounded-2xl sm:rounded-3xl border ${card.border} ${card.bg} transition-all duration-300 shadow-[0_8px_24px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_36px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 flex flex-col justify-between w-[80vw] max-w-[290px] shrink-0 sm:w-auto sm:shrink sm:max-w-none snap-start backdrop-blur-md group`}
                 >
                   <div>
                     {/* Squircle Color Icon */}

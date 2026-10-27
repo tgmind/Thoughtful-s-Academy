@@ -544,7 +544,7 @@ function getCardWidthClass(count) {
   if (count === 2 || count === 4) {
     return 'w-full sm:w-[calc(50%-12px)] max-w-[500px]'
   }
-  return 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[470px]'
+  return 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(50%-12px)] 2xl:w-[calc(33.333%-16px)] max-w-[470px]'
 }
 
 export default function Home() {
@@ -962,10 +962,10 @@ export default function Home() {
 
       {/* ════════════ LECTURES FEED + STICKY DESKTOP SIDEBAR ════════════ */}
       <div className={`${CONTAINER} py-10 sm:py-16`}>
-        <div ref={feedContainerRef} className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
+        <div ref={feedContainerRef} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
 
-          {/* MAIN LEFT FEED */}
-          <div className="flex-1 min-w-0 w-full">
+          {/* MAIN LEFT FEED (8 columns = 66.67% of container) */}
+          <div className="lg:col-span-8 min-w-0 w-full">
 
             {/* ── PROMINENT "WHAT'S ON" NOTIFICATION CARD (MOBILE VIEW - ALWAYS PRESENT) ── */}
             <div className="lg:hidden mb-8 sm:mb-10">
@@ -1073,8 +1073,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* RIGHT: DESKTOP STICKY SIDEBAR ("WHAT'S ON" CARD + DYNAMIC STUDENT REVIEWS) */}
-          <aside className="hidden lg:block w-[336px] xl:w-[368px] 2xl:w-[384px] flex-shrink-0 self-stretch">
+          {/* RIGHT: DESKTOP STICKY SIDEBAR (4 columns = 33.33% of container) */}
+          <aside className="hidden lg:block lg:col-span-4 min-w-0 w-full">
             <div className="sticky top-24 space-y-5">
               <div ref={whatsOnRef}>
                 <WhatsOnCard

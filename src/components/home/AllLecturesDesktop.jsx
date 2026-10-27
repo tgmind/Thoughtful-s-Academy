@@ -29,7 +29,7 @@ export default function AllLecturesDesktop({
                 damping: 26,
                 delay: idx * 0.04,
               }}
-              className={`${getCardWidthClass ? getCardWidthClass(visibleCards.length) : 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[430px]'} flex flex-col`}
+              className={`${getCardWidthClass ? getCardWidthClass(visibleCards.length) : 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(50%-12px)] 2xl:w-[calc(33.333%-16px)] max-w-[470px]'} flex flex-col`}
             >
               <LectureCard card={card} />
             </motion.div>

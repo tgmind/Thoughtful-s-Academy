@@ -143,7 +143,7 @@ export default function AllLecturesSection({
           {[...Array(dynamicPageSize || 6)].map((_, i) => (
             <div
               key={i}
-              className={`${getCardWidthClass ? getCardWidthClass(dynamicPageSize || 6) : 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[430px]'} flex flex-col`}
+              className={`${getCardWidthClass ? getCardWidthClass(dynamicPageSize || 6) : 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(50%-12px)] 2xl:w-[calc(33.333%-16px)] max-w-[470px]'} flex flex-col`}
             >
               <SkeletonCard />
             </div>
