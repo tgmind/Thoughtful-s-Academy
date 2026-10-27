@@ -4,6 +4,7 @@ import {
   BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award, Zap
 } from 'lucide-react'
 import GravitonBrandText from '../shared/GravitonBrandText'
+import { useLandingMedia } from '../../hooks/useLandingMedia'
 
 const CONTAINER = 'max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12'
 
@@ -21,6 +22,11 @@ export default function GravitonHeroDesktop({
   onCardHoverStart = () => {},
   onCardHoverEnd = () => {},
 }) {
+  const { getSlot } = useLandingMedia()
+  const leftCardMedia = getSlot('hero_card_left')
+  const centerCardMedia = getSlot('hero_card_center')
+  const rightCardMedia = getSlot('hero_card_right')
+
   return (
     <div className="w-full relative" aria-hidden={isClone ? true : undefined}>
       <div className={`${CONTAINER} relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-8 xl:gap-12 items-center`}>
@@ -211,12 +217,22 @@ export default function GravitonHeroDesktop({
               >
                 <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/einstein">
                   <picture className="contents">
-                    <source type="image/webp" srcSet="/rupan-left.webp, /einstein.webp" />
+                    <source
+                      type="image/webp"
+                      srcSet={leftCardMedia?.desktop_url || '/rupan-left.webp'}
+                    />
                     <img
-                      src="/rupan-left.png"
-                      alt="Rupan Sir — Gold Medalist, 1st Convocation MBBU"
+                      src={leftCardMedia?.desktop_url || '/rupan-left.png'}
+                      alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
+                      loading="eager"
+                      fetchpriority="high"
                       className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/einstein:scale-105"
-                      style={{ objectPosition: '50% 28%' }}
+                      style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
+                      onError={(e) => {
+                        if (!e.currentTarget.src.includes('rupan-left')) {
+                          e.currentTarget.src = '/rupan-left.webp'
+                        }
+                      }}
                     />
                   </picture>
                 </div>
@@ -259,12 +275,22 @@ export default function GravitonHeroDesktop({
               >
                 <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/feynman">
                   <picture className="contents">
-                    <source type="image/webp" srcSet="/rupan-right.webp, /Richard.webp" />
+                    <source
+                      type="image/webp"
+                      srcSet={rightCardMedia?.desktop_url || '/rupan-right.webp'}
+                    />
                     <img
-                      src="/rupan-right.png"
-                      alt="Rupan Sir — NITian & Physics Mentor"
+                      src={rightCardMedia?.desktop_url || '/rupan-right.png'}
+                      alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
+                      loading="eager"
+                      fetchpriority="high"
                       className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/feynman:scale-105"
-                      style={{ objectPosition: '50% 24%' }}
+                      style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
+                      onError={(e) => {
+                        if (!e.currentTarget.src.includes('rupan-right')) {
+                          e.currentTarget.src = '/rupan-right.webp'
+                        }
+                      }}
                     />
                   </picture>
                 </div>
@@ -314,9 +340,15 @@ export default function GravitonHeroDesktop({
                   />
 
                   <img
-                    src="/mainlogo.jpg"
-                    alt={`${instituteName} Logo`}
+                    src={centerCardMedia?.desktop_url || '/mainlogo.jpg'}
+                    alt={centerCardMedia?.alt_text || `${instituteName} Logo`}
                     className="w-full h-full object-contain p-2.5 transition-transform duration-700 group-hover/logo:scale-[1.04]"
+                    style={{ objectPosition: centerCardMedia?.object_position || 'center center' }}
+                    onError={(e) => {
+                      if (!e.currentTarget.src.includes('mainlogo.jpg')) {
+                        e.currentTarget.src = '/mainlogo.jpg'
+                      }
+                    }}
                   />
                   
                   <div className="absolute top-2 left-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9.5px] font-semibold shadow-xs">

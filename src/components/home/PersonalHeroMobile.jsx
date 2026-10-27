@@ -3,10 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   BookOpen, LogIn, ArrowRight, Sparkles, Atom, Compass, Award, GraduationCap, Clock
 } from 'lucide-react'
+import { useLandingMedia } from '../../hooks/useLandingMedia'
 
 const CONTAINER = 'max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8'
 
 export default function PersonalHeroMobile() {
+  const { getSlot } = useLandingMedia()
+  const mentorMedia = getSlot('mentor_slide_hero')
+
   return (
     <div className="w-full relative">
       <div className={`${CONTAINER} relative z-10 flex flex-col gap-6 sm:gap-8 items-center`}>
@@ -246,13 +250,22 @@ export default function PersonalHeroMobile() {
               }}
             >
               <picture className="contents">
-                <source type="image/webp" srcSet="/rupan.webp" />
+                <source
+                  type="image/webp"
+                  srcSet={mentorMedia?.mobile_url || mentorMedia?.desktop_url || '/rupan.webp'}
+                />
                 <img
-                  src="/rupan.png"
-                  alt="GRAViTON PHYSICS Lead Mentor"
+                  src={mentorMedia?.mobile_url || mentorMedia?.desktop_url || '/rupan.png'}
+                  alt={mentorMedia?.alt_text || 'GRAViTON PHYSICS Lead Mentor'}
                   className="max-h-[270px] xs:max-h-[290px] w-auto object-contain select-none"
                   style={{
+                    objectPosition: mentorMedia?.object_position || 'center bottom',
                     filter: 'drop-shadow(0 10px 20px rgba(28, 28, 28, 0.16)) drop-shadow(0 0 15px rgba(245, 158, 11, 0.16))',
+                  }}
+                  onError={(e) => {
+                    if (!e.currentTarget.src.includes('rupan')) {
+                      e.currentTarget.src = '/rupan.webp'
+                    }
                   }}
                 />
               </picture>

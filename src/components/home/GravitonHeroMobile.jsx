@@ -4,6 +4,7 @@ import {
   BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award, Zap
 } from 'lucide-react'
 import GravitonBrandText from '../shared/GravitonBrandText'
+import { useLandingMedia } from '../../hooks/useLandingMedia'
 
 const CONTAINER = 'max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8'
 
@@ -16,6 +17,11 @@ export default function GravitonHeroMobile({
   handleDeckActivity,
   isClone = false,
 }) {
+  const { getSlot } = useLandingMedia()
+  const leftCardMedia = getSlot('hero_card_left')
+  const centerCardMedia = getSlot('hero_card_center')
+  const rightCardMedia = getSlot('hero_card_right')
+
   return (
     <div className="w-full relative" aria-hidden={isClone ? true : undefined}>
       <div className={`${CONTAINER} relative z-10 flex flex-col gap-6 sm:gap-8 items-center`}>
@@ -176,12 +182,20 @@ export default function GravitonHeroMobile({
             >
               <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
                 <picture className="contents">
-                  <source type="image/webp" srcSet="/rupan-left.webp, /einstein.webp" />
+                  <source
+                    type="image/webp"
+                    srcSet={leftCardMedia?.mobile_url || leftCardMedia?.desktop_url || '/rupan-left.webp'}
+                  />
                   <img
-                    src="/rupan-left.png"
-                    alt="Rupan Sir — Gold Medalist, 1st Convocation MBBU"
+                    src={leftCardMedia?.mobile_url || leftCardMedia?.desktop_url || '/rupan-left.png'}
+                    alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
                     className="w-full h-full object-cover filter contrast-[1.02]"
-                    style={{ objectPosition: '50% 28%' }}
+                    style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
+                    onError={(e) => {
+                      if (!e.currentTarget.src.includes('rupan-left')) {
+                        e.currentTarget.src = '/rupan-left.webp'
+                      }
+                    }}
                   />
                 </picture>
               </div>
@@ -215,9 +229,15 @@ export default function GravitonHeroMobile({
               <div className="relative rounded-xl overflow-hidden w-full h-full bg-[#000000] border border-white/10 flex items-center justify-center">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.18)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
                 <img
-                  src="/mainlogo.jpg"
-                  alt={`${instituteName} Logo`}
+                  src={centerCardMedia?.mobile_url || centerCardMedia?.desktop_url || '/mainlogo.jpg'}
+                  alt={centerCardMedia?.alt_text || `${instituteName} Logo`}
                   className="w-full h-full object-contain p-2"
+                  style={{ objectPosition: centerCardMedia?.object_position || 'center center' }}
+                  onError={(e) => {
+                    if (!e.currentTarget.src.includes('mainlogo.jpg')) {
+                      e.currentTarget.src = '/mainlogo.jpg'
+                    }
+                  }}
                 />
                 <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9px] font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -271,12 +291,20 @@ export default function GravitonHeroMobile({
             >
               <div className="relative rounded-xl overflow-hidden w-full h-full bg-slate-950 border border-white/10">
                 <picture className="contents">
-                  <source type="image/webp" srcSet="/rupan-right.webp, /Richard.webp" />
+                  <source
+                    type="image/webp"
+                    srcSet={rightCardMedia?.mobile_url || rightCardMedia?.desktop_url || '/rupan-right.webp'}
+                  />
                   <img
-                    src="/rupan-right.png"
-                    alt="Rupan Sir — NITian & Physics Mentor"
+                    src={rightCardMedia?.mobile_url || rightCardMedia?.desktop_url || '/rupan-right.png'}
+                    alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
                     className="w-full h-full object-cover filter contrast-[1.02]"
-                    style={{ objectPosition: '50% 24%' }}
+                    style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
+                    onError={(e) => {
+                      if (!e.currentTarget.src.includes('rupan-right')) {
+                        e.currentTarget.src = '/rupan-right.webp'
+                      }
+                    }}
                   />
                 </picture>
               </div>

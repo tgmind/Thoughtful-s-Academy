@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import SocialLinksManager from '../../components/admin/SocialLinksManager'
+import LandingMediaManager from '../../components/admin/LandingMediaManager'
 
 const CONFIRM_WORD = 'RESET'
 
@@ -290,6 +291,9 @@ export default function AdminSettings() {
         <h1 className="text-xl font-semibold text-gray-900">Admin Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage institute-level settings and data.</p>
       </div>
+
+      {/* ── Landing Page Media & Dynamic Banner Management ── */}
+      <LandingMediaManager />
 
       {/* ── Social Media & Public Channels Management ── */}
       <SocialLinksManager />

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { Video, MessageSquare, BookOpen, CheckCircle2, GraduationCap, Award } from 'lucide-react'
+import { useLandingMedia } from '../../hooks/useLandingMedia'
 
 export const METHODOLOGY_CARDS = [
   {
@@ -43,6 +44,10 @@ export const METHODOLOGY_CARDS = [
 const CONTAINER = 'max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12'
 
 export default function BannerMethodologySection() {
+  const { getSlot } = useLandingMedia()
+  const desktopBannerMedia = getSlot('banner_desktop')
+  const mobileBannerMedia = getSlot('banner_mobile')
+
   const scrollRef = useRef(null)
   const [activeIdx, setActiveIdx] = useState(0)
 
@@ -95,24 +100,44 @@ export default function BannerMethodologySection() {
           <source
             media="(min-width: 641px)"
             type="image/webp"
-            srcSet="/banner-720.webp 720w, /banner-1200.webp 1200w, /banner.webp 2172w"
+            srcSet={
+              desktopBannerMedia?.is_custom
+                ? (desktopBannerMedia.desktop_url || '/banner.webp')
+                : '/banner-720.webp 720w, /banner-1200.webp 1200w, /banner.webp 2172w'
+            }
             sizes="100vw"
           />
-          {/* Mobile Art-Directed Panoramic Source (Dish + Mentor + Cosmos; fills left side with rich physics artwork) */}
+          {/* Mobile Art-Directed Panoramic Source */}
           <source
             media="(max-width: 640px)"
             type="image/webp"
-            srcSet="/banner-mobile-600.webp 600w, /banner-mobile.webp 1100w"
+            srcSet={
+              mobileBannerMedia?.is_custom
+                ? (mobileBannerMedia.mobile_url || mobileBannerMedia.desktop_url || '/banner-mobile.webp')
+                : '/banner-mobile-600.webp 600w, /banner-mobile.webp 1100w'
+            }
             sizes="100vw"
           />
           <img
-            src="/banner.png"
-            alt="GRAViTON PHYSICS Pedagogy & Mentorship"
+            src={
+              desktopBannerMedia?.is_custom
+                ? (desktopBannerMedia.desktop_url || '/banner.png')
+                : '/banner.png'
+            }
+            alt={desktopBannerMedia?.alt_text || 'GRAViTON PHYSICS Pedagogy & Mentorship'}
             width="2172"
             height="724"
             loading="lazy"
             decoding="async"
             className="w-full h-[240px] sm:h-[400px] md:h-[460px] lg:h-[500px] xl:h-[560px] 2xl:h-[600px] object-cover object-center sm:object-top select-none"
+            style={{
+              objectPosition: desktopBannerMedia?.object_position || 'center top',
+            }}
+            onError={(e) => {
+              if (!e.currentTarget.src.includes('banner')) {
+                e.currentTarget.src = '/banner.png'
+              }
+            }}
           />
         </picture>
 

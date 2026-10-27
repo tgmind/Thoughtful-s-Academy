@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   BookOpen, LogIn, ArrowRight, Sparkles, Atom, Compass, Award, GraduationCap, Clock
 } from 'lucide-react'
+import { useLandingMedia } from '../../hooks/useLandingMedia'
 
 const CONTAINER = 'max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12'
 
@@ -12,6 +13,9 @@ export default function PersonalHeroDesktop({
   onCardHoverStart = () => {},
   onCardHoverEnd = () => {},
 } = {}) {
+  const { getSlot } = useLandingMedia()
+  const mentorMedia = getSlot('mentor_slide_hero')
+
   return (
     <div className="w-full relative">
       <div className={`${CONTAINER} relative z-10 grid lg:grid-cols-12 gap-8 lg:gap-8 xl:gap-12 items-center`}>
@@ -378,13 +382,22 @@ export default function PersonalHeroDesktop({
                   }}
                 >
                   <picture className="contents">
-                    <source type="image/webp" srcSet="/rupan.webp" />
+                    <source
+                      type="image/webp"
+                      srcSet={mentorMedia?.desktop_url || '/rupan.webp'}
+                    />
                     <img
-                      src="/rupan.png"
-                      alt="GRAViTON PHYSICS Lead Mentor"
+                      src={mentorMedia?.desktop_url || '/rupan.png'}
+                      alt={mentorMedia?.alt_text || 'GRAViTON PHYSICS Lead Mentor'}
                       className="max-h-[340px] lg:max-h-[365px] w-auto object-contain select-none transition-transform duration-500 hover:scale-[1.01]"
                       style={{
+                        objectPosition: mentorMedia?.object_position || 'center bottom',
                         filter: 'drop-shadow(0 14px 26px rgba(28, 28, 28, 0.16)) drop-shadow(0 0 20px rgba(245, 158, 11, 0.16))',
+                      }}
+                      onError={(e) => {
+                        if (!e.currentTarget.src.includes('rupan')) {
+                          e.currentTarget.src = '/rupan.webp'
+                        }
                       }}
                     />
                   </picture>
