@@ -14,6 +14,7 @@ import {
   Smartphone,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -22,7 +23,16 @@ import {
   optimizeImageForSlot,
   uploadLandingSlotMedia,
   resetLandingSlotToDefault,
+  updateSlotObjectPosition,
+  cleanOrphanedLandingMediaStorage,
 } from '../../utils/imageOptimizer'
+
+function isValidImageFile(file) {
+  if (!file) return false
+  if (file.type && file.type.startsWith('image/')) return true
+  const ext = file.name?.split('.').pop()?.toLowerCase()
+  return ['png', 'jpg', 'jpeg', 'webp', 'avif'].includes(ext)
+}
 
 function formatBytes(bytes, decimals = 1) {
   if (!bytes || bytes === 0) return '0 B'
@@ -56,6 +66,15 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
     }
   }, [currentData?.object_position, slotDef.defaultObjectPosition])
 
+  // Clean up blob URLs when component unmounts or preview changes
+  useEffect(() => {
+    return () => {
+      if (optimizedResult?.revoke) {
+        optimizedResult.revoke()
+      }
+    }
+  }, [optimizedResult])
+
   const handleFileDrop = async (e) => {
     e.preventDefault()
     setIsDragOver(false)
@@ -73,9 +92,14 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
   }
 
   const processFile = async (file) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please drop a valid image file (PNG, JPG, WebP).')
+    if (!isValidImageFile(file)) {
+      toast.error('Please drop a valid image file (PNG, JPG, WebP, AVIF).')
       return
+    }
+
+    // Revoke previous blob URLs if any
+    if (optimizedResult?.revoke) {
+      optimizedResult.revoke()
     }
 
     setSelectedFile(file)
@@ -99,18 +123,49 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
     }
   }
 
-  const handleFocalChange = async (newVal) => {
+  // Realtime 60fps slider visual update
+  const handleFocalSliderInput = (newVal) => {
     setFocalY(newVal)
+  }
+
+  // Re-encode WebP variants on slider commit (release)
+  const handleFocalCommit = async (commitVal) => {
+    const val = commitVal !== undefined ? commitVal : focalY
     if (selectedFile) {
       try {
-        const positionStr = `50% ${newVal}%`
+        const positionStr = `50% ${val}%`
         const result = await optimizeImageForSlot(selectedFile, slotKey, {
           objectPosition: positionStr,
         })
+        if (optimizedResult?.revoke) optimizedResult.revoke()
         setOptimizedResult(result)
       } catch (err) {
         console.error('Re-slice error:', err)
       }
+    }
+  }
+
+  const isCustom = currentData?.is_custom ?? false
+
+  // Saves focal position for an already-uploaded custom graphic
+  const currentFocalPercent = () => {
+    const pos = currentData?.object_position || slotDef.defaultObjectPosition
+    const match = pos.match(/(\d+)%/)
+    return match ? parseInt(match[1], 10) : 50
+  }
+  const isFocalChanged = isCustom && !optimizedResult && focalY !== currentFocalPercent()
+
+  const handleSaveFocalPositionOnly = async () => {
+    setUploading(true)
+    try {
+      const positionStr = `50% ${focalY}%`
+      await updateSlotObjectPosition(slotKey, positionStr)
+      toast.success(`Updated focal alignment for ${slotDef.title}`)
+      onRefresh()
+    } catch (err) {
+      toast.error('Failed to update focal position: ' + err.message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -173,8 +228,6 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
     activeUrl ||
     slotDef.defaultUrls.desktop
 
-  const isCustom = currentData?.is_custom ?? false
-
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-xs hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col">
       {/* Slot Header */}
@@ -236,7 +289,11 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
         {/* Preview Container */}
         <div className="md:col-span-5 flex flex-col items-center justify-center">
           <div
-            className={`relative rounded-xl overflow-hidden bg-slate-950 border border-gray-200 shadow-inner flex items-center justify-center ${
+            className={`relative rounded-xl overflow-hidden ${
+              slotDef.fit === 'contain'
+                ? 'bg-gradient-to-b from-[#faf8f3] via-white to-[#f7f4ed]'
+                : 'bg-slate-950'
+            } border border-gray-200 shadow-inner flex items-center justify-center ${
               slotDef.aspectRatio === '4/5'
                 ? 'w-full max-w-[200px] aspect-[4/5]'
                 : slotDef.aspectRatio === '3/1'
@@ -365,7 +422,9 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
                 min="0"
                 max="100"
                 value={focalY}
-                onChange={(e) => handleFocalChange(parseInt(e.target.value, 10))}
+                onChange={(e) => handleFocalSliderInput(parseInt(e.target.value, 10))}
+                onPointerUp={(e) => handleFocalCommit(parseInt(e.target.value, 10))}
+                onKeyUp={(e) => handleFocalCommit(parseInt(e.target.value, 10))}
                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
               <div className="flex justify-between text-[10px] text-gray-500 mt-1">
@@ -378,7 +437,7 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-            <div>
+            <div className="flex items-center gap-2">
               {isCustom && !optimizedResult && (
                 <button
                   type="button"
@@ -389,6 +448,19 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
                 >
                   <RotateCcw className="w-3 h-3 text-gray-500" />
                   <span>Restore Default</span>
+                </button>
+              )}
+
+              {isFocalChanged && (
+                <button
+                  type="button"
+                  onClick={handleSaveFocalPositionOnly}
+                  disabled={uploading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  title="Save new focal alignment to the database"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Update Alignment ({focalY}%)</span>
                 </button>
               )}
             </div>
@@ -437,6 +509,8 @@ export default function LandingMediaManager() {
   const [mediaList, setMediaList] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [purging, setPurging] = useState(false)
+
   const fetchMedia = async () => {
     try {
       setLoading(true)
@@ -453,6 +527,29 @@ export default function LandingMediaManager() {
       console.error('Failed to load landing media:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePurgeStorage = async () => {
+    if (!window.confirm('Scan Supabase Storage and remove any orphaned or abandoned WebP images?')) {
+      return
+    }
+    setPurging(true)
+    try {
+      const res = await cleanOrphanedLandingMediaStorage()
+      if (res.success) {
+        if (res.purgedCount > 0) {
+          toast.success(`Storage cleanup: Removed ${res.purgedCount} orphaned file(s).`)
+        } else {
+          toast.success('Storage is completely clean! Zero orphaned files found.')
+        }
+      } else {
+        toast.error('Storage scan error: ' + res.error)
+      }
+    } catch (err) {
+      toast.error('Storage purge error: ' + err.message)
+    } finally {
+      setPurging(false)
     }
   }
 
@@ -502,15 +599,28 @@ export default function LandingMediaManager() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={fetchMedia}
-          disabled={loading}
-          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
-          title="Refresh slot status"
-        >
-          <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handlePurgeStorage}
+            disabled={purging || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 hover:text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+            title="Scan and delete unreferenced images from Supabase Storage"
+          >
+            <Trash2 className={`w-3.5 h-3.5 ${purging ? 'animate-pulse text-amber-400' : ''}`} />
+            <span className="hidden sm:inline">{purging ? 'Scanning...' : 'Clean Storage'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={fetchMedia}
+            disabled={loading}
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
+            title="Refresh slot status"
+          >
+            <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Slot Groups */}

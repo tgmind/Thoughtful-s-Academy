@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { renderHook } from '@testing-library/react'
-import { LANDING_SLOTS } from '../../src/utils/imageOptimizer'
+import {
+  LANDING_SLOTS,
+  cleanSlotStorageFiles,
+  cleanOrphanedLandingMediaStorage,
+  updateSlotObjectPosition,
+  handleImageFallback,
+} from '../../src/utils/imageOptimizer'
 import { useLandingMedia } from '../../src/hooks/useLandingMedia'
 import LandingMediaManager from '../../src/components/admin/LandingMediaManager'
 import GravitonHeroDesktop from '../../src/components/home/GravitonHeroDesktop'
@@ -36,7 +42,14 @@ vi.mock('../../src/lib/supabase', () => {
         }),
         upsert: vi.fn().mockResolvedValue({ data: null, error: null }),
         update: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { slot_id: 'hero_card_left', object_position: '50% 30%' },
+                error: null,
+              }),
+            })),
+          })),
         })),
       })),
       channel: vi.fn(() => mockChannel),
@@ -45,6 +58,19 @@ vi.mock('../../src/lib/supabase', () => {
         from: vi.fn(() => ({
           upload: vi.fn().mockResolvedValue({ data: { path: 'test.webp' }, error: null }),
           getPublicUrl: vi.fn((path) => ({ data: { publicUrl: `https://example.com/${path}` } })),
+          list: vi.fn((folder) => {
+            if (folder === 'hero_card_left') {
+              return Promise.resolve({
+                data: [
+                  { name: 'hero_card_left_desktop_old.webp' },
+                  { name: 'hero_card_left_desktop_new.webp' },
+                ],
+                error: null,
+              })
+            }
+            return Promise.resolve({ data: [], error: null })
+          }),
+          remove: vi.fn().mockResolvedValue({ data: [], error: null }),
         })),
       },
     },
@@ -200,5 +226,46 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
 
     const bannerImg = screen.getByAltText('GRAViTON PHYSICS Pedagogy & Mentorship')
     expect(bannerImg).toBeDefined()
+  })
+
+  it('cleanSlotStorageFiles removes obsolete files while preserving active ones', async () => {
+    await cleanSlotStorageFiles('hero_card_left', ['hero_card_left_desktop_new.webp'])
+
+    // Should have called remove with the un-kept old file
+    expect(supabase.storage.from).toHaveBeenCalledWith('landing-media')
+  })
+
+  it('cleanOrphanedLandingMediaStorage scans and purges unreferenced storage files', async () => {
+    const res = await cleanOrphanedLandingMediaStorage()
+    expect(res.success).toBe(true)
+  })
+
+  it('handleImageFallback updates both img.src and enclosing picture sources safely', () => {
+    // Create a mock DOM picture structure
+    const picture = document.createElement('picture')
+    const source = document.createElement('source')
+    source.srcset = 'https://broken.com/image.webp'
+    const img = document.createElement('img')
+    img.src = 'https://broken.com/image.png'
+    picture.appendChild(source)
+    picture.appendChild(img)
+
+    const event = { currentTarget: img }
+    handleImageFallback(event, '/rupan-left.webp')
+
+    expect(img.src).toContain('/rupan-left.webp')
+    expect(source.srcset).toBe('/rupan-left.webp')
+    expect(img.dataset.failedFallback).toBe('true')
+
+    // Calling it a second time should not re-run (dataset guard)
+    source.srcset = 'changed'
+    handleImageFallback(event, '/rupan-left.webp')
+    expect(source.srcset).toBe('changed')
+  })
+
+  it('updateSlotObjectPosition updates the focal alignment in public.landing_media', async () => {
+    const updated = await updateSlotObjectPosition('hero_card_left', '50% 30%')
+    expect(updated).toBeDefined()
+    expect(updated.object_position).toBe('50% 30%')
   })
 })

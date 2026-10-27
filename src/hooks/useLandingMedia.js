@@ -73,7 +73,7 @@ export function useLandingMedia() {
 
     fetchMedia()
 
-    // Realtime channel updates when Admin publishes new images
+    // Realtime channel updates when Admin publishes new images or resets
     const channelId = `landing_media_${Math.random().toString(36).slice(2, 9)}`
     const channel = supabase
       .channel(channelId)
@@ -81,12 +81,48 @@ export function useLandingMedia() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'landing_media' },
         (payload) => {
+          if (payload.eventType === 'DELETE' && payload.old?.slot_id) {
+            const slotId = payload.old.slot_id
+            const def = LANDING_SLOTS[slotId]
+            if (def) {
+              setMediaMap((prev) => ({
+                ...prev,
+                [slotId]: {
+                  slot_id: slotId,
+                  title: def.title,
+                  desktop_url: def.defaultUrls.desktop,
+                  tablet_url: def.defaultUrls.tablet,
+                  mobile_url: def.defaultUrls.mobile,
+                  object_position: def.defaultObjectPosition,
+                  alt_text: def.defaultAlt,
+                  aspect_ratio: def.aspectRatio,
+                  is_custom: false,
+                },
+              }))
+            }
+            return
+          }
+
           if (payload.new && payload.new.slot_id) {
+            const slotId = payload.new.slot_id
+            const def = LANDING_SLOTS[slotId]
+            const isCustom = payload.new.is_custom
+
             setMediaMap((prev) => ({
               ...prev,
-              [payload.new.slot_id]: {
-                ...prev[payload.new.slot_id],
+              [slotId]: {
+                ...prev[slotId],
                 ...payload.new,
+                desktop_url: isCustom
+                  ? (payload.new.desktop_url || prev[slotId]?.desktop_url)
+                  : (def?.defaultUrls.desktop || payload.new.desktop_url),
+                tablet_url: isCustom
+                  ? (payload.new.tablet_url || payload.new.desktop_url || prev[slotId]?.tablet_url)
+                  : (def?.defaultUrls.tablet || payload.new.tablet_url),
+                mobile_url: isCustom
+                  ? (payload.new.mobile_url || payload.new.desktop_url || prev[slotId]?.mobile_url)
+                  : (def?.defaultUrls.mobile || payload.new.mobile_url),
+                object_position: payload.new.object_position || prev[slotId]?.object_position || def?.defaultObjectPosition,
               },
             }))
           }

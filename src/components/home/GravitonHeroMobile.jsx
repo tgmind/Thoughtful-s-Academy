@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import GravitonBrandText from '../shared/GravitonBrandText'
 import { useLandingMedia } from '../../hooks/useLandingMedia'
+import { handleImageFallback } from '../../utils/imageOptimizer'
 
 const CONTAINER = 'max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8'
 
@@ -191,11 +192,7 @@ export default function GravitonHeroMobile({
                     alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
                     className="w-full h-full object-cover filter contrast-[1.02]"
                     style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
-                    onError={(e) => {
-                      if (!e.currentTarget.src.includes('rupan-left')) {
-                        e.currentTarget.src = '/rupan-left.webp'
-                      }
-                    }}
+                    onError={(e) => handleImageFallback(e, '/rupan-left.webp')}
                   />
                 </picture>
               </div>
@@ -233,11 +230,7 @@ export default function GravitonHeroMobile({
                   alt={centerCardMedia?.alt_text || `${instituteName} Logo`}
                   className="w-full h-full object-contain p-2"
                   style={{ objectPosition: centerCardMedia?.object_position || 'center center' }}
-                  onError={(e) => {
-                    if (!e.currentTarget.src.includes('mainlogo.jpg')) {
-                      e.currentTarget.src = '/mainlogo.jpg'
-                    }
-                  }}
+                  onError={(e) => handleImageFallback(e, '/mainlogo.jpg')}
                 />
                 <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9px] font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -300,11 +293,7 @@ export default function GravitonHeroMobile({
                     alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
                     className="w-full h-full object-cover filter contrast-[1.02]"
                     style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
-                    onError={(e) => {
-                      if (!e.currentTarget.src.includes('rupan-right')) {
-                        e.currentTarget.src = '/rupan-right.webp'
-                      }
-                    }}
+                    onError={(e) => handleImageFallback(e, '/rupan-right.webp')}
                   />
                 </picture>
               </div>

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Video, MessageSquare, BookOpen, CheckCircle2, GraduationCap, Award } from 'lucide-react'
 import { useLandingMedia } from '../../hooks/useLandingMedia'
+import { handleImageFallback } from '../../utils/imageOptimizer'
 
 export const METHODOLOGY_CARDS = [
   {
@@ -133,11 +134,7 @@ export default function BannerMethodologySection() {
             style={{
               objectPosition: desktopBannerMedia?.object_position || 'center top',
             }}
-            onError={(e) => {
-              if (!e.currentTarget.src.includes('banner')) {
-                e.currentTarget.src = '/banner.png'
-              }
-            }}
+            onError={(e) => handleImageFallback(e, '/banner.png')}
           />
         </picture>
 

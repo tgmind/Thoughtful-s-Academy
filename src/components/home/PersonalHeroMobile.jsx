@@ -4,6 +4,7 @@ import {
   BookOpen, LogIn, ArrowRight, Sparkles, Atom, Compass, Award, GraduationCap, Clock
 } from 'lucide-react'
 import { useLandingMedia } from '../../hooks/useLandingMedia'
+import { handleImageFallback } from '../../utils/imageOptimizer'
 
 const CONTAINER = 'max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8'
 
@@ -262,11 +263,7 @@ export default function PersonalHeroMobile() {
                     objectPosition: mentorMedia?.object_position || 'center bottom',
                     filter: 'drop-shadow(0 10px 20px rgba(28, 28, 28, 0.16)) drop-shadow(0 0 15px rgba(245, 158, 11, 0.16))',
                   }}
-                  onError={(e) => {
-                    if (!e.currentTarget.src.includes('rupan')) {
-                      e.currentTarget.src = '/rupan.webp'
-                    }
-                  }}
+                  onError={(e) => handleImageFallback(e, '/rupan.webp')}
                 />
               </picture>
             </div>

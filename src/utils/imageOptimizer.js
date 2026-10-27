@@ -162,6 +162,10 @@ export function loadImageFromFile(fileOrBlob) {
     if (!fileOrBlob) {
       return reject(new Error('No file provided'))
     }
+    // Safety check against excessively large raw files (e.g. >25MB) to protect client memory
+    if (fileOrBlob.size && fileOrBlob.size > 25 * 1024 * 1024) {
+      return reject(new Error('File exceeds the 25MB limit. Please select a smaller image.'))
+    }
     const img = new Image()
     const objectUrl = URL.createObjectURL(fileOrBlob)
     img.onload = () => {
@@ -341,8 +345,149 @@ export async function optimizeImageForSlot(file, slotId, customOptions = {}) {
 }
 
 /**
+ * Cleans up old or unneeded files in the 'landing-media' bucket for a specific slot.
+ * Ensures storage quota is preserved and orphaned WebP variants are promptly purged.
+ */
+export async function cleanSlotStorageFiles(slotId, keepFileNames = []) {
+  const bucketName = 'landing-media'
+  try {
+    // 1. Clean folder-scoped files: `${slotId}/*`
+    const { data: folderFiles, error: listError } = await supabase.storage
+      .from(bucketName)
+      .list(slotId)
+
+    if (!listError && folderFiles && folderFiles.length > 0) {
+      const filesToDelete = folderFiles
+        .filter((f) => f && f.name && !keepFileNames.includes(f.name))
+        .map((f) => `${slotId}/${f.name}`)
+
+      if (filesToDelete.length > 0) {
+        await supabase.storage.from(bucketName).remove(filesToDelete)
+      }
+    }
+
+    // 2. Also clean any legacy root files matching `${slotId}_*`
+    const { data: rootFiles } = await supabase.storage.from(bucketName).list('')
+    if (rootFiles && rootFiles.length > 0) {
+      const rootToDelete = rootFiles
+        .filter((f) => f && f.name && f.name.startsWith(`${slotId}_`) && !keepFileNames.includes(f.name))
+        .map((f) => f.name)
+
+      if (rootToDelete.length > 0) {
+        await supabase.storage.from(bucketName).remove(rootToDelete)
+      }
+    }
+  } catch (err) {
+    console.warn(`Storage cleanup for slot ${slotId} encountered non-critical error:`, err?.message || err)
+  }
+}
+
+/**
+ * Global audit and purge for 'landing-media' bucket.
+ * Compares files in storage against currently active records in public.landing_media,
+ * deleting any orphaned or abandoned WebP variants.
+ */
+export async function cleanOrphanedLandingMediaStorage() {
+  const bucketName = 'landing-media'
+  try {
+    // 1. Fetch active URLs from the database
+    const { data: activeRows, error: dbError } = await supabase
+      .from('landing_media')
+      .select('slot_id, desktop_url, tablet_url, mobile_url, is_custom')
+
+    if (dbError) throw dbError
+
+    const activeUrlSet = new Set()
+    if (activeRows) {
+      activeRows.forEach((row) => {
+        if (row.is_custom) {
+          if (row.desktop_url) activeUrlSet.add(row.desktop_url)
+          if (row.tablet_url) activeUrlSet.add(row.tablet_url)
+          if (row.mobile_url) activeUrlSet.add(row.mobile_url)
+        }
+      })
+    }
+
+    let purgedCount = 0
+    const filesToPurge = []
+
+    // 2. Check each slot folder
+    for (const slotId of Object.keys(LANDING_SLOTS)) {
+      const { data: files } = await supabase.storage.from(bucketName).list(slotId)
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const filePath = `${slotId}/${file.name}`
+          const { data: publicUrlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(filePath)
+
+          // If the file's public URL is not in the active database set, it is orphaned
+          if (!activeUrlSet.has(publicUrlData.publicUrl)) {
+            filesToPurge.push(filePath)
+          }
+        }
+      }
+    }
+
+    if (filesToPurge.length > 0) {
+      const { error: removeError } = await supabase.storage
+        .from(bucketName)
+        .remove(filesToPurge)
+      if (!removeError) {
+        purgedCount = filesToPurge.length
+      }
+    }
+
+    return { success: true, purgedCount, purgedFiles: filesToPurge }
+  } catch (err) {
+    console.error('Orphaned storage audit error:', err)
+    return { success: false, purgedCount: 0, error: err.message }
+  }
+}
+
+/**
+ * Updates only the object_position (focal point) of an existing slot
+ */
+export async function updateSlotObjectPosition(slotId, objectPosition) {
+  const { data, error } = await supabase
+    .from('landing_media')
+    .update({
+      object_position: objectPosition,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('slot_id', slotId)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to update object position: ${error.message}`)
+  }
+  return data
+}
+
+/**
+ * Safe image error fallback handler that updates both the img element and any
+ * enclosing <picture> <source> elements so that fallback is reliable across all browsers.
+ */
+export function handleImageFallback(event, fallbackUrl) {
+  if (!event || !event.currentTarget) return
+  const img = event.currentTarget
+  if (img.dataset.failedFallback) return
+  img.dataset.failedFallback = 'true'
+
+  const picture = img.closest('picture')
+  if (picture) {
+    const sources = picture.querySelectorAll('source')
+    sources.forEach((source) => {
+      source.srcset = fallbackUrl
+    })
+  }
+  img.src = fallbackUrl
+}
+
+/**
  * Uploads generated WebP variants to Supabase Storage ('landing-media' bucket)
- * and updates public.landing_media row.
+ * and updates public.landing_media row. Automatically cleans up obsolete previous files.
  */
 export async function uploadLandingSlotMedia(slotId, optimizedResult, metadata = {}) {
   const slotDef = LANDING_SLOTS[slotId]
@@ -353,11 +498,14 @@ export async function uploadLandingSlotMedia(slotId, optimizedResult, metadata =
   const timestamp = Date.now()
   const bucketName = 'landing-media'
   const urls = {}
+  const uploadedFileNames = []
 
   // Upload each variant blob with unique timestamped file path
   for (const variantName of Object.keys(optimizedResult.variants)) {
     const variant = optimizedResult.variants[variantName]
-    const filePath = `${slotId}/${slotId}_${variantName}_${timestamp}.webp`
+    const fileName = `${slotId}_${variantName}_${timestamp}.webp`
+    const filePath = `${slotId}/${fileName}`
+    uploadedFileNames.push(fileName)
 
     const { error: uploadError } = await supabase.storage
       .from(bucketName)
@@ -402,11 +550,14 @@ export async function uploadLandingSlotMedia(slotId, optimizedResult, metadata =
     throw new Error(`Failed to update media slot record: ${dbError.message}`)
   }
 
+  // Proactive storage hygiene: purge prior obsolete variant files for this slot
+  await cleanSlotStorageFiles(slotId, uploadedFileNames)
+
   return data
 }
 
 /**
- * Restores a slot back to its bundled original default assets
+ * Restores a slot back to its bundled original default assets and cleans up storage
  */
 export async function resetLandingSlotToDefault(slotId) {
   const slotDef = LANDING_SLOTS[slotId]
@@ -437,6 +588,9 @@ export async function resetLandingSlotToDefault(slotId) {
   if (error) {
     throw new Error(`Failed to reset slot: ${error.message}`)
   }
+
+  // Clean up all custom uploaded files from storage for this slot
+  await cleanSlotStorageFiles(slotId, [])
 
   return data
 }
