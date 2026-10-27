@@ -110,11 +110,15 @@ export default function SocialMediaButtons({ className = "" }) {
       try {
         const data = await fetchPublicSocialLinks()
         if (isMounted) {
-          setLinks(data)
+          const list = Array.isArray(data) ? data : []
+          setLinks(list.filter(item => item && item.url && item.url.trim()))
           setLoading(false)
         }
       } catch (err) {
-        if (isMounted) setLoading(false)
+        if (isMounted) {
+          setLinks([])
+          setLoading(false)
+        }
       }
     }
 
@@ -136,7 +140,7 @@ export default function SocialMediaButtons({ className = "" }) {
     )
   }
 
-  if (!links || links.length === 0) {
+  if (!links || !Array.isArray(links) || links.length === 0) {
     return null
   }
 

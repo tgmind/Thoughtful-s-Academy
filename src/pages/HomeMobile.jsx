@@ -872,7 +872,7 @@ export default function Home() {
           Math.max(MIN_REVIEWS_HEIGHT, Math.floor(availableInSidebar))
         )
 
-        setReviewsHeight(prev => (prev !== target && Math.abs((prev || 0) - target) > 1 ? target : prev))
+        setReviewsHeight(prev => (prev !== target && Math.abs((prev || 0) - target) > 6 ? target : prev))
       }
     }
 
@@ -881,18 +881,20 @@ export default function Home() {
     const timeoutId = setTimeout(updateReviewsHeight, 200)
 
     let ro
+    let roRafId
     if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => {
-        updateReviewsHeight()
+        if (roRafId) cancelAnimationFrame(roRafId)
+        roRafId = requestAnimationFrame(updateReviewsHeight)
       })
       if (allLecturesRef.current) ro.observe(allLecturesRef.current)
-      if (feedContainerRef.current) ro.observe(feedContainerRef.current)
       if (whatsOnRef.current) ro.observe(whatsOnRef.current)
     }
 
     window.addEventListener('resize', updateReviewsHeight)
     return () => {
       cancelAnimationFrame(rafId)
+      if (roRafId) cancelAnimationFrame(roRafId)
       clearTimeout(timeoutId)
       if (ro) ro.disconnect()
       window.removeEventListener('resize', updateReviewsHeight)
@@ -1071,7 +1073,7 @@ export default function Home() {
           </div>
 
           {/* RIGHT: DESKTOP STICKY SIDEBAR ("WHAT'S ON" CARD + DYNAMIC STUDENT REVIEWS) */}
-          <aside className="hidden lg:block w-80 xl:w-88 flex-shrink-0 self-stretch">
+          <aside className="hidden lg:block w-[336px] xl:w-[368px] 2xl:w-[384px] flex-shrink-0 self-stretch">
             <div className="sticky top-24 space-y-5">
               <div ref={whatsOnRef}>
                 <WhatsOnCard

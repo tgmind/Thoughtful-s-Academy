@@ -153,7 +153,7 @@ export default function BannerMethodologySection() {
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5 lg:gap-6 overflow-x-auto sm:overflow-visible snap-x snap-mandatory touch-manipulation overscroll-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 py-2 sm:py-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]"
+            className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5 lg:gap-6 overflow-x-auto sm:overflow-visible sm:overflow-x-visible snap-x snap-mandatory touch-manipulation overscroll-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 py-2 sm:py-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]"
           >
             {METHODOLOGY_CARDS.map((card) => {
               const Icon = card.icon

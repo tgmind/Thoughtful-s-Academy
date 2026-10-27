@@ -6,6 +6,7 @@ import {
   getCurrentAppVersion,
   checkRemoteVersion,
   notifyUpdateAvailable,
+  resetUpdateStateForTesting,
 } from '../../src/utils/versionManager'
 import AppUpdateNotification from '../../src/components/shared/AppUpdateNotification'
 
@@ -43,6 +44,7 @@ describe('Netlify Cache Headers & Permanent Version Integrity', () => {
 describe('Version Manager & Instant Update Detection', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    resetUpdateStateForTesting()
     sessionStorage.clear()
   })
 
@@ -128,5 +130,37 @@ describe('Version Manager & Instant Update Detection', () => {
       expect(screen.queryByText('New Version Available')).not.toBeInTheDocument()
     })
     expect(sessionStorage.getItem('pwa_update_snoozed')).toBe('true')
+  })
+
+  it('un-snoozes and shows prompt instantly when a newer remote version is deployed', async () => {
+    // Snooze version 100
+    sessionStorage.setItem('pwa_update_snoozed', 'true')
+    sessionStorage.setItem('pwa_snoozed_version', '100')
+
+    render(<AppUpdateNotification />)
+
+    // Initially hidden because 100 is snoozed
+    act(() => {
+      notifyUpdateAvailable({ remoteVersion: '100' })
+    })
+    expect(screen.queryByText('New Version Available')).not.toBeInTheDocument()
+
+    // Brand new build 200 lands on Netlify
+    act(() => {
+      notifyUpdateAvailable({ remoteVersion: '200' })
+    })
+
+    // Immediately shows because 200 is brand new
+    expect(await screen.findByText('New Version Available')).toBeInTheDocument()
+  })
+
+  it('displays prompt immediately on mount if update was detected during app bootstrap', async () => {
+    // Bootstrap detected update before component mounted
+    notifyUpdateAvailable({ remoteVersion: '9999999' })
+
+    render(<AppUpdateNotification />)
+
+    // Immediately visible on mount
+    expect(await screen.findByText('New Version Available')).toBeInTheDocument()
   })
 })

@@ -1,4 +1,5 @@
 import React from 'react'
+import { applyAppUpdate } from '../../utils/versionManager'
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,36 +12,65 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Unhandled React Error:', error, errorInfo)
+    console.error('Unhandled Application Error caught by ErrorBoundary:', error, errorInfo)
     this.setState({ errorInfo })
+
+    // If dynamic chunk loading failed due to a new Netlify deployment, attempt instant self-healing
+    const errStr = String(error?.message || error || '')
+    const isChunkError = /loading chunk|dynamically imported module|failed to fetch dynamically imported|unexpected token ['"]?</i.test(errStr)
+    if (isChunkError && typeof sessionStorage !== 'undefined') {
+      const key = 'eb_chunk_reload_stamp'
+      const last = sessionStorage.getItem(key)
+      const now = Date.now()
+      if (!last || now - parseInt(last, 10) > 8000) {
+        sessionStorage.setItem(key, now.toString())
+        applyAppUpdate()
+      }
+    }
   }
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback(this.state.error)
+      }
+
+      const errStr = String(this.state.error?.message || this.state.error || '')
+      const isChunkError = /loading chunk|dynamically imported module|failed to fetch dynamically imported|unexpected token ['"]?</i.test(errStr)
+
       return (
-        <div className="min-h-screen bg-slate-900 text-white p-6 flex flex-col items-center justify-center">
-          <div className="max-w-xl w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-red-400 font-bold text-lg">
-              <span>⚠️</span>
-              <h2>Something went wrong</h2>
+        <div className="min-h-screen bg-[#09090b] text-white p-6 flex flex-col items-center justify-center font-sans">
+          <div className="max-w-xl w-full bg-[#141417] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <span className="text-2xl">✨</span>
             </div>
-            <p className="text-sm text-slate-300">
-              An unhandled application error occurred:
-            </p>
-            <div className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-red-300 overflow-x-auto border border-slate-800 max-h-48">
-              {this.state.error?.toString()}
-              {this.state.errorInfo?.componentStack && (
-                <div className="mt-2 text-slate-500 text-[11px]">
-                  {this.state.errorInfo.componentStack}
-                </div>
-              )}
+
+            <div className="space-y-2">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                {isChunkError ? 'New Release Deployed' : 'Something went wrong'}
+              </h2>
+              <p className="text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                {isChunkError
+                  ? 'A fresh live update was just published. Refresh now to load the latest modules and interface.'
+                  : 'An unexpected application condition occurred. You can safely reload the page to continue.'}
+              </p>
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              Reload Page
-            </button>
+
+            {!isChunkError && (
+              <div className="bg-black/40 p-4 rounded-xl text-left text-xs font-mono text-red-300 overflow-x-auto border border-white/5 max-h-36">
+                {this.state.error?.toString()}
+              </div>
+            )}
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => applyAppUpdate()}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer active:scale-95"
+              >
+                <span>Refresh Application</span>
+              </button>
+            </div>
           </div>
         </div>
       )
@@ -49,3 +79,5 @@ export class ErrorBoundary extends React.Component {
     return this.props.children
   }
 }
+
+export default ErrorBoundary
