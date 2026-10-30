@@ -19,12 +19,22 @@ DECLARE
   v_buckets jsonb;
 BEGIN
   -- Aggregate overall storage consumption
-  SELECT coalesce(sum((metadata->>'size')::bigint), 0), count(*)
+  SELECT coalesce(sum(
+    CASE 
+      WHEN metadata->>'size' ~ '^[0-9]+$' THEN (metadata->>'size')::bigint 
+      ELSE 0 
+    END
+  ), 0), count(*)
     INTO v_total_bytes, v_total_files
     FROM storage.objects;
 
   -- Aggregate dedicated landing-media bucket
-  SELECT coalesce(sum((metadata->>'size')::bigint), 0), count(*)
+  SELECT coalesce(sum(
+    CASE 
+      WHEN metadata->>'size' ~ '^[0-9]+$' THEN (metadata->>'size')::bigint 
+      ELSE 0 
+    END
+  ), 0), count(*)
     INTO v_landing_bytes, v_landing_files
     FROM storage.objects
    WHERE bucket_id = 'landing-media';
@@ -45,7 +55,12 @@ BEGIN
   INTO v_buckets
   FROM storage.buckets b
   LEFT JOIN (
-    SELECT bucket_id, count(*) as file_count, sum((metadata->>'size')::bigint) as total_bytes
+    SELECT bucket_id, count(*) as file_count, sum(
+      CASE 
+        WHEN metadata->>'size' ~ '^[0-9]+$' THEN (metadata->>'size')::bigint 
+        ELSE 0 
+      END
+    ) as total_bytes
     FROM storage.objects
     GROUP BY bucket_id
   ) s ON s.bucket_id = b.id;

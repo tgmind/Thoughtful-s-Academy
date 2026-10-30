@@ -1,7 +1,6 @@
-import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
-  BookOpen, LogIn, ArrowRight, Sparkles, Atom, Compass, Award, GraduationCap, Clock
+  BookOpen, LogIn, ArrowRight, Sparkles, Atom, Compass, Award, GraduationCap
 } from 'lucide-react'
 import { useLandingMedia } from '../../hooks/useLandingMedia'
 import { handleImageFallback } from '../../utils/imageOptimizer'
@@ -256,7 +255,7 @@ export default function PersonalHeroMobile() {
                   srcSet={mentorMedia?.mobile_url || mentorMedia?.desktop_url || '/rupan.webp'}
                 />
                 <img
-                  src={mentorMedia?.mobile_url || mentorMedia?.desktop_url || '/rupan.png'}
+                  src={mentorMedia?.mobile_url || mentorMedia?.desktop_url || '/rupan.webp'}
                   alt={mentorMedia?.alt_text || 'GRAViTON PHYSICS Lead Mentor'}
                   className="max-h-[270px] xs:max-h-[290px] w-auto object-contain select-none"
                   style={{

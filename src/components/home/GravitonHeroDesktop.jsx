@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
-  BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award, Zap
+  BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award
 } from 'lucide-react'
 import GravitonBrandText from '../shared/GravitonBrandText'
 import { useLandingMedia } from '../../hooks/useLandingMedia'
@@ -223,10 +223,9 @@ export default function GravitonHeroDesktop({
                       srcSet={leftCardMedia?.desktop_url || '/rupan-left.webp'}
                     />
                     <img
-                      src={leftCardMedia?.desktop_url || '/rupan-left.png'}
+                      src={leftCardMedia?.desktop_url || '/rupan-left.webp'}
                       alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
                       loading="eager"
-                      fetchpriority="high"
                       className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/einstein:scale-105"
                       style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
                       onError={(e) => handleImageFallback(e, '/rupan-left.webp')}
@@ -277,10 +276,9 @@ export default function GravitonHeroDesktop({
                       srcSet={rightCardMedia?.desktop_url || '/rupan-right.webp'}
                     />
                     <img
-                      src={rightCardMedia?.desktop_url || '/rupan-right.png'}
+                      src={rightCardMedia?.desktop_url || '/rupan-right.webp'}
                       alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
                       loading="eager"
-                      fetchpriority="high"
                       className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/feynman:scale-105"
                       style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
                       onError={(e) => handleImageFallback(e, '/rupan-right.webp')}

@@ -27,6 +27,25 @@ export function formatBytes(bytes, decimals = 1) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
+/**
+ * Resolves a relative or absolute asset URL safely across environments
+ */
+export function resolveAssetUrl(srcUrl) {
+  if (!srcUrl) return ''
+  if (
+    srcUrl.startsWith('http://') ||
+    srcUrl.startsWith('https://') ||
+    srcUrl.startsWith('data:') ||
+    srcUrl.startsWith('blob:')
+  ) {
+    return srcUrl
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${srcUrl.startsWith('/') ? '' : '/'}${srcUrl}`
+  }
+  return `http://localhost${srcUrl.startsWith('/') ? '' : '/'}${srcUrl}`
+}
+
 export const LANDING_SLOTS = {
   hero_card_left: {
     slot_id: 'hero_card_left',
@@ -466,6 +485,7 @@ export async function cleanOrphanedLandingMediaStorage() {
       const { data: files } = await supabase.storage.from(bucketName).list(slotId)
       if (files && files.length > 0) {
         for (const file of files) {
+          if (!file || !file.name || file.name === '.emptyFolderPlaceholder') continue
           const filePath = `${slotId}/${file.name}`
           const { data: publicUrlData } = supabase.storage
             .from(bucketName)
@@ -483,7 +503,8 @@ export async function cleanOrphanedLandingMediaStorage() {
     const { data: rootFiles } = await supabase.storage.from(bucketName).list('')
     if (rootFiles && rootFiles.length > 0) {
       for (const file of rootFiles) {
-        if (file && file.name && Object.keys(LANDING_SLOTS).some((s) => file.name.startsWith(`${s}_`))) {
+        if (!file || !file.name || file.name === '.emptyFolderPlaceholder') continue
+        if (Object.keys(LANDING_SLOTS).some((s) => file.name.startsWith(`${s}_`))) {
           const { data: publicUrlData } = supabase.storage
             .from(bucketName)
             .getPublicUrl(file.name)
@@ -586,7 +607,7 @@ export async function fetchStorageStats() {
       buckets: [{ bucket_id: 'landing-media', name: 'landing-media', bytes: landingBytes, file_count: landingFiles, public: true }],
       as_of: new Date().toISOString(),
     }
-  } catch (err) {
+  } catch {
     return {
       total_bytes: 0,
       total_files: 0,
@@ -605,22 +626,51 @@ export async function fetchStorageStats() {
 /**
  * Syncs the current bundled landing assets into Supabase Storage
  * so they become fully managed, tweakable custom WebP assets in the new architecture.
+ * Safely skips slots that have already been customized unless skipCustom is false.
  */
-export async function syncCurrentAssetsToStorage(onProgress) {
+export async function syncCurrentAssetsToStorage(onProgress, options = {}) {
+  const { skipCustom = true } = options
   const results = []
   const slotKeys = Object.keys(LANDING_SLOTS)
+
+  let customSlotIds = new Set()
+  if (skipCustom) {
+    try {
+      const { data } = await supabase
+        .from('landing_media')
+        .select('slot_id, is_custom')
+      if (data) {
+        data.forEach((row) => {
+          if (row.is_custom) customSlotIds.add(row.slot_id)
+        })
+      }
+    } catch (e) {
+      console.warn('Could not check custom slots before sync:', e)
+    }
+  }
 
   for (let i = 0; i < slotKeys.length; i++) {
     const slotId = slotKeys[i]
     const slotDef = LANDING_SLOTS[slotId]
+
+    if (skipCustom && customSlotIds.has(slotId)) {
+      results.push({
+        slotId,
+        success: true,
+        skipped: true,
+        message: 'Slot already customized with uploaded graphic',
+      })
+      continue
+    }
+
     if (onProgress) onProgress({ current: i + 1, total: slotKeys.length, slotId, title: slotDef.title })
 
     try {
-      const srcUrl = slotDef.defaultUrls.desktop
+      const srcUrl = resolveAssetUrl(slotDef.defaultUrls.desktop)
       const res = await fetch(srcUrl)
       if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${srcUrl}`)
       const blob = await res.blob()
-      const ext = srcUrl.split('.').pop() || 'webp'
+      const ext = srcUrl.split('.').pop()?.split('?')[0] || 'webp'
       const file = new File([blob], `${slotId}.${ext}`, { type: blob.type || 'image/webp' })
 
       const optimized = await optimizeImageForSlot(file, slotId, {

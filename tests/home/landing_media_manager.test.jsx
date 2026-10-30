@@ -11,6 +11,7 @@ import {
   fetchStorageStats,
   formatBytes,
   handleImageFallback,
+  syncCurrentAssetsToStorage,
 } from '../../src/utils/imageOptimizer'
 import { useLandingMedia } from '../../src/hooks/useLandingMedia'
 import LandingMediaManager from '../../src/components/admin/LandingMediaManager'
@@ -139,7 +140,7 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
     expect(LANDING_SLOTS.hero_card_right.aspectRatio).toBe('4/5')
   })
 
-  it('useLandingMedia initializes synchronously with local bundled defaults', () => {
+  it('useLandingMedia initializes synchronously with local bundled defaults', async () => {
     const { result } = renderHook(() => useLandingMedia())
 
     const left = result.current.getSlot('hero_card_left')
@@ -157,6 +158,10 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
     const bannerDesktop = result.current.getSlot('banner_desktop')
     expect(bannerDesktop).toBeDefined()
     expect(bannerDesktop.desktop_url).toBe('/banner.webp')
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
   })
 
   it('useLandingMedia updates asynchronously when custom media is retrieved', async () => {
@@ -334,5 +339,15 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
     expect(formatBytes(1024)).toBe('1 KB')
     expect(formatBytes(1048576)).toBe('1 MB')
     expect(formatBytes(1073741824)).toBe('1 GB')
+  })
+
+  it('syncCurrentAssetsToStorage preserves custom slots by default when skipCustom is true', async () => {
+    const results = await syncCurrentAssetsToStorage(null, { skipCustom: true })
+    expect(results).toBeDefined()
+    expect(results.length).toBe(Object.keys(LANDING_SLOTS).length)
+    // Custom slot hero_card_left mocked in supabase returns is_custom: true
+    const customResult = results.find((r) => r.slotId === 'hero_card_left')
+    expect(customResult).toBeDefined()
+    expect(customResult.skipped).toBe(true)
   })
 })

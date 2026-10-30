@@ -6,7 +6,6 @@ import {
   Sparkles,
   RotateCcw,
   CheckCircle2,
-  AlertCircle,
   Eye,
   Sliders,
   Maximize2,
@@ -18,11 +17,7 @@ import {
   Info,
   HelpCircle,
   Compass,
-  FileCheck2,
   HardDrive,
-  RefreshCw,
-  Database,
-  Layers,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -31,12 +26,12 @@ import {
   optimizeImageForSlot,
   uploadLandingSlotMedia,
   resetLandingSlotToDefault,
-  updateSlotObjectPosition,
   updateSlotMetadata,
   cleanOrphanedLandingMediaStorage,
   fetchStorageStats,
   syncCurrentAssetsToStorage,
   formatBytes,
+  resolveAssetUrl,
 } from '../../utils/imageOptimizer'
 
 function isValidImageFile(file) {
@@ -189,7 +184,7 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
   const handleTweakCurrentAsset = async () => {
     setOptimizing(true)
     try {
-      const targetUrl = activeUrl || slotDef.defaultUrls.desktop
+      const targetUrl = resolveAssetUrl(activeUrl || slotDef.defaultUrls.desktop)
       const response = await fetch(targetUrl)
       if (!response.ok) throw new Error(`HTTP ${response.status} loading image`)
       const blob = await response.blob()
@@ -711,27 +706,45 @@ export default function LandingMediaManager() {
   }
 
   const handleSyncAllCurrentAssets = async () => {
-    if (
-      !window.confirm(
-        'Sync and upload all current bundled assets to Supabase Storage? This optimizes them into multi-resolution WebP files and registers them as live custom assets in the new architecture.'
-      )
-    ) {
+    const defaultSlots = mediaList.filter((m) => !m.is_custom)
+    if (defaultSlots.length === 0 && mediaList.length > 0) {
+      toast('All 6 media slots are already customized in Supabase Storage!', { icon: 'ℹ️' })
       return
     }
+
+    const countMsg = defaultSlots.length > 0
+      ? `Sync ${defaultSlots.length} bundled default asset(s) to Supabase Storage? (Existing custom graphics will be preserved).`
+      : 'Sync bundled default assets to Supabase Storage?'
+
+    if (!window.confirm(countMsg)) {
+      return
+    }
+
     setSyncingAll(true)
     const toastId = toast.loading('Syncing current assets to Supabase Storage...')
     try {
-      const results = await syncCurrentAssetsToStorage((prog) => {
-        toast.loading(
-          `Optimizing & uploading (${prog.current}/${prog.total}): ${prog.title}...`,
+      const results = await syncCurrentAssetsToStorage(
+        (prog) => {
+          toast.loading(
+            `Optimizing & uploading (${prog.current}/${prog.total}): ${prog.title}...`,
+            { id: toastId }
+          )
+        },
+        { skipCustom: true }
+      )
+      const syncedCount = results.filter((r) => r.success && !r.skipped).length
+      const skippedCount = results.filter((r) => r.skipped).length
+      if (skippedCount > 0) {
+        toast.success(
+          `Synced ${syncedCount} asset(s) to Supabase Storage (${skippedCount} custom graphics preserved)!`,
           { id: toastId }
         )
-      })
-      const successCount = results.filter((r) => r.success).length
-      toast.success(
-        `Synced ${successCount} assets to Supabase Storage!`,
-        { id: toastId }
-      )
+      } else {
+        toast.success(
+          `Synced ${syncedCount} assets to Supabase Storage!`,
+          { id: toastId }
+        )
+      }
       await fetchMedia()
       await loadStorageStats()
     } catch (err) {

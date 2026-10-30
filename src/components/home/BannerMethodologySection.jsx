@@ -3,7 +3,7 @@ import { Video, MessageSquare, BookOpen, CheckCircle2, GraduationCap, Award } fr
 import { useLandingMedia } from '../../hooks/useLandingMedia'
 import { handleImageFallback } from '../../utils/imageOptimizer'
 
-export const METHODOLOGY_CARDS = [
+const METHODOLOGY_CARDS = [
   {
     icon: Video,
     iconBg: 'bg-blue-600',
@@ -122,8 +122,8 @@ export default function BannerMethodologySection() {
           <img
             src={
               desktopBannerMedia?.is_custom
-                ? (desktopBannerMedia.desktop_url || '/banner.png')
-                : '/banner.png'
+                ? (desktopBannerMedia.desktop_url || '/banner.webp')
+                : '/banner.webp'
             }
             alt={desktopBannerMedia?.alt_text || 'GRAViTON PHYSICS Pedagogy & Mentorship'}
             width="2172"
@@ -135,7 +135,7 @@ export default function BannerMethodologySection() {
               '--banner-pos-desktop': desktopBannerMedia?.object_position || '50% 20%',
               '--banner-pos-mobile': mobileBannerMedia?.object_position || 'center center',
             }}
-            onError={(e) => handleImageFallback(e, '/banner.png')}
+            onError={(e) => handleImageFallback(e, '/banner.webp')}
           />
         </picture>
 

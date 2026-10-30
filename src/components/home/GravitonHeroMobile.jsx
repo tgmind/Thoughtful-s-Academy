@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
-  BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award, Zap
+  BookOpen, LogIn, ArrowRight, Sparkles, Video, MessageSquare, Award
 } from 'lucide-react'
 import GravitonBrandText from '../shared/GravitonBrandText'
 import { useLandingMedia } from '../../hooks/useLandingMedia'
@@ -188,7 +188,7 @@ export default function GravitonHeroMobile({
                     srcSet={leftCardMedia?.mobile_url || leftCardMedia?.desktop_url || '/rupan-left.webp'}
                   />
                   <img
-                    src={leftCardMedia?.mobile_url || leftCardMedia?.desktop_url || '/rupan-left.png'}
+                    src={leftCardMedia?.mobile_url || leftCardMedia?.desktop_url || '/rupan-left.webp'}
                     alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
                     className="w-full h-full object-cover filter contrast-[1.02]"
                     style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
@@ -289,7 +289,7 @@ export default function GravitonHeroMobile({
                     srcSet={rightCardMedia?.mobile_url || rightCardMedia?.desktop_url || '/rupan-right.webp'}
                   />
                   <img
-                    src={rightCardMedia?.mobile_url || rightCardMedia?.desktop_url || '/rupan-right.png'}
+                    src={rightCardMedia?.mobile_url || rightCardMedia?.desktop_url || '/rupan-right.webp'}
                     alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
                     className="w-full h-full object-cover filter contrast-[1.02]"
                     style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
