@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import HeroCarouselDesktop from '../../src/components/home/HeroCarouselDesktop'
 import HeroCarouselMobile from '../../src/components/home/HeroCarouselMobile'
+import GravitonHeroMobile from '../../src/components/home/GravitonHeroMobile'
 
 const mockHeroDeckItems = [
   { id: 'einstein', index: 0, isInitial: false },
@@ -381,5 +382,36 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
 
     const mobileMentorTab = screen.getAllByRole('tab', { name: /Slide 2: Meet Your Mentor/i })[0]
     expect(mobileMentorTab.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('Mobile: hero cards stay static without levitating animation loop and trigger tap-to-show', () => {
+    const handleSelectCard = vi.fn()
+    render(
+      <MemoryRouter>
+        <GravitonHeroMobile
+          instituteName="GRAViTON PHYSICS"
+          heroActiveCard="graviton"
+          mobileHeroCard="graviton"
+          heroDeckItems={mockHeroDeckItems}
+          handleSelectHeroCard={handleSelectCard}
+          handleDeckActivity={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    // Tap on the flanking left card (Gold Medalist)
+    const leftCardImg = screen.getByAltText(/Rupan Sir — Gold Medalist/i)
+    fireEvent.click(leftCardImg.closest('div[class*="cursor-pointer"]'))
+    expect(handleSelectCard).toHaveBeenCalledWith('einstein')
+
+    // Tap on the flanking right card (NITian & Physics Mentor)
+    const rightCardImg = screen.getByAltText(/Rupan Sir — NITian & Physics Mentor/i)
+    fireEvent.click(rightCardImg.closest('div[class*="cursor-pointer"]'))
+    expect(handleSelectCard).toHaveBeenCalledWith('feynman')
+
+    // Tap on center card
+    const centerCardImg = screen.getByAltText(/GRAViTON PHYSICS Emblem|Logo/i)
+    fireEvent.click(centerCardImg.closest('div[class*="cursor-pointer"]'))
+    expect(handleSelectCard).toHaveBeenCalledWith('graviton')
   })
 })

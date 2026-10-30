@@ -161,7 +161,7 @@ export default function GravitonHeroMobile({
                 rotate: mobileHeroCard === 'einstein' ? 0 : -6,
                 scale: mobileHeroCard === 'einstein' ? 1.04 : 0.9,
                 x: mobileHeroCard === 'einstein' ? 24 : 0,
-                y: isClone ? 0 : [0, -5, 0],
+                y: 0,
                 zIndex: mobileHeroCard === 'einstein' ? 30 : 10,
                 opacity: mobileHeroCard === 'feynman' ? 0.6 : 1,
               }}
@@ -169,13 +169,12 @@ export default function GravitonHeroMobile({
                 rotate: { type: 'spring', stiffness: 320, damping: 25 },
                 scale: { type: 'spring', stiffness: 320, damping: 25 },
                 x: { type: 'spring', stiffness: 320, damping: 25 },
-                opacity: { duration: 0.25 },
-                zIndex: { duration: 0.1 },
-                y: isClone ? { duration: 0 } : { repeat: Infinity, duration: 4.8, ease: 'easeInOut' }
+                opacity: { duration: 0.2 },
+                zIndex: { duration: 0.05 },
               }}
               onClick={() => handleSelectHeroCard('einstein')}
-              style={{ transformOrigin: 'bottom center' }}
-              className={`absolute left-0 xs:left-1 top-3.5 w-[185px] xs:w-[200px] aspect-[4/5] rounded-2xl border ${
+              style={{ transformOrigin: 'bottom center', WebkitTapHighlightColor: 'transparent' }}
+              className={`absolute left-0 xs:left-1 top-3.5 w-[185px] xs:w-[200px] aspect-[4/5] rounded-2xl border transform-gpu touch-manipulation ${
                 mobileHeroCard === 'einstein'
                   ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/30 p-2'
                   : 'border-[#dfdbcf] shadow-md p-1.5'
@@ -204,20 +203,19 @@ export default function GravitonHeroMobile({
                 rotate: mobileHeroCard === 'graviton' ? 0 : (mobileHeroCard === 'einstein' ? 5 : -5),
                 scale: mobileHeroCard === 'graviton' ? 1.02 : 0.92,
                 x: 0,
-                y: isClone ? 0 : [0, -7, 0],
+                y: 0,
                 zIndex: mobileHeroCard === 'graviton' ? 25 : 15,
                 opacity: mobileHeroCard === 'graviton' ? 1 : 0.75,
               }}
               transition={{
                 rotate: { type: 'spring', stiffness: 320, damping: 25 },
                 scale: { type: 'spring', stiffness: 320, damping: 25 },
-                opacity: { duration: 0.25 },
-                zIndex: { duration: 0.1 },
-                y: isClone ? { duration: 0 } : { repeat: Infinity, duration: 5.2, ease: 'easeInOut', delay: 0.3 }
+                opacity: { duration: 0.2 },
+                zIndex: { duration: 0.05 },
               }}
               onClick={() => handleSelectHeroCard('graviton')}
-              style={{ transformOrigin: 'center center' }}
-              className={`relative z-20 w-[195px] xs:w-[215px] aspect-[4/5] rounded-2xl border ${
+              style={{ transformOrigin: 'center center', WebkitTapHighlightColor: 'transparent' }}
+              className={`relative z-20 w-[195px] xs:w-[215px] aspect-[4/5] rounded-2xl border transform-gpu touch-manipulation ${
                 mobileHeroCard === 'graviton'
                   ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(28,28,28,0.22)] ring-1 ring-amber-400/30 p-2'
                   : 'border-[#dfdbcf] shadow-md p-1.5'
@@ -262,7 +260,7 @@ export default function GravitonHeroMobile({
                 rotate: mobileHeroCard === 'feynman' ? 0 : 6,
                 scale: mobileHeroCard === 'feynman' ? 1.04 : 0.9,
                 x: mobileHeroCard === 'feynman' ? -24 : 0,
-                y: isClone ? 0 : [0, -5, 0],
+                y: 0,
                 zIndex: mobileHeroCard === 'feynman' ? 30 : 10,
                 opacity: mobileHeroCard === 'einstein' ? 0.6 : 1,
               }}
@@ -270,13 +268,12 @@ export default function GravitonHeroMobile({
                 rotate: { type: 'spring', stiffness: 320, damping: 25 },
                 scale: { type: 'spring', stiffness: 320, damping: 25 },
                 x: { type: 'spring', stiffness: 320, damping: 25 },
-                opacity: { duration: 0.25 },
-                zIndex: { duration: 0.1 },
-                y: isClone ? { duration: 0 } : { repeat: Infinity, duration: 4.6, ease: 'easeInOut', delay: 0.6 }
+                opacity: { duration: 0.2 },
+                zIndex: { duration: 0.05 },
               }}
               onClick={() => handleSelectHeroCard('feynman')}
-              style={{ transformOrigin: 'bottom center' }}
-              className={`absolute right-0 xs:right-1 top-3.5 w-[185px] xs:w-[200px] aspect-[4/5] rounded-2xl border ${
+              style={{ transformOrigin: 'bottom center', WebkitTapHighlightColor: 'transparent' }}
+              className={`absolute right-0 xs:right-1 top-3.5 w-[185px] xs:w-[200px] aspect-[4/5] rounded-2xl border transform-gpu touch-manipulation ${
                 mobileHeroCard === 'feynman'
                   ? 'border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400/30 p-2'
                   : 'border-[#dfdbcf] shadow-md p-1.5'
