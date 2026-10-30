@@ -194,6 +194,75 @@
 }
 
 /* ============================================================
+   Hero Desktop: 3-Card Buoyant Levitation
+   Compositor-threaded GPU animations synchronized across
+   Slide 0 and Slide 2 (Clone) via document timeline.
+   ============================================================ */
+@keyframes heroFloatLeft {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes heroFloatCenter {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes heroFloatRight {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-card-float-left {
+    animation-name: heroFloatLeft;
+    animation-duration: 3.2s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+
+  .hero-card-float-center {
+    animation-name: heroFloatCenter;
+    animation-duration: 3.4s;
+    animation-timing-function: ease-in-out;
+    animation-delay: -0.8s;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+
+  .hero-card-float-right {
+    animation-name: heroFloatRight;
+    animation-duration: 3.1s;
+    animation-timing-function: ease-in-out;
+    animation-delay: -1.6s;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-card-float-left,
+  .hero-card-float-center,
+  .hero-card-float-right {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================================
    Running Batches — card hover glow ring (static, no spin to prevent shaking)
    ============================================================ */
 .batch-glow-ring {

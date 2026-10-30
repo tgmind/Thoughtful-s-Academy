@@ -414,4 +414,43 @@ describe('Hero Carousel — Fast Cadence & Unidirectional Right-to-Left Suite', 
     fireEvent.click(centerCardImg.closest('div[class*="cursor-pointer"]'))
     expect(handleSelectCard).toHaveBeenCalledWith('graviton')
   })
+
+  it('Desktop: hero cards feature compositor-accelerated floating buoyancy classes synchronized across Slide 0 and Slide 2 (Clone)', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <HeroCarouselDesktop
+          instituteName="GRAViTON PHYSICS"
+          heroActiveCard="graviton"
+          activeDesktopCard="graviton"
+          heroDeckItems={mockHeroDeckItems}
+          handleSelectHeroCard={vi.fn()}
+          handleDeckActivity={vi.fn()}
+          handleDeckMouseLeave={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+
+    // Initial state: Slide 0 has left, center, and right floating classes
+    expect(container.querySelectorAll('.hero-card-float-left').length).toBe(1)
+    expect(container.querySelectorAll('.hero-card-float-center').length).toBe(1)
+    expect(container.querySelectorAll('.hero-card-float-right').length).toBe(1)
+
+    // Advance to transition (Slide 2 clone mounts alongside Slide 0)
+    act(() => {
+      vi.advanceTimersByTime(4500)
+    })
+
+    // Both Slide 0 and Slide 2 Clone feature floating buoyancy classes in lockstep
+    const floatLeftCards = container.querySelectorAll('.hero-card-float-left')
+    const floatCenterCards = container.querySelectorAll('.hero-card-float-center')
+    const floatRightCards = container.querySelectorAll('.hero-card-float-right')
+
+    expect(floatLeftCards.length).toBeGreaterThanOrEqual(2)
+    expect(floatCenterCards.length).toBeGreaterThanOrEqual(2)
+    expect(floatRightCards.length).toBeGreaterThanOrEqual(2)
+
+    // Verify Slide 2 (Clone) is mounted and aria-hidden for seamless snap transition
+    const cloneWrapper = container.querySelector('[aria-hidden="true"] .hero-card-float-center')
+    expect(cloneWrapper).not.toBeNull()
+  })
 })

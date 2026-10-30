@@ -182,161 +182,169 @@ export default function GravitonHeroDesktop({
             >
               
               {/* CARD 1: RUPAN SIR CONVOCATION (LEFT) */}
-              <motion.div
-                initial={{ opacity: 0, x: -35, y: 30, rotate: -10 }}
-                animate={{ 
-                  opacity: 1, 
-                  x: 0, 
-                  y: isClone ? 0 : [0, -6, 0], 
-                  rotate: activeDesktopCard === 'einstein' ? 0 : -6,
-                  scale: activeDesktopCard === 'einstein' ? 1.04 : 1,
-                  zIndex: activeDesktopCard === 'einstein' ? 30 : 10,
-                }}
-                transition={{ 
-                  opacity: { duration: 0.6, ease: 'easeOut' },
-                  x: { duration: 0.6, ease: 'easeOut' },
-                  rotate: { type: 'spring', stiffness: 350, damping: 25 },
-                  scale: { type: 'spring', stiffness: 350, damping: 25 },
-                  y: isClone ? { duration: 0 } : { repeat: Infinity, duration: 4.8, ease: 'easeInOut' }
-                }}
-                whileHover={{ 
-                  scale: 1.06, 
-                  rotate: 0, 
-                  zIndex: 35, 
-                  y: -10,
-                  transition: { type: 'spring', stiffness: 350, damping: 22 }
-                }}
-                onMouseEnter={onCardHoverStart}
-                onMouseLeave={onCardHoverEnd}
-                onClick={() => handleSelectHeroCard('einstein')}
-                className={`absolute left-0 lg:left-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
-                  activeDesktopCard === 'einstein' 
-                    ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.25)] ring-2 ring-amber-400/30' 
-                    : 'border-[#dfdbcf] shadow-[0_16px_40px_rgba(28,28,28,0.12),0_2px_6px_rgba(0,0,0,0.04)]'
-                } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+              <div
+                className={`hero-card-float-left absolute left-0 lg:left-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] ${
+                  activeDesktopCard === 'einstein' ? 'z-30' : 'z-10'
+                } hover:z-35 transition-[z-index] duration-200 pointer-events-auto`}
                 style={{ transformOrigin: 'bottom center' }}
               >
-                <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/einstein">
-                  <picture className="contents">
-                    <source
-                      type="image/webp"
-                      srcSet={leftCardMedia?.desktop_url || '/rupan-left.webp'}
-                    />
-                    <img
-                      src={leftCardMedia?.desktop_url || '/rupan-left.webp'}
-                      alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
-                      loading="eager"
-                      className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/einstein:scale-105"
-                      style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
-                      onError={(e) => handleImageFallback(e, '/rupan-left.webp')}
-                    />
-                  </picture>
-                </div>
-              </motion.div>
+                <motion.div
+                  initial={isClone ? false : { opacity: 0, x: -35, y: 20, rotate: -10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    x: 0, 
+                    rotate: activeDesktopCard === 'einstein' ? 0 : -6,
+                    scale: activeDesktopCard === 'einstein' ? 1.04 : 1,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.5, ease: 'easeOut' },
+                    x: { duration: 0.5, ease: 'easeOut' },
+                    rotate: { type: 'spring', stiffness: 350, damping: 25 },
+                    scale: { type: 'spring', stiffness: 350, damping: 25 },
+                  }}
+                  whileHover={{ 
+                    scale: 1.06, 
+                    rotate: 0, 
+                    y: -6,
+                    transition: { type: 'spring', stiffness: 350, damping: 22 }
+                  }}
+                  onMouseEnter={onCardHoverStart}
+                  onMouseLeave={onCardHoverEnd}
+                  onClick={() => handleSelectHeroCard('einstein')}
+                  className={`w-full h-full rounded-3xl border ${
+                    activeDesktopCard === 'einstein' 
+                      ? 'border-amber-400/80 shadow-[0_20px_50px_rgba(245,158,11,0.25)] ring-2 ring-amber-400/30' 
+                      : 'border-[#dfdbcf] shadow-[0_16px_40px_rgba(28,28,28,0.12),0_2px_6px_rgba(0,0,0,0.04)]'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+                  style={{ transformOrigin: 'bottom center' }}
+                >
+                  <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/einstein">
+                    <picture className="contents">
+                      <source
+                        type="image/webp"
+                        srcSet={leftCardMedia?.desktop_url || '/rupan-left.webp'}
+                      />
+                      <img
+                        src={leftCardMedia?.desktop_url || '/rupan-left.webp'}
+                        alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
+                        loading="eager"
+                        className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/einstein:scale-105"
+                        style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
+                        onError={(e) => handleImageFallback(e, '/rupan-left.webp')}
+                      />
+                    </picture>
+                  </div>
+                </motion.div>
+              </div>
 
               {/* CARD 3: RUPAN SIR GRAVITON PHYSICS (RIGHT) */}
-              <motion.div
-                initial={{ opacity: 0, x: 35, y: 30, rotate: 10 }}
-                animate={{ 
-                  opacity: 1, 
-                  x: 0, 
-                  y: isClone ? 0 : [0, -6, 0], 
-                  rotate: activeDesktopCard === 'feynman' ? 0 : 6,
-                  scale: activeDesktopCard === 'feynman' ? 1.04 : 1,
-                  zIndex: activeDesktopCard === 'feynman' ? 30 : 10,
-                }}
-                transition={{ 
-                  opacity: { duration: 0.6, ease: 'easeOut', delay: 0.15 },
-                  x: { duration: 0.6, ease: 'easeOut', delay: 0.15 },
-                  rotate: { type: 'spring', stiffness: 350, damping: 25 },
-                  scale: { type: 'spring', stiffness: 350, damping: 25 },
-                  y: isClone ? { duration: 0 } : { repeat: Infinity, duration: 4.6, ease: 'easeInOut', delay: 0.6 }
-                }}
-                whileHover={{ 
-                  scale: 1.06, 
-                  rotate: 0, 
-                  zIndex: 35, 
-                  y: -10,
-                  transition: { type: 'spring', stiffness: 350, damping: 22 }
-                }}
-                onMouseEnter={onCardHoverStart}
-                onMouseLeave={onCardHoverEnd}
-                onClick={() => handleSelectHeroCard('feynman')}
-                className={`absolute right-0 lg:right-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
-                  activeDesktopCard === 'feynman' 
-                    ? 'border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.25)] ring-2 ring-cyan-400/30' 
-                    : 'border-[#dfdbcf] shadow-[0_16px_40px_rgba(28,28,28,0.12),0_2px_6px_rgba(0,0,0,0.04)]'
-                } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+              <div
+                className={`hero-card-float-right absolute right-0 lg:right-2 top-4 lg:top-5 w-[205px] lg:w-[220px] aspect-[4/5] ${
+                  activeDesktopCard === 'feynman' ? 'z-30' : 'z-10'
+                } hover:z-35 transition-[z-index] duration-200 pointer-events-auto`}
                 style={{ transformOrigin: 'bottom center' }}
               >
-                <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/feynman">
-                  <picture className="contents">
-                    <source
-                      type="image/webp"
-                      srcSet={rightCardMedia?.desktop_url || '/rupan-right.webp'}
-                    />
-                    <img
-                      src={rightCardMedia?.desktop_url || '/rupan-right.webp'}
-                      alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
-                      loading="eager"
-                      className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/feynman:scale-105"
-                      style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
-                      onError={(e) => handleImageFallback(e, '/rupan-right.webp')}
-                    />
-                  </picture>
-                </div>
-              </motion.div>
+                <motion.div
+                  initial={isClone ? false : { opacity: 0, x: 35, y: 20, rotate: 10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    x: 0, 
+                    rotate: activeDesktopCard === 'feynman' ? 0 : 6,
+                    scale: activeDesktopCard === 'feynman' ? 1.04 : 1,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.5, ease: 'easeOut', delay: isClone ? 0 : 0.15 },
+                    x: { duration: 0.5, ease: 'easeOut', delay: isClone ? 0 : 0.15 },
+                    rotate: { type: 'spring', stiffness: 350, damping: 25 },
+                    scale: { type: 'spring', stiffness: 350, damping: 25 },
+                  }}
+                  whileHover={{ 
+                    scale: 1.06, 
+                    rotate: 0, 
+                    y: -6,
+                    transition: { type: 'spring', stiffness: 350, damping: 22 }
+                  }}
+                  onMouseEnter={onCardHoverStart}
+                  onMouseLeave={onCardHoverEnd}
+                  onClick={() => handleSelectHeroCard('feynman')}
+                  className={`w-full h-full rounded-3xl border ${
+                    activeDesktopCard === 'feynman' 
+                      ? 'border-cyan-400/80 shadow-[0_20px_50px_rgba(6,182,212,0.25)] ring-2 ring-cyan-400/30' 
+                      : 'border-[#dfdbcf] shadow-[0_16px_40px_rgba(28,28,28,0.12),0_2px_6px_rgba(0,0,0,0.04)]'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+                  style={{ transformOrigin: 'bottom center' }}
+                >
+                  <div className="relative rounded-2xl overflow-hidden w-full h-full bg-slate-950 border border-white/10 group/feynman">
+                    <picture className="contents">
+                      <source
+                        type="image/webp"
+                        srcSet={rightCardMedia?.desktop_url || '/rupan-right.webp'}
+                      />
+                      <img
+                        src={rightCardMedia?.desktop_url || '/rupan-right.webp'}
+                        alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
+                        loading="eager"
+                        className="w-full h-full object-cover filter contrast-[1.02] transition-transform duration-700 group-hover/feynman:scale-105"
+                        style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
+                        onError={(e) => handleImageFallback(e, '/rupan-right.webp')}
+                      />
+                    </picture>
+                  </div>
+                </motion.div>
+              </div>
 
               {/* CARD 2: GRAVITON ACADEMY EMBLEM */}
-              <motion.div
-                initial={{ opacity: 0, y: -25, scale: 0.95 }}
-                animate={{ 
-                  opacity: 1, 
-                  y: isClone ? 0 : [0, -8, 0], 
-                  rotate: 0,
-                  scale: activeDesktopCard === 'graviton' ? 1.04 : 1,
-                  zIndex: activeDesktopCard === 'graviton' ? 30 : 20,
-                }}
-                transition={{ 
-                  opacity: { duration: 0.6, ease: 'easeOut', delay: 0.25 },
-                  scale: { type: 'spring', stiffness: 350, damping: 25 },
-                  rotate: { type: 'spring', stiffness: 350, damping: 25 },
-                  y: isClone ? { duration: 0 } : { repeat: Infinity, duration: 5.4, ease: 'easeInOut', delay: 0.3 }
-                }}
-                whileHover={{ 
-                  scale: 1.07, 
-                  zIndex: 35, 
-                  y: -12,
-                  transition: { type: 'spring', stiffness: 350, damping: 22 }
-                }}
-                onMouseEnter={onCardHoverStart}
-                onMouseLeave={onCardHoverEnd}
-                onClick={() => handleSelectHeroCard('graviton')}
-                className={`relative z-20 w-[205px] lg:w-[220px] aspect-[4/5] rounded-3xl border ${
-                  activeDesktopCard === 'graviton'
-                    ? 'border-amber-400/80 shadow-[0_25px_60px_rgba(28,28,28,0.22),0_4px_16px_rgba(0,0,0,0.08)] ring-2 ring-amber-400/40'
-                    : 'border-[#dfdbcf] shadow-[0_20px_50px_rgba(28,28,28,0.16),0_4px_16px_rgba(0,0,0,0.08)] ring-1 ring-amber-400/20'
-                } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+              <div
+                className={`hero-card-float-center relative w-[205px] lg:w-[220px] aspect-[4/5] ${
+                  activeDesktopCard === 'graviton' ? 'z-30' : 'z-20'
+                } hover:z-35 transition-[z-index] duration-200 pointer-events-auto`}
                 style={{ transformOrigin: 'center center' }}
               >
-                <div className="relative rounded-2xl overflow-hidden w-full h-full bg-[#000000] border border-white/10 flex items-center justify-center group/logo">
-                  
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.18)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
-                  <div 
-                    className="absolute inset-0 opacity-[0.06] pointer-events-none"
-                    style={{
-                      backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
-                      backgroundSize: '20px 20px',
-                    }}
-                  />
+                <motion.div
+                  initial={isClone ? false : { opacity: 0, y: -20, scale: 0.95 }}
+                  animate={{ 
+                    opacity: 1, 
+                    rotate: 0,
+                    scale: activeDesktopCard === 'graviton' ? 1.04 : 1,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.5, ease: 'easeOut', delay: isClone ? 0 : 0.2 },
+                    scale: { type: 'spring', stiffness: 350, damping: 25 },
+                    rotate: { type: 'spring', stiffness: 350, damping: 25 },
+                  }}
+                  whileHover={{ 
+                    scale: 1.07, 
+                    y: -8,
+                    transition: { type: 'spring', stiffness: 350, damping: 22 }
+                  }}
+                  onMouseEnter={onCardHoverStart}
+                  onMouseLeave={onCardHoverEnd}
+                  onClick={() => handleSelectHeroCard('graviton')}
+                  className={`w-full h-full rounded-3xl border ${
+                    activeDesktopCard === 'graviton'
+                      ? 'border-amber-400/80 shadow-[0_25px_60px_rgba(28,28,28,0.22),0_4px_16px_rgba(0,0,0,0.08)] ring-2 ring-amber-400/40'
+                      : 'border-[#dfdbcf] shadow-[0_20px_50px_rgba(28,28,28,0.16),0_4px_16px_rgba(0,0,0,0.08)] ring-1 ring-amber-400/20'
+                  } bg-gradient-to-b from-white via-[#faf8f3] to-white p-2.5 transition-colors duration-300 cursor-pointer`}
+                  style={{ transformOrigin: 'center center' }}
+                >
+                  <div className="relative rounded-2xl overflow-hidden w-full h-full bg-[#000000] border border-white/10 flex items-center justify-center group/logo">
+                    
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,rgba(56,189,248,0.18)_0%,rgba(99,102,241,0.08)_40%,transparent_70%)] pointer-events-none" />
+                    <div 
+                      className="absolute inset-0 opacity-[0.06] pointer-events-none"
+                      style={{
+                        backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
+                        backgroundSize: '20px 20px',
+                      }}
+                    />
 
-                  <img
-                    src={centerCardMedia?.desktop_url || '/mainlogo.jpg'}
-                    alt={centerCardMedia?.alt_text || `${instituteName} Logo`}
-                    className="w-full h-full object-contain p-2.5 transition-transform duration-700 group-hover/logo:scale-[1.04]"
-                    style={{ objectPosition: centerCardMedia?.object_position || 'center center' }}
-                    onError={(e) => handleImageFallback(e, '/mainlogo.jpg')}
-                  />
+                    <img
+                      src={centerCardMedia?.desktop_url || '/mainlogo.jpg'}
+                      alt={centerCardMedia?.alt_text || `${instituteName} Logo`}
+                      className="w-full h-full object-contain p-2.5 transition-transform duration-700 group-hover/logo:scale-[1.04]"
+                      style={{ objectPosition: centerCardMedia?.object_position || 'center center' }}
+                      onError={(e) => handleImageFallback(e, '/mainlogo.jpg')}
+                    />
                   
                   <div className="absolute top-2 left-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-[9.5px] font-semibold shadow-xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -367,9 +375,10 @@ export default function GravitonHeroDesktop({
                   </div>
                 </div>
               </motion.div>
-
             </div>
+
           </div>
+        </div>
 
           {/* Mini Stat Ticker below the Triad Deck */}
           <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-2 px-0.5 w-full max-w-[320px] sm:max-w-[360px] mx-auto">
