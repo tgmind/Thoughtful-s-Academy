@@ -15,6 +15,18 @@
 
 import { supabase } from '../lib/supabase'
 
+/**
+ * Format bytes to human-readable string (B, KB, MB, GB, TB)
+ */
+export function formatBytes(bytes, decimals = 1) {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+}
+
 export const LANDING_SLOTS = {
   hero_card_left: {
     slot_id: 'hero_card_left',
@@ -499,23 +511,136 @@ export async function cleanOrphanedLandingMediaStorage() {
 }
 
 /**
- * Updates only the object_position (focal point) of an existing slot
+ * Updates settings (object_position, alt_text) of any slot in public.landing_media
+ * Supports both custom and default/current slots.
  */
-export async function updateSlotObjectPosition(slotId, objectPosition) {
+export async function updateSlotMetadata(slotId, { objectPosition, altText } = {}) {
+  const slotDef = LANDING_SLOTS[slotId]
+  if (!slotDef) throw new Error(`Invalid slot: ${slotId}`)
+
+  const payload = {
+    updated_at: new Date().toISOString(),
+  }
+  if (objectPosition) payload.object_position = objectPosition
+  if (altText !== undefined) payload.alt_text = altText
+
   const { data, error } = await supabase
     .from('landing_media')
-    .update({
-      object_position: objectPosition,
-      updated_at: new Date().toISOString(),
-    })
+    .update(payload)
     .eq('slot_id', slotId)
     .select()
     .single()
 
   if (error) {
-    throw new Error(`Failed to update object position: ${error.message}`)
+    throw new Error(`Failed to update slot settings: ${error.message}`)
   }
   return data
+}
+
+/**
+ * Updates only the object_position (focal point) of an existing slot
+ */
+export async function updateSlotObjectPosition(slotId, objectPosition) {
+  return updateSlotMetadata(slotId, { objectPosition })
+}
+
+/**
+ * Retrieves real-time Supabase Storage telemetry including total bytes,
+ * remaining storage quota, percent used, and per-bucket breakdowns.
+ */
+export async function fetchStorageStats() {
+  const quotaBytes = 1073741824 // 1 GB standard Supabase project quota
+
+  try {
+    const { data, error } = await supabase.rpc('get_storage_telemetry')
+    if (!error && data) {
+      return data
+    }
+  } catch (err) {
+    console.warn('RPC get_storage_telemetry unavailable, calculating client-side:', err)
+  }
+
+  // Graceful client-side fallback if RPC is mocked or unavailable
+  try {
+    const { data: files } = await supabase.storage.from('landing-media').list()
+    let landingBytes = 0
+    let landingFiles = 0
+    if (files && Array.isArray(files)) {
+      files.forEach((f) => {
+        if (f.metadata?.size) {
+          landingBytes += f.metadata.size
+          landingFiles++
+        }
+      })
+    }
+    const remainingBytes = Math.max(0, quotaBytes - landingBytes)
+    return {
+      total_bytes: landingBytes,
+      total_files: landingFiles,
+      landing_media_bytes: landingBytes,
+      landing_media_files: landingFiles,
+      other_bytes: 0,
+      quota_bytes: quotaBytes,
+      remaining_bytes: remainingBytes,
+      percent_used: parseFloat(((landingBytes / quotaBytes) * 100).toFixed(2)),
+      buckets: [{ bucket_id: 'landing-media', name: 'landing-media', bytes: landingBytes, file_count: landingFiles, public: true }],
+      as_of: new Date().toISOString(),
+    }
+  } catch (err) {
+    return {
+      total_bytes: 0,
+      total_files: 0,
+      landing_media_bytes: 0,
+      landing_media_files: 0,
+      other_bytes: 0,
+      quota_bytes: quotaBytes,
+      remaining_bytes: quotaBytes,
+      percent_used: 0,
+      buckets: [],
+      as_of: new Date().toISOString(),
+    }
+  }
+}
+
+/**
+ * Syncs the current bundled landing assets into Supabase Storage
+ * so they become fully managed, tweakable custom WebP assets in the new architecture.
+ */
+export async function syncCurrentAssetsToStorage(onProgress) {
+  const results = []
+  const slotKeys = Object.keys(LANDING_SLOTS)
+
+  for (let i = 0; i < slotKeys.length; i++) {
+    const slotId = slotKeys[i]
+    const slotDef = LANDING_SLOTS[slotId]
+    if (onProgress) onProgress({ current: i + 1, total: slotKeys.length, slotId, title: slotDef.title })
+
+    try {
+      const srcUrl = slotDef.defaultUrls.desktop
+      const res = await fetch(srcUrl)
+      if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${srcUrl}`)
+      const blob = await res.blob()
+      const ext = srcUrl.split('.').pop() || 'webp'
+      const file = new File([blob], `${slotId}.${ext}`, { type: blob.type || 'image/webp' })
+
+      const optimized = await optimizeImageForSlot(file, slotId, {
+        objectPosition: slotDef.defaultObjectPosition,
+      })
+
+      const uploaded = await uploadLandingSlotMedia(slotId, optimized, {
+        title: slotDef.title,
+        alt_text: slotDef.defaultAlt,
+      })
+
+      if (optimized.revoke) optimized.revoke()
+      results.push({ slotId, success: true, data: uploaded })
+    } catch (err) {
+      console.warn(`Sync failed for ${slotId}:`, err)
+      results.push({ slotId, success: false, error: err.message })
+    }
+  }
+
+  return results
 }
 
 /**

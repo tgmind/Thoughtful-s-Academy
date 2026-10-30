@@ -7,6 +7,9 @@ import {
   cleanSlotStorageFiles,
   cleanOrphanedLandingMediaStorage,
   updateSlotObjectPosition,
+  updateSlotMetadata,
+  fetchStorageStats,
+  formatBytes,
   handleImageFallback,
 } from '../../src/utils/imageOptimizer'
 import { useLandingMedia } from '../../src/hooks/useLandingMedia'
@@ -45,13 +48,35 @@ vi.mock('../../src/lib/supabase', () => {
           eq: vi.fn(() => ({
             select: vi.fn(() => ({
               single: vi.fn().mockResolvedValue({
-                data: { slot_id: 'hero_card_left', object_position: '50% 30%' },
+                data: { slot_id: 'hero_card_left', object_position: '50% 30%', alt_text: 'Updated Alt' },
                 error: null,
               }),
             })),
           })),
         })),
       })),
+      rpc: vi.fn((fnName) => {
+        if (fnName === 'get_storage_telemetry') {
+          return Promise.resolve({
+            data: {
+              total_bytes: 340634,
+              total_files: 3,
+              landing_media_bytes: 45000,
+              landing_media_files: 3,
+              other_bytes: 295634,
+              quota_bytes: 1073741824,
+              remaining_bytes: 1073401190,
+              percent_used: 0.03,
+              buckets: [
+                { bucket_id: 'landing-media', name: 'landing-media', bytes: 45000, file_count: 3 },
+                { bucket_id: 'qr-codes', name: 'qr-codes', bytes: 295634, file_count: 2 },
+              ],
+            },
+            error: null,
+          })
+        }
+        return Promise.resolve({ data: null, error: null })
+      }),
       channel: vi.fn(() => mockChannel),
       removeChannel: vi.fn(),
       storage: {
@@ -177,6 +202,16 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
     expect(screen.getAllByText(/960 × 1200 px/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Transparent PNG cutout/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/2172 × 724 px/i).length).toBeGreaterThan(0)
+
+    // Verify storage telemetry & capacity monitor
+    expect(screen.getByText(/Supabase Storage Telemetry & Capacity/i)).toBeDefined()
+    expect(screen.getByText(/Storage Left/i)).toBeDefined()
+    expect(screen.getByText(/Real-time Active/i)).toBeDefined()
+    expect(screen.getByText(/Sync to Storage/i)).toBeDefined()
+
+    // Verify tweak current asset buttons are present
+    const tweakButtons = screen.getAllByRole('button', { name: /tweak/i })
+    expect(tweakButtons.length).toBeGreaterThanOrEqual(6)
   })
 
   it('renders GravitonHeroDesktop using dynamic landing media with safe fallbacks', async () => {
@@ -273,5 +308,31 @@ describe('Landing Page Media Architecture & Zero-API Optimization Engine', () =>
     const updated = await updateSlotObjectPosition('hero_card_left', '50% 30%')
     expect(updated).toBeDefined()
     expect(updated.object_position).toBe('50% 30%')
+  })
+
+  it('updateSlotMetadata updates both focal alignment and alt text in public.landing_media', async () => {
+    const updated = await updateSlotMetadata('hero_card_left', {
+      objectPosition: '50% 30%',
+      altText: 'Updated Alt',
+    })
+    expect(updated).toBeDefined()
+    expect(updated.object_position).toBe('50% 30%')
+    expect(updated.alt_text).toBe('Updated Alt')
+  })
+
+  it('fetchStorageStats retrieves real-time telemetry from Supabase RPC', async () => {
+    const stats = await fetchStorageStats()
+    expect(stats).toBeDefined()
+    expect(stats.total_bytes).toBe(340634)
+    expect(stats.quota_bytes).toBe(1073741824)
+    expect(stats.remaining_bytes).toBe(1073401190)
+    expect(stats.percent_used).toBe(0.03)
+  })
+
+  it('formatBytes formats various byte sizes correctly', () => {
+    expect(formatBytes(0)).toBe('0 B')
+    expect(formatBytes(1024)).toBe('1 KB')
+    expect(formatBytes(1048576)).toBe('1 MB')
+    expect(formatBytes(1073741824)).toBe('1 GB')
   })
 })

@@ -19,6 +19,10 @@ import {
   HelpCircle,
   Compass,
   FileCheck2,
+  HardDrive,
+  RefreshCw,
+  Database,
+  Layers,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
@@ -28,7 +32,11 @@ import {
   uploadLandingSlotMedia,
   resetLandingSlotToDefault,
   updateSlotObjectPosition,
+  updateSlotMetadata,
   cleanOrphanedLandingMediaStorage,
+  fetchStorageStats,
+  syncCurrentAssetsToStorage,
+  formatBytes,
 } from '../../utils/imageOptimizer'
 
 function isValidImageFile(file) {
@@ -36,15 +44,6 @@ function isValidImageFile(file) {
   if (file.type && file.type.startsWith('image/')) return true
   const ext = file.name?.split('.').pop()?.toLowerCase()
   return ['png', 'jpg', 'jpeg', 'webp', 'avif'].includes(ext)
-}
-
-function formatBytes(bytes, decimals = 1) {
-  if (!bytes || bytes === 0) return '0 B'
-  const k = 1024
-  const dm = decimals < 0 ? 0 : decimals
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
 function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
@@ -159,25 +158,52 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
 
   const isCustom = currentData?.is_custom ?? false
 
-  // Saves focal position for an already-uploaded custom graphic
   const currentFocalPercent = () => {
     const pos = currentData?.object_position || slotDef.defaultObjectPosition
     const match = pos.match(/(\d+)%/)
     return match ? parseInt(match[1], 10) : 50
   }
-  const isFocalChanged = isCustom && !optimizedResult && focalY !== currentFocalPercent()
+  const isFocalChanged = !optimizedResult && focalY !== currentFocalPercent()
+  const isAltChanged =
+    !optimizedResult &&
+    altText.trim() !== (currentData?.alt_text || slotDef.defaultAlt || '').trim()
+  const hasPendingTweaks = isFocalChanged || isAltChanged
 
-  const handleSaveFocalPositionOnly = async () => {
+  const handleSaveTweaks = async () => {
     setUploading(true)
     try {
       const positionStr = `50% ${focalY}%`
-      await updateSlotObjectPosition(slotKey, positionStr)
-      toast.success(`Updated focal alignment for ${slotDef.title}`)
+      await updateSlotMetadata(slotKey, {
+        objectPosition: positionStr,
+        altText: altText.trim(),
+      })
+      toast.success(`Saved adjustments for ${slotDef.title}`)
       onRefresh()
     } catch (err) {
-      toast.error('Failed to update focal position: ' + err.message)
+      toast.error('Failed to save adjustments: ' + err.message)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleTweakCurrentAsset = async () => {
+    setOptimizing(true)
+    try {
+      const targetUrl = activeUrl || slotDef.defaultUrls.desktop
+      const response = await fetch(targetUrl)
+      if (!response.ok) throw new Error(`HTTP ${response.status} loading image`)
+      const blob = await response.blob()
+      const ext = targetUrl.split('.').pop()?.split('?')[0] || 'webp'
+      const file = new File([blob], `${slotKey}_current.${ext}`, {
+        type: blob.type || 'image/webp',
+      })
+      await processFile(file)
+      toast.success(`Loaded "${slotDef.title}" into optimizer for tweaking!`)
+    } catch (err) {
+      console.error('Error loading current graphic for tweaking:', err)
+      toast.error('Failed to load current graphic: ' + err.message)
+    } finally {
+      setOptimizing(false)
     }
   }
 
@@ -453,6 +479,24 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
                 Target: {slotDef.recommendedDimensions}
               </p>
             </div>
+
+            {!optimizedResult && (
+              <div className="mt-1 pt-2 border-t border-gray-200/60 w-full flex justify-center">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleTweakCurrentAsset()
+                  }}
+                  disabled={optimizing}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-gray-700 hover:text-indigo-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                  title="Load the currently displayed graphic into the WebP canvas optimizer to tweak framing, cropping, and compression"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{isCustom ? 'Tweak / Re-crop Live Graphic' : 'Tweak & Optimize Current Asset'}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Realtime Compression & Live Dimension Analytics */}
@@ -570,16 +614,18 @@ function SlotCard({ slotKey, slotDef, currentData, onRefresh }) {
                 </button>
               )}
 
-              {isFocalChanged && (
+              {hasPendingTweaks && (
                 <button
                   type="button"
-                  onClick={handleSaveFocalPositionOnly}
+                  onClick={handleSaveTweaks}
                   disabled={uploading}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                  title="Save new focal alignment to the database"
+                  title="Save adjustments to database"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Update Alignment ({focalY}%)</span>
+                  <span>
+                    Save Tweaks ({focalY}%{isAltChanged ? ', Alt Text' : ''})
+                  </span>
                 </button>
               )}
             </div>
@@ -629,6 +675,21 @@ export default function LandingMediaManager() {
   const [loading, setLoading] = useState(true)
   const [showCheatSheet, setShowCheatSheet] = useState(false)
   const [purging, setPurging] = useState(false)
+  const [storageStats, setStorageStats] = useState(null)
+  const [loadingStats, setLoadingStats] = useState(false)
+  const [syncingAll, setSyncingAll] = useState(false)
+
+  const loadStorageStats = async () => {
+    try {
+      setLoadingStats(true)
+      const stats = await fetchStorageStats()
+      setStorageStats(stats)
+    } catch (err) {
+      console.warn('Storage stats error:', err)
+    } finally {
+      setLoadingStats(false)
+    }
+  }
 
   const fetchMedia = async () => {
     try {
@@ -649,6 +710,37 @@ export default function LandingMediaManager() {
     }
   }
 
+  const handleSyncAllCurrentAssets = async () => {
+    if (
+      !window.confirm(
+        'Sync and upload all current bundled assets to Supabase Storage? This optimizes them into multi-resolution WebP files and registers them as live custom assets in the new architecture.'
+      )
+    ) {
+      return
+    }
+    setSyncingAll(true)
+    const toastId = toast.loading('Syncing current assets to Supabase Storage...')
+    try {
+      const results = await syncCurrentAssetsToStorage((prog) => {
+        toast.loading(
+          `Optimizing & uploading (${prog.current}/${prog.total}): ${prog.title}...`,
+          { id: toastId }
+        )
+      })
+      const successCount = results.filter((r) => r.success).length
+      toast.success(
+        `Synced ${successCount} assets to Supabase Storage!`,
+        { id: toastId }
+      )
+      await fetchMedia()
+      await loadStorageStats()
+    } catch (err) {
+      toast.error('Sync failed: ' + err.message, { id: toastId })
+    } finally {
+      setSyncingAll(false)
+    }
+  }
+
   const handlePurgeStorage = async () => {
     if (!window.confirm('Scan Supabase Storage and remove any orphaned or abandoned WebP images?')) {
       return
@@ -662,6 +754,7 @@ export default function LandingMediaManager() {
         } else {
           toast.success('Storage is completely clean! Zero orphaned files found.')
         }
+        await loadStorageStats()
       } else {
         toast.error('Storage scan error: ' + res.error)
       }
@@ -674,6 +767,7 @@ export default function LandingMediaManager() {
 
   useEffect(() => {
     fetchMedia()
+    loadStorageStats()
   }, [])
 
   const mediaMap = {}
@@ -718,7 +812,7 @@ export default function LandingMediaManager() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <button
             type="button"
             onClick={() => setShowCheatSheet(!showCheatSheet)}
@@ -727,6 +821,17 @@ export default function LandingMediaManager() {
           >
             <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden sm:inline">{showCheatSheet ? 'Hide Specs' : 'Dimensions Cheat Sheet'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSyncAllCurrentAssets}
+            disabled={syncingAll || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/90 hover:bg-indigo-600 border border-indigo-400/30 text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+            title="Sync all current bundled assets into Supabase Storage as live WebP files"
+          >
+            <UploadCloud className={`w-3.5 h-3.5 ${syncingAll ? 'animate-bounce text-amber-300' : ''}`} />
+            <span className="hidden sm:inline">{syncingAll ? 'Syncing...' : 'Sync to Storage'}</span>
           </button>
 
           <button
@@ -742,12 +847,15 @@ export default function LandingMediaManager() {
 
           <button
             type="button"
-            onClick={fetchMedia}
-            disabled={loading}
+            onClick={() => {
+              fetchMedia()
+              loadStorageStats()
+            }}
+            disabled={loading || loadingStats}
             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
-            title="Refresh slot status"
+            title="Refresh slot status and storage telemetry"
           >
-            <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RotateCcw className={`w-4 h-4 ${loading || loadingStats ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -833,6 +941,109 @@ export default function LandingMediaManager() {
         )}
       </AnimatePresence>
 
+      {/* Real-Time Supabase Storage Capacity & Telemetry Monitor */}
+      <div className="bg-gradient-to-br from-gray-900 via-slate-900 to-black rounded-2xl border border-white/10 p-5 text-white shadow-lg space-y-4">
+        {/* Header & Status Pill */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-400/20 text-indigo-400 flex items-center justify-center">
+              <HardDrive className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm sm:text-base text-white tracking-tight">
+                  Supabase Storage Telemetry &amp; Capacity
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Real-time Active</span>
+                </span>
+              </div>
+              <p className="text-xs text-white/60">
+                Live capacity metrics from Supabase Storage cluster. Project Quota: 1.0 GB (1,024 MB).
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Storage Left Metric */}
+          <div className="text-right">
+            <div className="text-xs text-white/60">Storage Left</div>
+            <div className="text-base sm:text-lg font-mono font-bold text-emerald-400">
+              {formatBytes(storageStats?.remaining_bytes ?? 1073741824)} Free
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Multi-Segment Meter */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-white/80 font-mono">
+            <span>
+              Used: <strong className="text-white">{formatBytes(storageStats?.total_bytes ?? 0)}</strong> ({storageStats?.percent_used ?? 0}%)
+            </span>
+            <span>
+              Quota: <strong className="text-white">1.0 GB</strong> (1,024 MB)
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/10">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                (storageStats?.percent_used ?? 0) > 90
+                  ? 'bg-rose-500'
+                  : (storageStats?.percent_used ?? 0) > 75
+                  ? 'bg-amber-400'
+                  : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500'
+              }`}
+              style={{ width: `${Math.max(1, Math.min(100, storageStats?.percent_used ?? 0.1))}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 4-Column Metric Breakdown Tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-white/50 block uppercase tracking-wider font-semibold">Remaining Space</span>
+            <span className="text-sm sm:text-base font-bold font-mono text-emerald-400">
+              {formatBytes(storageStats?.remaining_bytes ?? 1073741824)}
+            </span>
+            <span className="text-[10px] text-white/50 block mt-0.5">
+              {(100 - (storageStats?.percent_used ?? 0)).toFixed(1)}% Available
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-white/50 block uppercase tracking-wider font-semibold">Landing Media</span>
+            <span className="text-sm sm:text-base font-bold font-mono text-indigo-300">
+              {formatBytes(storageStats?.landing_media_bytes ?? 0)}
+            </span>
+            <span className="text-[10px] text-white/50 block mt-0.5">
+              {storageStats?.landing_media_files ?? 0} WebP Files
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-white/50 block uppercase tracking-wider font-semibold">Other Buckets</span>
+            <span className="text-sm sm:text-base font-bold font-mono text-amber-300">
+              {formatBytes(storageStats?.other_bytes ?? 0)}
+            </span>
+            <span className="text-[10px] text-white/50 block mt-0.5">
+              {Math.max(0, (storageStats?.total_files ?? 0) - (storageStats?.landing_media_files ?? 0))} files (QRs, etc.)
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-white/50 block uppercase tracking-wider font-semibold">Bucket Quota</span>
+            <span className="text-sm sm:text-base font-bold font-mono text-white">
+              10 MB / File
+            </span>
+            <span className="text-[10px] text-emerald-400 block mt-0.5 font-medium">
+              Auto WebP compressed
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Slot Groups */}
       <div className="space-y-8">
         {GROUPS.map((group) => (
@@ -856,7 +1067,10 @@ export default function LandingMediaManager() {
                     slotKey={slotKey}
                     slotDef={slotDef}
                     currentData={mediaMap[slotKey]}
-                    onRefresh={fetchMedia}
+                    onRefresh={() => {
+                      fetchMedia()
+                      loadStorageStats()
+                    }}
                   />
                 )
               })}
