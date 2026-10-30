@@ -13,7 +13,7 @@ import {
   handleImageFallback,
   syncCurrentAssetsToStorage,
 } from '../../src/utils/imageOptimizer'
-import { useLandingMedia } from '../../src/hooks/useLandingMedia'
+import { useLandingMedia, _resetLandingMediaCache } from '../../src/hooks/useLandingMedia'
 import LandingMediaManager from '../../src/components/admin/LandingMediaManager'
 import GravitonHeroDesktop from '../../src/components/home/GravitonHeroDesktop'
 import PersonalHeroDesktop from '../../src/components/home/PersonalHeroDesktop'
@@ -106,6 +106,7 @@ vi.mock('../../src/lib/supabase', () => {
 describe('Landing Page Media Architecture & Zero-API Optimization Engine', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    _resetLandingMediaCache()
   })
 
   it('defines all 6 standard slots with complete variant configurations', () => {

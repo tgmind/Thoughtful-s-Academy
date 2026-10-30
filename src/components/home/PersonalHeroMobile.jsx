@@ -243,8 +243,10 @@ export default function PersonalHeroMobile() {
 
             {/* Cutout Portrait with Feathered Waist */}
             <div
-              className="relative z-10 w-full flex items-end justify-center select-none"
+              className="relative z-10 w-full flex items-end justify-center select-none transform-gpu will-change-transform"
               style={{
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
                 maskImage: 'linear-gradient(to bottom, black 65%, rgba(0,0,0,0.6) 82%, rgba(0,0,0,0.15) 94%, transparent 100%)',
                 WebkitMaskImage: 'linear-gradient(to bottom, black 65%, rgba(0,0,0,0.6) 82%, rgba(0,0,0,0.15) 94%, transparent 100%)',
               }}
@@ -257,7 +259,9 @@ export default function PersonalHeroMobile() {
                 <img
                   src={mentorMedia?.mobile_url || mentorMedia?.desktop_url || '/rupan.webp'}
                   alt={mentorMedia?.alt_text || 'GRAViTON PHYSICS Lead Mentor'}
-                  className="max-h-[270px] xs:max-h-[290px] w-auto object-contain select-none"
+                  loading="eager"
+                  decoding="async"
+                  className="max-h-[270px] xs:max-h-[290px] w-auto object-contain select-none transform-gpu"
                   style={{
                     objectPosition: mentorMedia?.object_position || 'center bottom',
                     filter: 'drop-shadow(0 10px 20px rgba(28, 28, 28, 0.16)) drop-shadow(0 0 15px rgba(245, 158, 11, 0.16))',

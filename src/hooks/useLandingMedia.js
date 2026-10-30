@@ -2,6 +2,32 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { LANDING_SLOTS } from '../utils/imageOptimizer'
 
+// Shared in-memory media cache for instant zero-latency reuse across all slide components
+let cachedMediaMap = null
+
+export function _resetLandingMediaCache() {
+  cachedMediaMap = null
+}
+
+function getDefaultMediaMap() {
+  const initial = {}
+  Object.keys(LANDING_SLOTS).forEach((slotId) => {
+    const def = LANDING_SLOTS[slotId]
+    initial[slotId] = {
+      slot_id: slotId,
+      title: def.title,
+      desktop_url: def.defaultUrls.desktop,
+      tablet_url: def.defaultUrls.tablet,
+      mobile_url: def.defaultUrls.mobile,
+      object_position: def.defaultObjectPosition,
+      alt_text: def.defaultAlt,
+      aspect_ratio: def.aspectRatio,
+      is_custom: false,
+    }
+  })
+  return initial
+}
+
 /**
  * useLandingMedia Hook
  * Provides reactive media assets for the public landing page with zero-delay
@@ -9,26 +35,11 @@ import { LANDING_SLOTS } from '../utils/imageOptimizer'
  */
 export function useLandingMedia() {
   const [mediaMap, setMediaMap] = useState(() => {
-    // Synchronous initial fallback state ensures zero flash of missing images
-    const initial = {}
-    Object.keys(LANDING_SLOTS).forEach((slotId) => {
-      const def = LANDING_SLOTS[slotId]
-      initial[slotId] = {
-        slot_id: slotId,
-        title: def.title,
-        desktop_url: def.defaultUrls.desktop,
-        tablet_url: def.defaultUrls.tablet,
-        mobile_url: def.defaultUrls.mobile,
-        object_position: def.defaultObjectPosition,
-        alt_text: def.defaultAlt,
-        aspect_ratio: def.aspectRatio,
-        is_custom: false,
-      }
-    })
-    return initial
+    if (cachedMediaMap) return cachedMediaMap
+    return getDefaultMediaMap()
   })
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !cachedMediaMap)
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +72,7 @@ export function useLandingMedia() {
                 }
               }
             })
+            cachedMediaMap = next
             return next
           })
         }
@@ -85,20 +97,24 @@ export function useLandingMedia() {
             const slotId = payload.old.slot_id
             const def = LANDING_SLOTS[slotId]
             if (def) {
-              setMediaMap((prev) => ({
-                ...prev,
-                [slotId]: {
-                  slot_id: slotId,
-                  title: def.title,
-                  desktop_url: def.defaultUrls.desktop,
-                  tablet_url: def.defaultUrls.tablet,
-                  mobile_url: def.defaultUrls.mobile,
-                  object_position: def.defaultObjectPosition,
-                  alt_text: def.defaultAlt,
-                  aspect_ratio: def.aspectRatio,
-                  is_custom: false,
-                },
-              }))
+              setMediaMap((prev) => {
+                const next = {
+                  ...prev,
+                  [slotId]: {
+                    slot_id: slotId,
+                    title: def.title,
+                    desktop_url: def.defaultUrls.desktop,
+                    tablet_url: def.defaultUrls.tablet,
+                    mobile_url: def.defaultUrls.mobile,
+                    object_position: def.defaultObjectPosition,
+                    alt_text: def.defaultAlt,
+                    aspect_ratio: def.aspectRatio,
+                    is_custom: false,
+                  },
+                }
+                cachedMediaMap = next
+                return next
+              })
             }
             return
           }
@@ -108,23 +124,27 @@ export function useLandingMedia() {
             const def = LANDING_SLOTS[slotId]
             const isCustom = payload.new.is_custom
 
-            setMediaMap((prev) => ({
-              ...prev,
-              [slotId]: {
-                ...prev[slotId],
-                ...payload.new,
-                desktop_url: isCustom
-                  ? (payload.new.desktop_url || prev[slotId]?.desktop_url)
-                  : (def?.defaultUrls.desktop || payload.new.desktop_url),
-                tablet_url: isCustom
-                  ? (payload.new.tablet_url || payload.new.desktop_url || prev[slotId]?.tablet_url)
-                  : (def?.defaultUrls.tablet || payload.new.tablet_url),
-                mobile_url: isCustom
-                  ? (payload.new.mobile_url || payload.new.desktop_url || prev[slotId]?.mobile_url)
-                  : (def?.defaultUrls.mobile || payload.new.mobile_url),
-                object_position: payload.new.object_position || prev[slotId]?.object_position || def?.defaultObjectPosition,
-              },
-            }))
+            setMediaMap((prev) => {
+              const next = {
+                ...prev,
+                [slotId]: {
+                  ...prev[slotId],
+                  ...payload.new,
+                  desktop_url: isCustom
+                    ? (payload.new.desktop_url || prev[slotId]?.desktop_url)
+                    : (def?.defaultUrls.desktop || payload.new.desktop_url),
+                  tablet_url: isCustom
+                    ? (payload.new.tablet_url || payload.new.desktop_url || prev[slotId]?.tablet_url)
+                    : (def?.defaultUrls.tablet || payload.new.tablet_url),
+                  mobile_url: isCustom
+                    ? (payload.new.mobile_url || payload.new.desktop_url || prev[slotId]?.mobile_url)
+                    : (def?.defaultUrls.mobile || payload.new.mobile_url),
+                  object_position: payload.new.object_position || prev[slotId]?.object_position || def?.defaultObjectPosition,
+                },
+              }
+              cachedMediaMap = next
+              return next
+            })
           }
         }
       )

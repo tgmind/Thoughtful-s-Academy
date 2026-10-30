@@ -56,29 +56,6 @@ export default function HeroCarouselMobile({
     return () => clearTimer()
   }, [trackPosition, isPaused, isSnapping, prefersReducedMotion, clearTimer, advanceSlide])
 
-  // Clever & Minimalistic Scroll-Aware Slide-2 Early Reveal:
-  // When a mobile visitor begins scrolling down before 4.5s elapses,
-  // we smoothly transition to Slide 2 so they never miss the mentor showcase!
-  const hasAutoSwappedOnScrollRef = useRef(false)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        !hasAutoSwappedOnScrollRef.current &&
-        trackPosition === 0 &&
-        typeof window !== 'undefined' &&
-        window.scrollY > 25 &&
-        window.scrollY < 450
-      ) {
-        hasAutoSwappedOnScrollRef.current = true
-        advanceSlide()
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [trackPosition, advanceSlide])
-
   // Pause rotation when browser tab is inactive / hidden
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -200,9 +177,8 @@ export default function HeroCarouselMobile({
       {/* ─── UNIDIRECTIONAL RIGHT-TO-LEFT HORIZONTAL SLIDE TRACK ─── */}
       <div className="w-full overflow-hidden relative">
         <motion.div
-          className="flex w-[300%] items-start transform-gpu will-change-transform"
+          className="flex w-[300%] items-stretch will-change-transform"
           style={{
-            transform: 'translate3d(0, 0, 0)',
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
           }}
@@ -214,7 +190,10 @@ export default function HeroCarouselMobile({
           onAnimationComplete={handleAnimationComplete}
         >
           {/* SLIDE 0: Graviton Academy Hero Mobile (Primary) */}
-          <div className="w-1/3 shrink-0">
+          <div
+            className="w-1/3 shrink-0 transform-gpu"
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
             <GravitonHeroMobile
               instituteName={instituteName}
               heroActiveCard={heroActiveCard}
@@ -226,23 +205,28 @@ export default function HeroCarouselMobile({
           </div>
 
           {/* SLIDE 1: Personal Mentor Hero Mobile */}
-          <div className="w-1/3 shrink-0">
+          <div
+            className="w-1/3 shrink-0 transform-gpu"
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
             <PersonalHeroMobile />
           </div>
 
           {/* SLIDE 2: Graviton Academy Visual Clone (for seamless right-to-left loop) */}
-          <div className="w-1/3 shrink-0 pointer-events-none select-none" aria-hidden="true">
-            {trackPosition > 0 && (
-              <GravitonHeroMobile
-                instituteName={instituteName}
-                heroActiveCard={heroActiveCard}
-                mobileHeroCard={mobileHeroCard}
-                heroDeckItems={heroDeckItems}
-                handleSelectHeroCard={() => {}}
-                handleDeckActivity={() => {}}
-                isClone={true}
-              />
-            )}
+          <div
+            className="w-1/3 shrink-0 transform-gpu pointer-events-none select-none"
+            aria-hidden="true"
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
+            <GravitonHeroMobile
+              instituteName={instituteName}
+              heroActiveCard={heroActiveCard}
+              mobileHeroCard={mobileHeroCard}
+              heroDeckItems={heroDeckItems}
+              handleSelectHeroCard={() => {}}
+              handleDeckActivity={() => {}}
+              isClone={true}
+            />
           </div>
         </motion.div>
       </div>
@@ -264,13 +248,11 @@ export default function HeroCarouselMobile({
             className="relative h-6 flex items-center justify-center transition-all focus:outline-hidden"
           >
             {activeSlideIndex === 0 ? (
-              <motion.div
-                layoutId="heroCarouselActiveSegmentMobile"
-                className="w-10 h-2.5 rounded-full bg-[#1c1c1c] shadow-xs flex items-center justify-center"
-                transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+              <div
+                className="w-10 h-2.5 rounded-full bg-[#1c1c1c] shadow-xs flex items-center justify-center transition-all duration-300"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse" />
-              </motion.div>
+              </div>
             ) : (
               <span className="w-3 h-2.5 rounded-full bg-[#d5d0c3] hover:bg-[#a8a396] hover:w-5 transition-all duration-300" />
             )}
@@ -286,13 +268,11 @@ export default function HeroCarouselMobile({
             className="relative h-6 flex items-center justify-center transition-all focus:outline-hidden"
           >
             {activeSlideIndex === 1 ? (
-              <motion.div
-                layoutId="heroCarouselActiveSegmentMobile"
-                className="w-10 h-2.5 rounded-full bg-[#1c1c1c] shadow-xs flex items-center justify-center"
-                transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+              <div
+                className="w-10 h-2.5 rounded-full bg-[#1c1c1c] shadow-xs flex items-center justify-center transition-all duration-300"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4] animate-pulse" />
-              </motion.div>
+              </div>
             ) : (
               <span className="w-3 h-2.5 rounded-full bg-[#d5d0c3] hover:bg-[#a8a396] hover:w-5 transition-all duration-300" />
             )}

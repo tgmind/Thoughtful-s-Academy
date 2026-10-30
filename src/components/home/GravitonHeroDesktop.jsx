@@ -41,7 +41,9 @@ export default function GravitonHeroDesktop({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="font-semibold tracking-tight">Academic Excellence</span>
+            <span className="font-semibold tracking-tight">
+              {isClone ? 'Academic\u200B Excellence' : 'Academic Excellence'}
+            </span>
             <span className="text-[#5f5f5d]/50">·</span>
             <span className="text-indigo-950 font-semibold whitespace-nowrap">Conceptual Mastery</span>
           </div>
@@ -53,7 +55,7 @@ export default function GravitonHeroDesktop({
                 <GravitonBrandText name={instituteName} variant="hero" />
               </span>
               <span className="block text-xl sm:text-3xl lg:text-4xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#1c1c1c] via-[#2d2d2d] to-[#454545] mt-1 sm:mt-2 font-serif italic">
-                Empowering Concepts. Building Toppers.
+                {isClone ? 'Empowering\u200B Concepts. Building Toppers.' : 'Empowering Concepts. Building Toppers.'}
               </span>
             </h1>
 

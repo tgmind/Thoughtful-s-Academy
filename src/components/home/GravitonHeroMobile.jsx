@@ -36,7 +36,9 @@ export default function GravitonHeroMobile({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="font-semibold tracking-tight">Academic Excellence</span>
+            <span className="font-semibold tracking-tight">
+              {isClone ? 'Academic\u200B Excellence' : 'Academic Excellence'}
+            </span>
             <span className="text-[#5f5f5d]/50">·</span>
             <span className="text-indigo-950 font-semibold whitespace-nowrap">Conceptual Mastery</span>
           </div>
@@ -51,7 +53,7 @@ export default function GravitonHeroMobile({
                 <GravitonBrandText name={instituteName} variant="hero-mobile" className="text-3xl sm:text-4xl" />
               </span>
               <span className="block text-base sm:text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#1c1c1c] via-[#2d2d2d] to-[#454545] mt-1 font-serif italic tracking-tight">
-                Empowering Concepts. Building Toppers.
+                {isClone ? 'Empowering\u200B Concepts. Building Toppers.' : 'Empowering Concepts. Building Toppers.'}
               </span>
             </h1>
 
@@ -189,6 +191,8 @@ export default function GravitonHeroMobile({
                   <img
                     src={leftCardMedia?.mobile_url || leftCardMedia?.desktop_url || '/rupan-left.webp'}
                     alt={leftCardMedia?.alt_text || 'Rupan Sir — Gold Medalist, 1st Convocation MBBU'}
+                    loading="eager"
+                    decoding="async"
                     className="w-full h-full object-cover filter contrast-[1.02]"
                     style={{ objectPosition: leftCardMedia?.object_position || '50% 28%' }}
                     onError={(e) => handleImageFallback(e, '/rupan-left.webp')}
@@ -226,6 +230,8 @@ export default function GravitonHeroMobile({
                 <img
                   src={centerCardMedia?.mobile_url || centerCardMedia?.desktop_url || '/mainlogo.jpg'}
                   alt={centerCardMedia?.alt_text || `${instituteName} Logo`}
+                  loading="eager"
+                  decoding="async"
                   className="w-full h-full object-contain p-2"
                   style={{ objectPosition: centerCardMedia?.object_position || 'center center' }}
                   onError={(e) => handleImageFallback(e, '/mainlogo.jpg')}
@@ -288,6 +294,8 @@ export default function GravitonHeroMobile({
                   <img
                     src={rightCardMedia?.mobile_url || rightCardMedia?.desktop_url || '/rupan-right.webp'}
                     alt={rightCardMedia?.alt_text || 'Rupan Sir — NITian & Physics Mentor'}
+                    loading="eager"
+                    decoding="async"
                     className="w-full h-full object-cover filter contrast-[1.02]"
                     style={{ objectPosition: rightCardMedia?.object_position || '50% 24%' }}
                     onError={(e) => handleImageFallback(e, '/rupan-right.webp')}
